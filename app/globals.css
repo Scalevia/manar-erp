@@ -1,26 +1,205 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ------------------------------------------------------------------
+   ManarERP — نظام التصميم
+   ألوان دافئة هادية، تباين عالي، أرقام واضحة في الشمس وبالليل.
+   ------------------------------------------------------------------ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  /* الأسطح */
+  --page: #f6f4f1;
+  --card: #ffffff;
+  --raised: #ffffff;
+  --sunken: #efece7;
+
+  /* النص */
+  --ink: #1a1816;
+  --ink-soft: #5c554d;
+  --ink-mute: #8d857b;
+
+  /* الحدود */
+  --line: #e3ded6;
+  --line-soft: #efebe4;
+
+  /* الهوية */
+  --brand: #0d7068;
+  --brand-ink: #ffffff;
+  --brand-soft: #e2f1ef;
+
+  /* الدلالات */
+  --pos: #04724d; /* ليا — فلوس جاية */
+  --pos-soft: #e0f0e9;
+  --neg: #b02a25; /* عليا — فلوس رايحة */
+  --neg-soft: #fbe8e6;
+  --warn: #9a5b06; /* راكد / تنبيه */
+  --warn-soft: #fdf0dd;
+
+  /* الزجاج */
+  --glass: rgb(255 255 255 / 0.72);
+  --glass-line: rgb(0 0 0 / 0.07);
+
+  /* المساحات الآمنة (Dynamic Island / Home Indicator) */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
+  --nav-h: 4.25rem;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --page: #100f0e;
+    --card: #1a1917;
+    --raised: #221f1d;
+    --sunken: #0a0a09;
+
+    --ink: #f3efe9;
+    --ink-soft: #b0a89e;
+    --ink-mute: #857d73;
+
+    --line: #2c2926;
+    --line-soft: #211f1d;
+
+    --brand: #2bbfb0;
+    --brand-ink: #06201e;
+    --brand-soft: #14322f;
+
+    --pos: #3cc98c;
+    --pos-soft: #12301f;
+    --neg: #f07a72;
+    --neg-soft: #331614;
+    --warn: #e0a54a;
+    --warn-soft: #30230f;
+
+    --glass: rgb(26 25 23 / 0.78);
+    --glass-line: rgb(255 255 255 / 0.08);
   }
 }
 
+:root[data-theme="dark"] {
+  --page: #100f0e;
+  --card: #1a1917;
+  --raised: #221f1d;
+  --sunken: #0a0a09;
+
+  --ink: #f3efe9;
+  --ink-soft: #b0a89e;
+  --ink-mute: #857d73;
+
+  --line: #2c2926;
+  --line-soft: #211f1d;
+
+  --brand: #2bbfb0;
+  --brand-ink: #06201e;
+  --brand-soft: #14322f;
+
+  --pos: #3cc98c;
+  --pos-soft: #12301f;
+  --neg: #f07a72;
+  --neg-soft: #331614;
+  --warn: #e0a54a;
+  --warn-soft: #30230f;
+
+  --glass: rgb(26 25 23 / 0.78);
+  --glass-line: rgb(255 255 255 / 0.08);
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-raised: var(--raised);
+  --color-sunken: var(--sunken);
+
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-mute: var(--ink-mute);
+
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+
+  --color-pos: var(--pos);
+  --color-pos-soft: var(--pos-soft);
+  --color-neg: var(--neg);
+  --color-neg-soft: var(--neg-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+
+  --font-sans: var(--font-arabic);
+}
+
+/* ------------------------------------------------------------------ */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  background: var(--page);
+  /* مفيش تكبير بالنقر المزدوج، ومفيش سحب مطاطي للصفحة كلها */
+  touch-action: manipulation;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-arabic), system-ui, sans-serif;
+  overscroll-behavior-y: none;
+}
+
+/* الأرقام: لاتينية، عرض ثابت، واتجاهها يفضل صح جوه نص عربي */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* المساحات الآمنة */
+.pt-safe {
+  padding-top: var(--sat);
+}
+.pb-safe {
+  padding-bottom: var(--sab);
+}
+.pb-nav {
+  padding-bottom: calc(var(--nav-h) + var(--sab) + 1rem);
+}
+
+/* شريط زجاجي */
+.glass {
+  background: var(--glass);
+  backdrop-filter: saturate(1.6) blur(18px);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+}
+
+/* إخفاء شريط التمرير في القوائم الأفقية */
+.no-bar {
+  scrollbar-width: none;
+}
+.no-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ضغطة الزرار — ردّ فعل محسوس بدل أنيميشن */
+.press {
+  transition:
+    transform 0.12s ease,
+    background-color 0.12s ease;
+}
+.press:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
