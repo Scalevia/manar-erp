@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ManarERP
 
-## Getting Started
+ERP for a wholesale clothing trader in El Qantara West who buys fabric, sends
+it to CMT factories, receives finished garments, and sells wholesale on cash or
+credit.
 
-First, run the development server:
+Mobile-first Arabic (RTL) PWA. Built for one owner on an iPhone today, with the
+schema and permission model designed so staff accounts can be added later
+without a rewrite.
+
+**[SPEC.md](./SPEC.md) is the source of truth** — domain model, business rules,
+costing logic, roles, and the onboarding plan. It is written in Arabic, in the
+vocabulary the shop owner actually uses.
+
+## Status
+
+Frontend prototype for design review. Every screen reads from `lib/mock.ts`;
+**no backend is wired up yet.**
+
+| Working | Display only |
+| --- | --- |
+| Sales invoice (customer pick → lines → partial payment) | Dashboard, inventory detail, ledgers |
+| Inventory search by model code | Manufacturing orders, purchases, reports |
+| Fast stock entry (setup) | Collect / pay / settle buttons |
+
+Of the nine operations in the spec, only **بيع** has a real screen so far.
+Receiving from a factory, collections, purchases, returns, cash transfers and
+the login/PIN flow are still to build.
+
+## Stack
+
+Next.js 16 (App Router) · TypeScript · Tailwind v4 · Lucide · Supabase (planned)
+
+## Develop
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`. To test on a phone, use the Network URL that
+`next dev` prints and make sure the phone is on the same Wi-Fi.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Conventions
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Money is integers in piastres.** Never floats. `lib/format.ts` handles
+  display; `p()` converts EGP to piastres in mock data.
+- **Latin digits (0-9)**, not Arabic-Indic — they read faster and match phones
+  and calculators.
+- **No accounting vocabulary in the UI.** The ledger is double-entry
+  underneath, but the screen says ليا / عليا, never مدين / دائن. The full
+  glossary is in SPEC.md section 2.
+- **Model codes repeat.** The same code can exist at two different costs from
+  two manufacturing orders — duplicates are expected, not an error.
+- Commit messages and PR descriptions in English; code comments, UI strings and
+  SPEC.md in Arabic.
