@@ -334,23 +334,23 @@ export type LedgerRow = {
 const statements: Record<string, LedgerRow[]> = {
   c1: [
     { id: "l1", date: "2026-09-12", label: "بيع 60 قطعة", amount: p(7200), balance: p(52200) },
-    { id: "l2", date: "2026-09-20", label: "تحصيل فودافون", amount: -p(5000), balance: p(47200) },
+    { id: "l2", date: "2026-09-20", label: "دفع ← فودافون كاش", amount: -p(5000), balance: p(47200) },
     { id: "l3", date: "2026-09-22", label: "مرتجع 10 قطع", amount: -p(1200), balance: p(46000) },
     { id: "l4", date: "2026-09-23", label: "مسامحة", amount: -p(1000), balance: p(45000) },
   ],
   c2: [
     { id: "l5", date: "2026-09-03", label: "بيع 120 قطعة", amount: p(15600), balance: p(48600) },
-    { id: "l6", date: "2026-09-14", label: "تحصيل انستاباي", amount: -p(10000), balance: p(38600) },
+    { id: "l6", date: "2026-09-14", label: "دفع ← انستاباي", amount: -p(10000), balance: p(38600) },
     { id: "l7", date: "2026-09-19", label: "مرتجع 5 قطع", amount: -p(600), balance: p(38000) },
   ],
   f1: [
     { id: "l8", date: "2026-09-04", label: "استلام 150 قطعة · مصنعية", amount: p(4500), balance: -p(11500) },
-    { id: "l9", date: "2026-09-15", label: "دفع من الدرج", amount: -p(4000), balance: -p(7500) },
+    { id: "l9", date: "2026-09-15", label: "دفعتله ← من الدرج", amount: -p(4000), balance: -p(7500) },
     { id: "l10", date: "2026-09-21", label: "استلام 220 قطعة · مصنعية", amount: p(6600), balance: -p(18000) },
   ],
   s1: [
     { id: "l11", date: "2026-09-06", label: "شراء قماش جينز 180 م", amount: p(16200), balance: -p(16200) },
-    { id: "l12", date: "2026-09-16", label: "دفع انستاباي", amount: -p(16200), balance: 0 },
+    { id: "l12", date: "2026-09-16", label: "دفعتله ← من انستاباي", amount: -p(16200), balance: 0 },
     { id: "l13", date: "2026-09-23", label: "شراء قماش قطن 200 م", amount: p(20000), balance: -p(20000) },
   ],
 };
@@ -383,10 +383,10 @@ function generatedStatement(x: Party): LedgerRow[] {
 
   const [inLabel, outLabel, lastLabel] =
     x.kind === "customer"
-      ? [`بيع ${piecesFor(first, 120)} قطعة`, "تحصيل من الدرج", `بيع ${piecesFor(last, 120)} قطعة`]
+      ? [`بيع ${piecesFor(first, 120)} قطعة`, "دفع كاش ← الدرج", `بيع ${piecesFor(last, 120)} قطعة`]
       : x.kind === "factory"
-        ? [`استلام ${piecesFor(first, 30)} قطعة · مصنعية`, "دفع من الدرج", `استلام ${piecesFor(last, 30)} قطعة · مصنعية`]
-        : [`شراء قماش ${piecesFor(first, 100)} م`, "دفع انستاباي", `شراء قماش ${piecesFor(last, 100)} م`];
+        ? [`استلام ${piecesFor(first, 30)} قطعة · مصنعية`, "دفعتله ← من الدرج", `استلام ${piecesFor(last, 30)} قطعة · مصنعية`]
+        : [`شراء قماش ${piecesFor(first, 100)} م`, "دفعتله ← من انستاباي", `شراء قماش ${piecesFor(last, 100)} م`];
 
   return [
     { id: `${x.id}-1`, date: start, label: inLabel, amount: first, balance: sign * first },

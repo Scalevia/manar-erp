@@ -92,39 +92,61 @@ export default async function StatementPage({
         </div>
 
         {/* ------------------------------- كشف الحساب ------------------------------- */}
-        <div className="mb-2 flex items-baseline justify-between px-1">
-          <h2 className="text-[13px] font-semibold text-ink-mute">كشف الحساب</h2>
-          <span className="text-[12px] text-ink-mute">الرصيد بعد كل حركة</span>
-        </div>
+        <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">كشف الحساب</h2>
 
         <Card className="overflow-hidden">
           {rows.length === 0 ? (
             <Empty>مفيش حركات مسجلة</Empty>
           ) : (
-            rows.map((r, i) => (
-              <div key={r.id}>
-                {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <span className="num w-10 shrink-0 text-[12px] text-ink-mute">
-                    {shortDate(r.date)}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[14px]">{r.label}</span>
-                  <span
-                    className={`w-20 shrink-0 text-end text-[14px] font-semibold ${
-                      r.amount < 0 ? "text-pos" : "text-ink"
-                    }`}
-                  >
-                    {r.amount < 0 && <span className="num">−</span>}
-                    <Money value={Math.abs(r.amount)} />
-                  </span>
-                  <span className="w-20 shrink-0 text-end text-[13px] text-ink-mute">
-                    <Money value={Math.abs(r.balance)} />
-                  </span>
-                </div>
+            <>
+              {/* عناوين الأعمدة — من غيرها مش باين أنهي رقم الحركة وأنهي الرصيد */}
+              <div className="flex items-center gap-3 bg-sunken px-4 py-2 text-[11px] font-semibold text-ink-mute">
+                <span className="w-10 shrink-0">التاريخ</span>
+                <span className="flex-1">الحركة</span>
+                <span className="w-20 shrink-0 text-end">المبلغ</span>
+                <span className="w-20 shrink-0 text-end">
+                  {party.kind === "customer" ? "عليه بعدها" : "ليه بعدها"}
+                </span>
               </div>
-            ))
+
+              {rows.map((r) => {
+                // الأخضر = الدين قلّ (دفع أو مرتجع أو مسامحة). مفيش إشارة سالب يفكر فيها.
+                const reduces = r.amount < 0;
+                return (
+                  <div key={r.id} className="border-t border-line-soft">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <span className="num w-10 shrink-0 text-[12px] text-ink-mute">
+                        {shortDate(r.date)}
+                      </span>
+                      <span
+                        className={`min-w-0 flex-1 truncate text-[14px] ${reduces ? "text-pos" : ""}`}
+                      >
+                        {r.label}
+                      </span>
+                      <Money
+                        value={Math.abs(r.amount)}
+                        className={`w-20 shrink-0 text-end text-[14px] font-semibold ${
+                          reduces ? "text-pos" : "text-ink"
+                        }`}
+                      />
+                      <Money
+                        value={Math.abs(r.balance)}
+                        className="w-20 shrink-0 text-end text-[13px] text-ink-mute"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </>
           )}
         </Card>
+
+        {rows.length > 0 && (
+          <p className="mt-3 px-1 text-[12px] text-ink-mute">
+            <span className="font-semibold text-pos">الأخضر</span> = حركة قللت{" "}
+            {party.kind === "customer" ? "اللي عليه" : "اللي ليه"}.
+          </p>
+        )}
       </Page>
     </>
   );
