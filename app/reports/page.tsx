@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ChevronLeft, FileText } from "lucide-react";
 import { Badge, Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { pct, since } from "@/lib/format";
 import {
+  invoices,
   marginOf,
   modelByCode,
   modelStats,
@@ -25,6 +26,22 @@ export default function ReportsPage() {
     <>
       <PageHeader title="التقارير" />
       <Page>
+        {/* ------------------------------ الفواتير ------------------------------ */}
+        <Link href="/invoices" className="press mb-6 block">
+          <Card className="flex items-center gap-3 px-4 py-4">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
+              <FileText size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[15px] font-bold">الفواتير</div>
+              <div className="mt-0.5 text-[12px] text-ink-mute">
+                سجل كل الفواتير بالتاريخ · <Num value={invoices.length} /> فاتورة
+              </div>
+            </div>
+            <ChevronLeft size={18} className="shrink-0 text-ink-mute" />
+          </Card>
+        </Link>
+
         {/* --------------------------- أنهي موديل بيكسب --------------------------- */}
         <SectionTitle action={<span className="text-[12px] text-ink-mute">آخر 3 شهور</span>}>
           أنهي موديل بيكسب؟

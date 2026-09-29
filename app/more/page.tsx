@@ -3,6 +3,7 @@ import {
   BarChart3,
   ChevronRight,
   Factory,
+  FileText,
   HandCoins,
   Moon,
   PackagePlus,
@@ -50,6 +51,7 @@ export default function MorePage() {
       title: "المتابعة",
       items: [
         { href: "/reports", label: "التقارير", icon: BarChart3 },
+        { href: "/invoices", label: "الفواتير", icon: FileText },
         {
           href: "/accounts",
           label: "العملاء والمصانع",

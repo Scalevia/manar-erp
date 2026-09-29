@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Factory,
+  FileText,
   Home,
   LayoutGrid,
   Package,
@@ -41,6 +42,7 @@ const sidebar: Item[][] = [
   [
     { href: "/accounts", label: "الحسابات", icon: Wallet },
     { href: "/reports", label: "التقارير", icon: BarChart3 },
+    { href: "/invoices", label: "الفواتير", icon: FileText },
   ],
   [{ href: "/more", label: "الإعدادات", icon: Settings }],
 ];

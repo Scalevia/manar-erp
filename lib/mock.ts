@@ -364,34 +364,60 @@ const addDays = (iso: string, n: number) =>
 /** تقريب لأقرب 100 جنيه — الأرقام تبان طبيعية */
 const r100 = (piastres: number) => Math.round(piastres / p(100)) * p(100);
 
-function generatedStatement(x: Party): LedgerRow[] {
-  const owed = Math.abs(x.balance);
-  if (owed === 0) return [];
+const PRICE = p(120);
 
-  // موجب = زاد اللي عليه / اللي ليه · والرصيد بنفس إشارة رصيد الطرف
-  const sign = x.balance > 0 ? 1 : -1;
-  const first = r100(owed * 0.6);
-  const paid = r100(owed * 0.3);
-  const last = owed - first + paid;
-
+/** تواريخ الحركات التلاتة: أول مبلغ مستحق · النص · آخر حركة */
+function historyDates(x: Party) {
   const end = x.lastActivity;
   const start = x.oldestDue ?? addDays(end, -24);
   // في النص بين الأول والآخر — ولو نفس اليوم، يبقى نفس اليوم
   const mid = addDays(start, Math.floor((+new Date(end) - +new Date(start)) / 86_400_000 / 2));
+  return { start, mid, end };
+}
 
-  const piecesFor = (amount: number, per: number) => Math.max(1, Math.round(amount / p(per)));
+/**
+ * العملاء: بيعتين بعدد قطع صحيح × 120 ج، والدفع اللي في النص هو اللي بيظبط
+ * الفرق — كده كل بيعة في الكشف ليها فاتورة بسعر نضيف.
+ */
+function customerSales(x: Party) {
+  const owed = x.balance;
+  const pieces1 = Math.max(1, Math.round((owed * 0.6) / PRICE));
+  const pieces2 = Math.max(1, Math.round((owed * 0.7) / PRICE));
+  const first = pieces1 * PRICE;
+  const last = pieces2 * PRICE;
+  const paid = first + last - owed;
+  return { pieces1, pieces2, first, last, paid };
+}
+
+function generatedStatement(x: Party): LedgerRow[] {
+  const owed = Math.abs(x.balance);
+  if (owed === 0) return [];
+  const { start, mid, end } = historyDates(x);
+
+  if (x.kind === "customer") {
+    const s = customerSales(x);
+    return [
+      { id: `${x.id}-1`, date: start, label: `بيع ${s.pieces1} قطعة`, amount: s.first, balance: s.first },
+      { id: `${x.id}-2`, date: mid, label: "دفع كاش ← الدرج", amount: -s.paid, balance: s.first - s.paid },
+      { id: `${x.id}-3`, date: end, label: `بيع ${s.pieces2} قطعة`, amount: s.last, balance: owed },
+    ];
+  }
+
+  // المصانع وتجار القماش — الرصيد سالب (عليا له)
+  const first = r100(owed * 0.6);
+  const paid = r100(owed * 0.3);
+  const last = owed - first + paid;
+  const units = (amount: number, per: number) => Math.max(1, Math.round(amount / p(per)));
 
   const [inLabel, outLabel, lastLabel] =
-    x.kind === "customer"
-      ? [`بيع ${piecesFor(first, 120)} قطعة`, "دفع كاش ← الدرج", `بيع ${piecesFor(last, 120)} قطعة`]
-      : x.kind === "factory"
-        ? [`استلام ${piecesFor(first, 30)} قطعة · مصنعية`, "دفعتله ← من الدرج", `استلام ${piecesFor(last, 30)} قطعة · مصنعية`]
-        : [`شراء قماش ${piecesFor(first, 100)} م`, "دفعتله ← من انستاباي", `شراء قماش ${piecesFor(last, 100)} م`];
+    x.kind === "factory"
+      ? [`استلام ${units(first, 30)} قطعة · مصنعية`, "دفعتله ← من الدرج", `استلام ${units(last, 30)} قطعة · مصنعية`]
+      : [`شراء قماش ${units(first, 100)} م`, "دفعتله ← من انستاباي", `شراء قماش ${units(last, 100)} م`];
 
   return [
-    { id: `${x.id}-1`, date: start, label: inLabel, amount: first, balance: sign * first },
-    { id: `${x.id}-2`, date: mid, label: outLabel, amount: -paid, balance: sign * (first - paid) },
-    { id: `${x.id}-3`, date: end, label: lastLabel, amount: last, balance: sign * owed },
+    { id: `${x.id}-1`, date: start, label: inLabel, amount: first, balance: -first },
+    { id: `${x.id}-2`, date: mid, label: outLabel, amount: -paid, balance: -(first - paid) },
+    { id: `${x.id}-3`, date: end, label: lastLabel, amount: last, balance: -owed },
   ];
 }
 
@@ -400,6 +426,101 @@ export const statementOf = (partyId: string): LedgerRow[] => {
   const x = byId(partyId);
   return x ? generatedStatement(x) : [];
 };
+
+/* ============================== الفواتير ============================== */
+
+export type InvoiceLine = { code: number; qty: number; price: number };
+
+export type Invoice = {
+  no: number;
+  date: string;
+  /** "10:35" — بتفرق لما يدوّر على فاتورة بعينها في يوم زحمة */
+  time: string;
+  partyId: string;
+  lines: InvoiceLine[];
+  /** اتدفع كام وقت البيع — مش اللي اتحصّل بعدين (ده في كشف الحساب) */
+  paid: number;
+  accountId?: string;
+};
+
+export const invoiceTotal = (inv: Invoice) =>
+  inv.lines.reduce((s, l) => s + l.qty * l.price, 0);
+
+export const invoicePieces = (inv: Invoice) => inv.lines.reduce((s, l) => s + l.qty, 0);
+
+/** نوع الفاتورة وقت البيع: نقدي · جزئي · آجل */
+export function invoiceKind(inv: Invoice): "cash" | "partial" | "credit" {
+  const total = invoiceTotal(inv);
+  if (inv.paid >= total) return "cash";
+  if (inv.paid > 0) return "partial";
+  return "credit";
+}
+
+const MODEL_CODES = [214, 208, 221, 199, 235, 168];
+
+/** بيعة واحدة مقسومة على موديلين، بنفس إجمالي القطع والسعر */
+function splitLines(pieces: number, seed: number): InvoiceLine[] {
+  const a = MODEL_CODES[seed % MODEL_CODES.length];
+  const b = MODEL_CODES[(seed + 2) % MODEL_CODES.length];
+  const qa = Math.ceil(pieces * 0.6);
+  const qb = pieces - qa;
+  return qb > 0
+    ? [{ code: a, qty: qa, price: PRICE }, { code: b, qty: qb, price: PRICE }]
+    : [{ code: a, qty: qa, price: PRICE }];
+}
+
+function buildInvoices(): Invoice[] {
+  type Draft = Omit<Invoice, "no" | "time">;
+  const drafts: Draft[] = [
+    // مطابقة لكشوف الحساب المكتوبة بالإيد
+    {
+      date: "2026-09-12", partyId: "c1", paid: 0,
+      lines: [{ code: 214, qty: 40, price: p(120) }, { code: 208, qty: 20, price: p(120) }],
+    },
+    {
+      date: "2026-09-03", partyId: "c2", paid: 0,
+      lines: [{ code: 221, qty: 70, price: p(130) }, { code: 199, qty: 50, price: p(130) }],
+    },
+  ];
+
+  // باقي العملاء — نفس البيعتين اللي في كشف حسابهم
+  parties
+    .filter((x) => x.kind === "customer" && !x.isCash && x.balance > 0 && !statements[x.id])
+    .forEach((x, i) => {
+      const { start, end } = historyDates(x);
+      const s = customerSales(x);
+      drafts.push({ date: start, partyId: x.id, paid: 0, lines: splitLines(s.pieces1, i) });
+      drafts.push({ date: end, partyId: x.id, paid: 0, lines: splitLines(s.pieces2, i + 1) });
+    });
+
+  // بيع نقدي — زبون جملة من غير حساب
+  const cash = cashParty.id;
+  const walkIns: [string, InvoiceLine[], string][] = [
+    ["2026-09-23", [{ code: 214, qty: 12, price: p(125) }], "drawer"],
+    ["2026-09-22", [{ code: 221, qty: 24, price: p(110) }], "drawer"],
+    ["2026-09-20", [{ code: 208, qty: 12, price: p(130) }, { code: 199, qty: 12, price: p(125) }], "vcash"],
+    ["2026-09-18", [{ code: 199, qty: 24, price: p(120) }], "drawer"],
+    ["2026-09-15", [{ code: 235, qty: 6, price: p(160) }], "instapay"],
+    ["2026-09-09", [{ code: 221, qty: 36, price: p(105) }], "drawer"],
+  ];
+  for (const [date, lines, accountId] of walkIns) {
+    const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
+    drafts.push({ date, partyId: cash, lines, paid: total, accountId });
+  }
+
+  // ترقيم بالترتيب الزمني، وساعة ثابتة لكل فاتورة
+  return drafts
+    .sort((a, b) => a.date.localeCompare(b.date) || a.partyId.localeCompare(b.partyId))
+    .map((d, i) => {
+      const minutes = 9 * 60 + ((i * 97) % (10 * 60));
+      const time = `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
+      return { ...d, no: 1001 + i, time };
+    });
+}
+
+export const invoices: Invoice[] = buildInvoices();
+
+export const invoiceByNo = (no: number) => invoices.find((x) => x.no === no);
 
 /* ========================== أرقام البيع والربح ========================== */
 
