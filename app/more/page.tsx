@@ -5,6 +5,7 @@ import {
   Factory,
   Moon,
   PackagePlus,
+  Receipt,
   Rocket,
   Scissors,
   Truck,
@@ -29,6 +30,7 @@ export default function MorePage() {
         { href: "/production/receive", label: "استلام من المصنع", icon: PackagePlus },
         { href: "/production", label: "أوامر التصنيع", icon: Factory },
         { href: "/purchases", label: "المشتريات", icon: Truck },
+        { href: "/expenses", label: "المصاريف", icon: Receipt },
         {
           href: "/more",
           label: "القماش في المحل",

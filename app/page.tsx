@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowLeftRight, Banknote, Package, Scissors } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  Banknote,
+  Package,
+  Receipt,
+  Scissors,
+} from "lucide-react";
 import { Card, Money, Num, Page, SectionTitle } from "@/components/ui";
 import { cashAccounts, openOrders, totals, TODAY } from "@/lib/mock";
 
@@ -113,12 +120,20 @@ export default function Dashboard() {
         )}
 
         {/* ----------------------------- إجراء سريع ----------------------------- */}
-        <Link href="/sell" className="press mt-5 block lg:hidden">
-          <div className="flex items-center justify-center gap-2 rounded-2xl bg-brand px-4 py-4 text-brand-ink">
-            <Banknote size={20} />
-            <span className="text-[15px] font-bold">فاتورة جديدة</span>
-          </div>
-        </Link>
+        <div className="mt-5 grid grid-cols-[2fr_1fr] gap-2 lg:hidden">
+          <Link href="/sell" className="press block">
+            <div className="flex items-center justify-center gap-2 rounded-2xl bg-brand px-4 py-4 text-brand-ink">
+              <Banknote size={20} />
+              <span className="text-[15px] font-bold">فاتورة جديدة</span>
+            </div>
+          </Link>
+          <Link href="/expenses/new" className="press block">
+            <div className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-card px-3 py-4 text-ink-soft">
+              <Receipt size={19} />
+              <span className="text-[15px] font-bold">مصروف</span>
+            </div>
+          </Link>
+        </div>
       </Page>
     </>
   );

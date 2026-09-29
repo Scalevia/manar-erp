@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Package,
   Plus,
+  Receipt,
   Settings,
   Truck,
   Wallet,
@@ -35,6 +36,7 @@ const sidebar: Item[][] = [
     { href: "/inventory", label: "المخزون", icon: Package },
     { href: "/production", label: "أوامر التصنيع", icon: Factory },
     { href: "/purchases", label: "المشتريات", icon: Truck },
+    { href: "/expenses", label: "المصاريف", icon: Receipt },
   ],
   [
     { href: "/accounts", label: "الحسابات", icon: Wallet },

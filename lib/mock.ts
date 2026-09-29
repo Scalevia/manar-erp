@@ -26,6 +26,8 @@ export type Party = {
   /** أقدم مبلغ لسه مستحق — منه بييجي «من إمتى» */
   oldestDue?: string;
   lastActivity: string;
+  /** طرف «نقدي» للبيع لزبون طياري — مالوش حساب ومبيظهرش في قايمة العملاء */
+  isCash?: boolean;
 };
 
 export const parties: Party[] = [
@@ -39,7 +41,7 @@ export const parties: Party[] = [
   { id: "c7", kind: "customer", name: "مصطفى الليثي", phone: "01033445566", balance: p(12300), oldestDue: "2026-08-28", lastActivity: "2026-09-18" },
   { id: "c8", kind: "customer", name: "جمال شحاتة", phone: "01155667788", balance: p(8700), oldestDue: "2026-09-14", lastActivity: "2026-09-22" },
   { id: "c9", kind: "customer", name: "ياسر الدمرداش", phone: "01266778899", balance: p(3000), oldestDue: "2026-09-17", lastActivity: "2026-09-17" },
-  { id: "c10", kind: "customer", name: "نقدي", balance: 0, lastActivity: TODAY },
+  { id: "c10", kind: "customer", name: "نقدي", balance: 0, lastActivity: TODAY, isCash: true },
 
   // المصانع — عليا ليهم (مصنعية)
   { id: "f1", kind: "factory", name: "مصنع النور", phone: "01020304050", balance: -p(18000), lastActivity: "2026-09-21" },
@@ -52,6 +54,7 @@ export const parties: Party[] = [
 ];
 
 export const byId = (id: string) => parties.find((x) => x.id === id);
+export const cashParty = parties.find((x) => x.isCash)!;
 export const ofKind = (k: PartyKind) => parties.filter((x) => x.kind === k);
 
 /** العملاء اللي عليهم فلوس، الأقدم الأول — ده ترتيب «مين متأخر» */
@@ -376,6 +379,49 @@ export const marginOf = (s: ModelStat) =>
 /** الراكد — فيه مخزون وآخر بيعة بقالها فترة */
 export const staleModels = () =>
   models.filter(isStale).sort((a, b) => valueOf(b) - valueOf(a));
+
+/* ============================ المصاريف ============================ */
+
+/**
+ * «سحب شخصي» مش مصروف: بيقلل الخزنة بس **مبيقللش الربح**.
+ * ومصروف مربوط بأمر تصنيع بيتضاف على تكلفته، مش بيتحسب مصروف عام.
+ */
+export type ExpenseCategory = { id: string; label: string; personal?: boolean };
+
+export const expenseCategories: ExpenseCategory[] = [
+  { id: "food", label: "أكل وشرب" },
+  { id: "transport", label: "مواصلات" },
+  { id: "shipping", label: "شحن وتحميل" },
+  { id: "wages", label: "يوميات" },
+  { id: "bills", label: "كهربا ومياه" },
+  { id: "rent", label: "إيجار" },
+  { id: "other", label: "حاجات تانية" },
+  { id: "personal", label: "سحب شخصي", personal: true },
+];
+
+export const categoryById = (id: string) => expenseCategories.find((c) => c.id === id);
+
+export type Expense = {
+  id: string;
+  date: string;
+  categoryId: string;
+  amount: number;
+  accountId: string;
+  note?: string;
+  /** لو المصروف تبع أمر تصنيع، بيتضاف على تكلفته */
+  orderId?: string;
+};
+
+export const expenses: Expense[] = [
+  { id: "e1", date: "2026-09-23", categoryId: "food", amount: p(150), accountId: "drawer", note: "فطار" },
+  { id: "e2", date: "2026-09-23", categoryId: "shipping", amount: p(400), accountId: "drawer", note: "تحميل بضاعة لأحمد الشوا" },
+  { id: "e3", date: "2026-09-23", categoryId: "personal", amount: p(2000), accountId: "drawer", note: "للبيت" },
+  { id: "e4", date: "2026-09-22", categoryId: "transport", amount: p(120), accountId: "drawer" },
+  { id: "e5", date: "2026-09-22", categoryId: "other", amount: p(350), accountId: "drawer", note: "أزرار", orderId: "o5" },
+  { id: "e6", date: "2026-09-21", categoryId: "wages", amount: p(600), accountId: "drawer", note: "يومية شيّال" },
+  { id: "e7", date: "2026-09-15", categoryId: "bills", amount: p(850), accountId: "instapay", note: "كهربا المحل" },
+  { id: "e8", date: "2026-09-01", categoryId: "rent", amount: p(6000), accountId: "instapay", note: "إيجار سبتمبر" },
+];
 
 /* ============================ الإجماليات ============================ */
 /* محسوبة من البيانات — مفيش رقم مكتوب بالإيد (الـ spec، قسم 8) */

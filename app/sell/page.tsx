@@ -2,11 +2,12 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Plus, Search, Trash2, X } from "lucide-react";
+import { Banknote, Check, ChevronLeft, Plus, Search, Trash2, X } from "lucide-react";
 import { Badge, Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
 import {
   cashAccounts,
+  cashParty,
   modelByCode,
   ofKind,
   stockOf,
@@ -22,8 +23,11 @@ export default function SellPage() {
   const [account, setAccount] = useState(cashAccounts[0].id);
   const [done, setDone] = useState(false);
 
+  /** زبون طياري: مفيش حساب، بيدفع كله على طول — السيولة تزيد والبضاعة تقل */
+  const walkIn = !!customer?.isCash;
+
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
-  const paidP = paid.trim() === "" ? 0 : p(Number(paid) || 0);
+  const paidP = walkIn ? total : paid.trim() === "" ? 0 : p(Number(paid) || 0);
   const remaining = Math.max(0, total - paidP);
 
   if (done && customer) {
@@ -32,10 +36,12 @@ export default function SellPage() {
         customer={customer}
         total={total}
         paid={paidP}
+        accountName={cashAccounts.find((a) => a.id === account)?.name ?? ""}
         onNew={() => {
           setCustomer(null);
           setLines([]);
           setPaid("");
+          setAccount(cashAccounts[0].id);
           setDone(false);
         }}
       />
@@ -47,8 +53,8 @@ export default function SellPage() {
   return (
     <>
       <PageHeader
-        title="فاتورة جديدة"
-        sub={customer.name}
+        title={walkIn ? "بيع نقدي" : "فاتورة جديدة"}
+        sub={walkIn ? "زبون طياري · مفيش حساب" : customer.name}
         action={
           <button
             type="button"
@@ -62,10 +68,12 @@ export default function SellPage() {
 
       <Page>
         {/* ------------------------ عليه قبل الفاتورة ------------------------ */}
-        <div className="mb-4 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
-          <span className="text-[13px] text-ink-soft">عليه قبل الفاتورة</span>
-          <Money value={customer.balance} className="text-[15px] font-bold text-pos" />
-        </div>
+        {!walkIn && (
+          <div className="mb-4 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
+            <span className="text-[13px] text-ink-soft">عليه قبل الفاتورة</span>
+            <Money value={customer.balance} className="text-[15px] font-bold text-pos" />
+          </div>
+        )}
 
         {/* ------------------------------ السطور ------------------------------ */}
         <Card className="mb-3 overflow-hidden">
@@ -111,22 +119,26 @@ export default function SellPage() {
           <div className="ms-4 border-t border-line-soft" />
 
           <div className="px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[14px] text-ink-soft">دفع</span>
-              <div className="flex items-center gap-1.5">
-                <input
-                  value={paid}
-                  onChange={(e) => setPaid(e.target.value.replace(/[^\d.]/g, ""))}
-                  inputMode="decimal"
-                  placeholder="0"
-                  aria-label="المبلغ المدفوع"
-                  className="num h-10 w-28 rounded-xl border border-line bg-page px-3 text-end text-[16px] font-semibold outline-none focus:border-brand"
-                />
-                <span className="text-[13px] text-ink-mute">ج</span>
+            {walkIn ? (
+              <div className="text-[14px] text-ink-soft">الفلوس هتدخل</div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[14px] text-ink-soft">دفع</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={paid}
+                    onChange={(e) => setPaid(e.target.value.replace(/[^\d.]/g, ""))}
+                    inputMode="decimal"
+                    placeholder="0"
+                    aria-label="المبلغ المدفوع"
+                    className="num h-10 w-28 rounded-xl border border-line bg-page px-3 text-end text-[16px] font-semibold outline-none focus:border-brand"
+                  />
+                  <span className="text-[13px] text-ink-mute">ج</span>
+                </div>
               </div>
-            </div>
+            )}
 
-            {paidP > 0 && (
+            {(walkIn || paidP > 0) && (
               <div className="mt-3 flex gap-2">
                 {cashAccounts.map((a) => (
                   <button
@@ -145,30 +157,36 @@ export default function SellPage() {
               </div>
             )}
 
-            <p className="mt-2.5 text-[11px] leading-relaxed text-ink-mute">
-              سيبها فاضية = آجل بالكامل · اكتب الإجمالي = نقدي بالكامل
-            </p>
+            {!walkIn && (
+              <p className="mt-2.5 text-[11px] leading-relaxed text-ink-mute">
+                سيبها فاضية = آجل بالكامل · اكتب الإجمالي = نقدي بالكامل
+              </p>
+            )}
           </div>
 
-          <div className="ms-4 border-t border-line-soft" />
+          {!walkIn && (
+            <>
+              <div className="ms-4 border-t border-line-soft" />
 
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-[14px] font-semibold">باقي على الفاتورة</span>
-            <Money
-              value={remaining}
-              className={`text-[18px] font-bold ${remaining > 0 ? "text-neg" : "text-pos"}`}
-            />
-          </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-[14px] font-semibold">باقي على الفاتورة</span>
+                <Money
+                  value={remaining}
+                  className={`text-[18px] font-bold ${remaining > 0 ? "text-neg" : "text-pos"}`}
+                />
+              </div>
 
-          <div className="bg-sunken px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] text-ink-soft">حسابه دلوقتي</span>
-              <Money
-                value={customer.balance + remaining}
-                className="text-[15px] font-bold text-pos"
-              />
-            </div>
-          </div>
+              <div className="bg-sunken px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[13px] text-ink-soft">حسابه دلوقتي</span>
+                  <Money
+                    value={customer.balance + remaining}
+                    className="text-[15px] font-bold text-pos"
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </Card>
 
         <button
@@ -177,7 +195,7 @@ export default function SellPage() {
           onClick={() => setDone(true)}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
-          حفظ الفاتورة
+          {walkIn ? "حفظ البيعة" : "حفظ الفاتورة"}
         </button>
       </Page>
     </>
@@ -315,9 +333,9 @@ function PickCustomer({ onPick }: { onPick: (p: Party) => void }) {
   const [q, setQ] = useState("");
 
   const list = useMemo(() => {
-    const all = ofKind("customer").sort(
-      (a, b) => +new Date(b.lastActivity) - +new Date(a.lastActivity),
-    );
+    const all = ofKind("customer")
+      .filter((x) => !x.isCash)
+      .sort((a, b) => +new Date(b.lastActivity) - +new Date(a.lastActivity));
     const term = q.trim();
     return term ? all.filter((x) => x.name.includes(term)) : all;
   }, [q]);
@@ -326,6 +344,24 @@ function PickCustomer({ onPick }: { onPick: (p: Party) => void }) {
     <>
       <PageHeader title="بيع" sub="اختار العميل" />
       <Page>
+        {/* --------------------------- زبون طياري --------------------------- */}
+        <button
+          type="button"
+          onClick={() => onPick(cashParty)}
+          className="press mb-4 flex w-full items-center gap-3 rounded-2xl border border-brand/25 bg-brand-soft px-4 py-3.5 text-start"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand text-brand-ink">
+            <Banknote size={20} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-bold text-brand">بيع نقدي</span>
+            <span className="mt-0.5 block text-[12px] text-ink-soft">
+              زبون طياري — بيدفع كله ومفيش حساب
+            </span>
+          </span>
+          <ChevronLeft size={18} className="shrink-0 text-brand" />
+        </button>
+
         <div className="relative mb-4">
           <Search
             size={18}
@@ -399,14 +435,46 @@ function Saved({
   customer,
   total,
   paid,
+  accountName,
   onNew,
 }: {
   customer: Party;
   total: number;
   paid: number;
+  accountName: string;
   onNew: () => void;
 }) {
   const remaining = Math.max(0, total - paid);
+
+  if (customer.isCash) {
+    return (
+      <>
+        <PageHeader title="اتحفظت" />
+        <Page>
+          <Card className="px-5 py-8 text-center">
+            <div className="mx-auto grid size-14 place-items-center rounded-full bg-pos-soft text-pos">
+              <Check size={28} strokeWidth={3} />
+            </div>
+            <div className="mt-4 text-[17px] font-bold">بيع نقدي</div>
+            <div className="mt-1 flex items-baseline justify-center gap-1.5">
+              <Money value={total} className="text-[30px] font-bold text-pos" />
+              <span className="text-[14px] text-ink-mute">ج</span>
+            </div>
+            <div className="mt-2 text-[13px] text-ink-mute">دخلت {accountName}</div>
+          </Card>
+
+          <button
+            type="button"
+            onClick={onNew}
+            className="press mt-4 w-full rounded-2xl bg-brand py-3.5 text-[15px] font-bold text-brand-ink"
+          >
+            بيعة جديدة
+          </button>
+        </Page>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader title="اتحفظت" />
