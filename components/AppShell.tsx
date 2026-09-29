@@ -12,6 +12,7 @@ import {
   Plus,
   Receipt,
   Settings,
+  TrendingUp,
   Truck,
   Wallet,
   type LucideIcon,
@@ -43,6 +44,7 @@ const sidebar: Item[][] = [
     { href: "/accounts", label: "الحسابات", icon: Wallet },
     { href: "/reports", label: "التقارير", icon: BarChart3 },
     { href: "/invoices", label: "الفواتير", icon: FileText },
+    { href: "/capital", label: "رأس مالي", icon: TrendingUp },
   ],
   [{ href: "/more", label: "الإعدادات", icon: Settings }],
 ];

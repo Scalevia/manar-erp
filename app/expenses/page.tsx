@@ -25,10 +25,13 @@ export default function ExpensesPage() {
   const month = TODAY.slice(0, 7);
   const thisMonth = expenses.filter((e) => e.date.startsWith(month));
 
-  // السحب الشخصي بيتعرض لوحده — مش مصروف على الشغل ومبيقللش الربح
-  const today = thisMonth.filter((e) => e.date === TODAY && !isPersonal(e));
-  const work = thisMonth.filter((e) => !isPersonal(e));
+  // مصاريف المحل بس: السحب الشخصي بيتعرض لوحده، واللي على أمر تصنيع بيروح على
+  // تكلفة الأمر ده — الاتنين مش بيقللوا ربح المحل
+  const isShop = (e: Expense) => !isPersonal(e) && !e.orderId;
+  const today = thisMonth.filter((e) => e.date === TODAY && isShop(e));
+  const work = thisMonth.filter(isShop);
   const personal = thisMonth.filter(isPersonal);
+  const onOrders = thisMonth.filter((e) => e.orderId);
 
   const sum = (rows: Expense[]) => rows.reduce((s, e) => s + e.amount, 0);
 
@@ -66,6 +69,15 @@ export default function ExpensesPage() {
               <Money value={sum(work)} className="mt-1 block text-[20px] font-bold" />
             </div>
           </div>
+          {onOrders.length > 0 && (
+            <div className="flex items-center justify-between border-t border-line-soft px-4 py-3">
+              <div>
+                <div className="text-[13px] text-ink-soft">على أوامر تصنيع الشهر ده</div>
+                <div className="mt-0.5 text-[11px] text-ink-mute">اتضافت على تكلفة القطعة، مش مصاريف محل</div>
+              </div>
+              <Money value={sum(onOrders)} className="text-[15px] font-bold" />
+            </div>
+          )}
           {personal.length > 0 && (
             <div className="flex items-center justify-between border-t border-line-soft px-4 py-3">
               <div>

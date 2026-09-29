@@ -588,6 +588,74 @@ export const expenses: Expense[] = [
   { id: "e8", date: "2026-09-01", categoryId: "rent", amount: p(6000), accountId: "instapay", note: "إيجار سبتمبر" },
 ];
 
+/* ========================= زيادة رأس المال ========================= */
+
+/** فلوس جاية من بره المحل — مش ربح، ومش سلفة (السلفة فلوس عليه) */
+export type CapitalIn = { id: string; date: string; amount: number; accountId: string; note?: string };
+
+export const capitalIns: CapitalIn[] = [
+  { id: "k1", date: "2026-09-05", amount: p(20000), accountId: "instapay", note: "من بيع أرض" },
+];
+
+/** البرنامج اشتغل من يوم التهيئة — قبله مفيش أرقام نقارن بيها */
+export const STARTED = "2026-05-10";
+
+/* ============================ رأس المال ============================ */
+
+/**
+ * ليه رأس المال اتغير في فترة:
+ *   التغيير = ربح المحل + زيادة رأس المال − اللي خدته لنفسك
+ *   ربح المحل = المبيعات − تكلفة البضاعة − مصاريف المحل − المسامحات
+ * «آخر شهر» متسق مع شاشة المصاريف (خدته لنفسك 2,000 · زيادة 20,000).
+ */
+export type CapitalPeriod = {
+  id: "1m" | "3m" | "1y";
+  label: string;
+  days: number;
+  sales: number;
+  cogs: number;
+  expenses: number;
+  settlements: number;
+  added: number;
+  withdrawn: number;
+  /** أكبر بنود المصاريف — للتفسير */
+  topExpenses: { label: string; amount: number }[];
+};
+
+export const capitalPeriods: CapitalPeriod[] = [
+  {
+    id: "1m", label: "آخر شهر", days: 30,
+    sales: p(120000), cogs: p(88000), expenses: p(8120), settlements: p(1000),
+    added: p(20000), withdrawn: p(2000),
+    topExpenses: [
+      { label: "إيجار", amount: p(6000) },
+      { label: "كهربا ومياه", amount: p(850) },
+      { label: "يوميات", amount: p(600) },
+    ],
+  },
+  {
+    id: "3m", label: "آخر 3 شهور", days: 91,
+    sales: p(360000), cogs: p(263000), expenses: p(24600), settlements: p(3200),
+    added: p(20000), withdrawn: p(18000),
+    topExpenses: [
+      { label: "إيجار", amount: p(18000) },
+      { label: "يوميات", amount: p(3100) },
+      { label: "كهربا ومياه", amount: p(2400) },
+    ],
+  },
+  {
+    id: "1y", label: "آخر سنة", days: 365,
+    sales: 0, cogs: 0, expenses: 0, settlements: 0, added: 0, withdrawn: 0,
+    topExpenses: [],
+  },
+];
+
+export const shopProfit = (x: CapitalPeriod) => x.sales - x.cogs - x.expenses - x.settlements;
+export const capitalChange = (x: CapitalPeriod) => shopProfit(x) + x.added - x.withdrawn;
+
+/** الفترة متاحة لو البرنامج شغال من قبل بدايتها */
+export const periodAvailable = (x: CapitalPeriod) => daysSince(STARTED, new Date(TODAY)) >= x.days;
+
 /* ============================ الإجماليات ============================ */
 /* محسوبة من البيانات — مفيش رقم مكتوب بالإيد (الـ spec، قسم 8) */
 
@@ -615,5 +683,22 @@ export const totals = {
   /** صافي موقفي = السيولة + ليا − عليا (فلوس بس، من غير بضاعة) */
   get net() {
     return totals.liquidity + totals.receivable - totals.payable;
+  },
+  /** رأس المال = كل اللي يملكه في الشغل: بضاعة + قماش + فلوس + ليه − عليه */
+  get capital() {
+    return (
+      totals.stockValue +
+      totals.fabricValue +
+      totals.fabricAtFactoriesValue +
+      totals.liquidity +
+      totals.receivable -
+      totals.payable
+    );
+  },
+  /** فلوس في السوق عند ناس متأخرين أكتر من 90 يوم — محسوبة في رأس المال ومش مضمونة */
+  get overdueReceivable() {
+    return ofKind("customer")
+      .filter((x) => x.balance > 0 && x.oldestDue && daysSince(x.oldestDue, new Date(TODAY)) > 90)
+      .reduce((s, x) => s + x.balance, 0);
   },
 };

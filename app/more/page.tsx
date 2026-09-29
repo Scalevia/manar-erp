@@ -10,6 +10,7 @@ import {
   Receipt,
   Rocket,
   Scissors,
+  TrendingUp,
   Truck,
   Users,
   type LucideIcon,
@@ -52,6 +53,7 @@ export default function MorePage() {
       items: [
         { href: "/reports", label: "التقارير", icon: BarChart3 },
         { href: "/invoices", label: "الفواتير", icon: FileText },
+        { href: "/capital", label: "رأس مالي", icon: TrendingUp },
         {
           href: "/accounts",
           label: "العملاء والمصانع",

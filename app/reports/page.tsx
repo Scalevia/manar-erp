@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { AlertTriangle, ChevronLeft, FileText } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronLeft, FileText, TrendingUp } from "lucide-react";
 import { Badge, Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { pct, since } from "@/lib/format";
 import {
+  capitalChange,
+  capitalPeriods,
   invoices,
   marginOf,
+  totals,
   modelByCode,
   modelStats,
   profitOf,
@@ -21,11 +24,44 @@ export default function ReportsPage() {
   const waste = wasteByFactory();
 
   const frozen = stale.reduce((s, m) => s + valueOf(m), 0);
+  const capital1m = capitalPeriods.find((x) => x.id === "1m");
 
   return (
     <>
       <PageHeader title="التقارير" />
       <Page>
+        {/* ------------------------------ رأس مالي ------------------------------ */}
+        <Link href="/capital" className="press mb-3 block">
+          <Card className="px-4 py-4">
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-soft text-brand">
+                <TrendingUp size={20} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[15px] font-bold">رأس مالي</div>
+                <div className="mt-0.5 text-[12px] text-ink-mute">زاد ولا نقص، وليه</div>
+              </div>
+              {capital1m && (
+                <span
+                  className={`flex items-center gap-1 text-[15px] font-bold ${
+                    capitalChange(capital1m) >= 0 ? "text-pos" : "text-neg"
+                  }`}
+                >
+                  {capitalChange(capital1m) >= 0 ? <ArrowUp size={15} strokeWidth={2.6} /> : <ArrowDown size={15} strokeWidth={2.6} />}
+                  <Money value={Math.abs(capitalChange(capital1m))} />
+                </span>
+              )}
+              <ChevronLeft size={18} className="shrink-0 text-ink-mute" />
+            </div>
+            <div className="mt-3 flex items-baseline justify-between border-t border-line-soft pt-3">
+              <span className="text-[12px] text-ink-mute">كل اللي تملكه في الشغل</span>
+              <span className="text-[17px] font-bold">
+                <Money value={totals.capital} /> ج
+              </span>
+            </div>
+          </Card>
+        </Link>
+
         {/* ------------------------------ الفواتير ------------------------------ */}
         <Link href="/invoices" className="press mb-6 block">
           <Card className="flex items-center gap-3 px-4 py-4">
