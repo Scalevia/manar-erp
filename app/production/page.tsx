@@ -1,4 +1,5 @@
-import { AlertTriangle, Lock } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Lock, PackagePlus } from "lucide-react";
 import { Badge, Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { pct, since } from "@/lib/format";
 import {
@@ -136,13 +137,22 @@ function OrderCard({ o }: { o: ProductionOrder }) {
               تتصحح.
             </span>
           </div>
-          <button
-            type="button"
-            className="press flex w-full items-center justify-center gap-2 rounded-xl bg-brand py-3 text-[14px] font-bold text-brand-ink"
-          >
-            <Lock size={16} />
-            قفل أمر التصنيع
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              href={`/production/receive?order=${o.id}`}
+              className="press flex items-center justify-center gap-2 rounded-xl bg-brand py-3 text-[14px] font-bold text-brand-ink"
+            >
+              <PackagePlus size={16} />
+              استلام
+            </Link>
+            <button
+              type="button"
+              className="press flex items-center justify-center gap-2 rounded-xl border border-warn/30 bg-card py-3 text-[14px] font-bold text-warn"
+            >
+              <Lock size={16} />
+              قفل الأمر
+            </button>
+          </div>
         </div>
       )}
     </Card>

@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Factory,
   Moon,
+  PackagePlus,
   Rocket,
   Scissors,
   Truck,
@@ -25,6 +26,7 @@ export default function MorePage() {
     {
       title: "الشغل",
       items: [
+        { href: "/production/receive", label: "استلام من المصنع", icon: PackagePlus },
         { href: "/production", label: "أوامر التصنيع", icon: Factory },
         { href: "/purchases", label: "المشتريات", icon: Truck },
         {
