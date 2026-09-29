@@ -355,7 +355,51 @@ const statements: Record<string, LedgerRow[]> = {
   ],
 };
 
-export const statementOf = (partyId: string): LedgerRow[] => statements[partyId] ?? [];
+/* باقي الأطراف: حركات بتتولّد وبتنتهي عند الرصيد بالظبط، عشان مفيش كشف حساب
+   فاضي ورصيده مش صفر. بتتشال لما الداتا الحقيقية تيجي من Supabase. */
+
+const addDays = (iso: string, n: number) =>
+  new Date(new Date(iso).getTime() + n * 86_400_000).toISOString().slice(0, 10);
+
+/** تقريب لأقرب 100 جنيه — الأرقام تبان طبيعية */
+const r100 = (piastres: number) => Math.round(piastres / p(100)) * p(100);
+
+function generatedStatement(x: Party): LedgerRow[] {
+  const owed = Math.abs(x.balance);
+  if (owed === 0) return [];
+
+  // موجب = زاد اللي عليه / اللي ليه · والرصيد بنفس إشارة رصيد الطرف
+  const sign = x.balance > 0 ? 1 : -1;
+  const first = r100(owed * 0.6);
+  const paid = r100(owed * 0.3);
+  const last = owed - first + paid;
+
+  const end = x.lastActivity;
+  const start = x.oldestDue ?? addDays(end, -24);
+  // في النص بين الأول والآخر — ولو نفس اليوم، يبقى نفس اليوم
+  const mid = addDays(start, Math.floor((+new Date(end) - +new Date(start)) / 86_400_000 / 2));
+
+  const piecesFor = (amount: number, per: number) => Math.max(1, Math.round(amount / p(per)));
+
+  const [inLabel, outLabel, lastLabel] =
+    x.kind === "customer"
+      ? [`بيع ${piecesFor(first, 120)} قطعة`, "تحصيل من الدرج", `بيع ${piecesFor(last, 120)} قطعة`]
+      : x.kind === "factory"
+        ? [`استلام ${piecesFor(first, 30)} قطعة · مصنعية`, "دفع من الدرج", `استلام ${piecesFor(last, 30)} قطعة · مصنعية`]
+        : [`شراء قماش ${piecesFor(first, 100)} م`, "دفع انستاباي", `شراء قماش ${piecesFor(last, 100)} م`];
+
+  return [
+    { id: `${x.id}-1`, date: start, label: inLabel, amount: first, balance: sign * first },
+    { id: `${x.id}-2`, date: mid, label: outLabel, amount: -paid, balance: sign * (first - paid) },
+    { id: `${x.id}-3`, date: end, label: lastLabel, amount: last, balance: sign * owed },
+  ];
+}
+
+export const statementOf = (partyId: string): LedgerRow[] => {
+  if (statements[partyId]) return statements[partyId];
+  const x = byId(partyId);
+  return x ? generatedStatement(x) : [];
+};
 
 /* ========================== أرقام البيع والربح ========================== */
 
