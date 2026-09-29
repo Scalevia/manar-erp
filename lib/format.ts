@@ -99,6 +99,20 @@ export function monthOnly(iso: string): string {
   return MONTHS[new Date(iso).getMonth()];
 }
 
+/* ------------------------------------------------------------------ */
+
+/** أرقام الموبايل المصري: 11 رقم وبيبدأ بـ 010 / 011 / 012 / 015 */
+export function isEgyptMobile(phone: string): boolean {
+  return /^01[0125]\d{8}$/.test(phone);
+}
+
+/** 01001234567 → "0100 123 4567" — أسهل في القراية */
+export function formatPhone(phone: string): string {
+  return isEgyptMobile(phone)
+    ? `${phone.slice(0, 4)} ${phone.slice(4, 7)} ${phone.slice(7)}`
+    : phone;
+}
+
 /** 460 قطعة → "38 دستة و4" — للعرض جنب الرقم لما يفكر بالدستة */
 export function dozens(pieces: number): string {
   const d = Math.floor(pieces / 12);

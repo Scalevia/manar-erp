@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HandCoins, HeartHandshake, Phone } from "lucide-react";
 import { Card, Empty, Money, Page, PageHeader } from "@/components/ui";
-import { shortDate, since } from "@/lib/format";
+import { formatPhone, shortDate, since } from "@/lib/format";
 import { byId, statementOf, TODAY } from "@/lib/mock";
 
 const KIND_LABEL = {
@@ -28,7 +29,17 @@ export default async function StatementPage({
     <>
       <PageHeader
         title={party.name}
-        sub={KIND_LABEL[party.kind]}
+        sub={
+          <>
+            {KIND_LABEL[party.kind]}
+            {party.phone && (
+              <>
+                {" · "}
+                <span className="num">{formatPhone(party.phone)}</span>
+              </>
+            )}
+          </>
+        }
         back={party.kind === "customer" ? "/accounts" : "/accounts?tab=payable"}
       />
 
@@ -66,11 +77,18 @@ export default async function StatementPage({
         <div className="mb-5 grid grid-cols-3 gap-2">
           <Action
             icon={<HandCoins size={18} />}
-            label={owesMe ? "تحصيل" : "دفع"}
+            label={party.kind === "customer" ? "تحصيل" : "دفع"}
+            href={`/payments?party=${party.id}`}
             primary
           />
           <Action icon={<HeartHandshake size={18} />} label="مسامحة" />
-          <Action icon={<Phone size={18} />} label="اتصال" disabled={!party.phone} />
+          {/* tel: بيفتح تطبيق الاتصال على الآيفون بالرقم جاهز */}
+          <Action
+            icon={<Phone size={18} />}
+            label="اتصال"
+            href={party.phone ? `tel:${party.phone}` : undefined}
+            disabled={!party.phone}
+          />
         </div>
 
         {/* ------------------------------- كشف الحساب ------------------------------- */}
@@ -115,26 +133,45 @@ export default async function StatementPage({
 function Action({
   icon,
   label,
+  href,
   primary,
   disabled,
 }: {
   icon: React.ReactNode;
   label: string;
+  href?: string;
   primary?: boolean;
   disabled?: boolean;
 }) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      className={`press flex flex-col items-center justify-center gap-1.5 rounded-2xl border py-3.5 ${
-        primary
-          ? "border-transparent bg-brand text-brand-ink"
-          : "border-line bg-card text-ink-soft"
-      } ${disabled ? "opacity-40" : ""}`}
-    >
+  const className = `press flex flex-col items-center justify-center gap-1.5 rounded-2xl border py-3.5 ${
+    primary ? "border-transparent bg-brand text-brand-ink" : "border-line bg-card text-ink-soft"
+  } ${disabled ? "pointer-events-none opacity-40" : ""}`;
+
+  const body = (
+    <>
       {icon}
       <span className="text-[12px] font-semibold">{label}</span>
-    </button>
+    </>
+  );
+
+  if (!href || disabled)
+    return (
+      <button type="button" disabled={disabled} className={className}>
+        {body}
+      </button>
+    );
+
+  // tel: لازم يبقى <a> عادي — Link بتاع Next للصفحات جوه البرنامج بس
+  if (href.startsWith("tel:"))
+    return (
+      <a href={href} className={className}>
+        {body}
+      </a>
+    );
+
+  return (
+    <Link href={href} className={className}>
+      {body}
+    </Link>
   );
 }

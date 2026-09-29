@@ -3,6 +3,7 @@ import {
   BarChart3,
   ChevronRight,
   Factory,
+  HandCoins,
   Moon,
   PackagePlus,
   Receipt,
@@ -30,6 +31,7 @@ export default function MorePage() {
         { href: "/production/receive", label: "استلام من المصنع", icon: PackagePlus },
         { href: "/production", label: "أوامر التصنيع", icon: Factory },
         { href: "/purchases", label: "المشتريات", icon: Truck },
+        { href: "/payments", label: "تحصيل ودفع", icon: HandCoins },
         { href: "/expenses", label: "المصاريف", icon: Receipt },
         {
           href: "/more",
