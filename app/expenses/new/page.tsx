@@ -131,8 +131,8 @@ export default function NewExpensePage() {
 
         {personal && (
           <div className="mb-4 rounded-2xl bg-sunken px-4 py-3 text-[12px] leading-relaxed text-ink-soft">
-            السحب الشخصي بيقلل الفلوس في الخزنة بس — <span className="font-semibold">مش بيتحسب مصروف
-            على الشغل ومش بيقلل الربح.</span>
+            دي فلوس خارجة ليك، <span className="font-semibold">مش على المحل</span> — مش هتتحسب من
+            مصاريف المحل.
           </div>
         )}
 

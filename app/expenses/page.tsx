@@ -69,8 +69,8 @@ export default function ExpensesPage() {
           {personal.length > 0 && (
             <div className="flex items-center justify-between border-t border-line-soft px-4 py-3">
               <div>
-                <div className="text-[13px] text-ink-soft">سحب شخصي الشهر ده</div>
-                <div className="mt-0.5 text-[11px] text-ink-mute">مش محسوب مصروف — مبيقللش الربح</div>
+                <div className="text-[13px] text-ink-soft">خدته لنفسك الشهر ده</div>
+                <div className="mt-0.5 text-[11px] text-ink-mute">فلوس خرجت من الدرج ليك، مش على المحل</div>
               </div>
               <Money value={sum(personal)} className="text-[15px] font-bold" />
             </div>
