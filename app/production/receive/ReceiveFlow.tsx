@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, ChevronLeft, Scissors, X } from "lucide-react";
 import { Badge, Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
-import { since } from "@/lib/format";
+import { p, since } from "@/lib/format";
 import {
   byId,
   openOrders,
@@ -14,7 +14,8 @@ import {
   type ProductionOrder,
 } from "@/lib/mock";
 
-type Receipt = { good: number; bad: number; fabricM: number };
+/** القماش الراجع بالفلوس (قروش) — القماش مبيتحسبش بالأمتار */
+type Receipt = { good: number; bad: number; fabricBack: number };
 
 export default function ReceiveFlow({ initialOrderId }: { initialOrderId?: string }) {
   const initial = orders.find((o) => o.id === initialOrderId && o.status === "open") ?? null;
@@ -104,12 +105,11 @@ function ReceiveForm({
   const factory = byId(order.factoryId);
   const goodN = Number(good) || 0;
   const badN = Number(bad) || 0;
-  const fabricN = Number(fabric) || 0;
+  const fabricBack = p(Number(fabric) || 0);
 
   // المصنعية على السليم بس — المضروب مش بيتدفع ومش بيدخل المخزون
   const work = goodN * order.workPerPiece;
   const cost = provisionalCost(order);
-  const perMeter = Math.round(order.fabricCost / order.fabricMeters);
 
   const leftBefore = Math.max(0, order.expectedPieces - order.receivedGood);
   const over = goodN > leftBefore;
@@ -162,8 +162,8 @@ function ReceiveForm({
             {showFabric ? (
               <div className="relative">
                 <NumField
-                  label="قماش راجع بالمتر"
-                  hint="بيرجع لمخزن القماش بتكلفته"
+                  label="قماش راجع بقيمة كام؟"
+                  hint="بالجنيه — بيرجع للقماش في المحل"
                   value={fabric}
                   onChange={setFabric}
                   placeholder="0"
@@ -210,10 +210,10 @@ function ReceiveForm({
               value={<><Money value={cost} decimals className="font-bold text-warn" /> ج</>}
               sub="مبدئية — تتظبط لما أمر التصنيع يقفل"
             />
-            {fabricN > 0 && (
+            {fabricBack > 0 && (
               <Effect
-                label={`قماش راجع ${fabricN} م`}
-                value={<><Money value={fabricN * perMeter} className="font-bold" /> ج</>}
+                label="قماش راجع"
+                value={<><Money value={fabricBack} className="font-bold" /> ج</>}
                 sub="بيرجع مخزن القماش ومش بيتحمّل على القطع"
               />
             )}
@@ -230,7 +230,7 @@ function ReceiveForm({
         <button
           type="button"
           disabled={goodN <= 0}
-          onClick={() => onSave({ good: goodN, bad: badN, fabricM: fabricN })}
+          onClick={() => onSave({ good: goodN, bad: badN, fabricBack })}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
           حفظ الاستلام
@@ -334,12 +334,10 @@ function Saved({ order, r, onNew }: { order: ProductionOrder; r: Receipt; onNew:
                 <span className="num font-semibold">{r.bad}</span>
               </div>
             )}
-            {r.fabricM > 0 && (
+            {r.fabricBack > 0 && (
               <div className="flex justify-between">
                 <span className="text-ink-soft">قماش راجع</span>
-                <span className="font-semibold">
-                  <span className="num">{r.fabricM}</span> م
-                </span>
+                <Money value={r.fabricBack} className="font-semibold" />
               </div>
             )}
             <div className="flex justify-between">

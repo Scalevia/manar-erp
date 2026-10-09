@@ -94,6 +94,7 @@ export default function Dashboard() {
             icon={<Scissors size={18} />}
             label="قماش في المحل"
             value={totals.fabricValue}
+            href="/fabric"
           />
           <div className="ms-4 border-t border-line-soft" />
           <AssetLine

@@ -17,7 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
-import { fabrics, ofKind, totals } from "@/lib/mock";
+import { ofKind, totals } from "@/lib/mock";
 
 type Item = {
   href: string;
@@ -33,21 +33,20 @@ export default function MorePage() {
       items: [
         { href: "/production/receive", label: "استلام من المصنع", icon: PackagePlus },
         { href: "/production", label: "أوامر التصنيع", icon: Factory },
-        { href: "/purchases", label: "المشتريات", icon: Truck },
-        { href: "/payments", label: "تحصيل ودفع", icon: HandCoins },
-        { href: "/expenses", label: "المصاريف", icon: Receipt },
-        { href: "/loans", label: "السلف", icon: ArrowLeftRight },
         {
-          href: "/more",
+          href: "/fabric",
           label: "القماش في المحل",
           icon: Scissors,
           hint: (
             <>
-              <Num value={fabrics.reduce((s, f) => s + f.meters, 0)} /> م ·{" "}
               <Money value={totals.fabricValue} /> ج
             </>
           ),
         },
+        { href: "/purchases", label: "شراء قماش", icon: Truck },
+        { href: "/payments", label: "تحصيل ودفع", icon: HandCoins },
+        { href: "/expenses", label: "المصاريف", icon: Receipt },
+        { href: "/loans", label: "السلف", icon: ArrowLeftRight },
       ],
     },
     {
