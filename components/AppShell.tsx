@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ArrowLeftRight,
   BarChart3,
   Factory,
   FileText,
@@ -39,6 +40,7 @@ const sidebar: Item[][] = [
     { href: "/production", label: "أوامر التصنيع", icon: Factory },
     { href: "/purchases", label: "المشتريات", icon: Truck },
     { href: "/expenses", label: "المصاريف", icon: Receipt },
+    { href: "/loans", label: "السلف", icon: ArrowLeftRight },
   ],
   [
     { href: "/accounts", label: "الحسابات", icon: Wallet },

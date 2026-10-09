@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 import { HandCoins, HeartHandshake, Phone } from "lucide-react";
 import { Card, Empty, Money, Page, PageHeader } from "@/components/ui";
 import { formatPhone, shortDate, since } from "@/lib/format";
-import { byId, statementOf, TODAY } from "@/lib/mock";
+import { byId, isCollectFrom, statementOf, TODAY, type Party } from "@/lib/mock";
 
-const KIND_LABEL = {
-  customer: "عميل",
-  factory: "مصنع",
-  supplier: "تاجر قماش",
-} as const;
+function kindLabel(x: Party) {
+  if (x.kind === "customer") return "عميل";
+  if (x.kind === "factory") return "مصنع";
+  if (x.kind === "supplier") return "تاجر قماش";
+  return x.balance > 0 ? "سلفة · سلّفته" : "سلفة · استلفت منه";
+}
 
 export default async function StatementPage({
   params,
@@ -22,6 +23,8 @@ export default async function StatementPage({
 
   const rows = statementOf(id);
   const owesMe = party.balance > 0;
+  // العميل دايماً «عليه»، والسلفة حسب اتجاهها
+  const collect = isCollectFrom(party);
   const amount = Math.abs(party.balance);
   const settled = party.balance === 0;
 
@@ -31,7 +34,7 @@ export default async function StatementPage({
         title={party.name}
         sub={
           <>
-            {KIND_LABEL[party.kind]}
+            {kindLabel(party)}
             {party.phone && (
               <>
                 {" · "}
@@ -40,7 +43,9 @@ export default async function StatementPage({
             )}
           </>
         }
-        back={party.kind === "customer" ? "/accounts" : "/accounts?tab=payable"}
+        back={
+          party.kind === "person" ? "/loans" : collect ? "/accounts" : "/accounts?tab=payable"
+        }
       />
 
       <Page>
@@ -69,6 +74,11 @@ export default async function StatementPage({
                   أقدم مبلغ {since(party.oldestDue, new Date(TODAY))}
                 </div>
               )}
+              {party.dueDate && (
+                <div className="mt-2 text-[12px] font-semibold text-warn">
+                  ميعاد الرجوع <span className="num">{shortDate(party.dueDate)}</span>
+                </div>
+              )}
             </>
           )}
         </Card>
@@ -77,7 +87,7 @@ export default async function StatementPage({
         <div className="mb-5 grid grid-cols-3 gap-2">
           <Action
             icon={<HandCoins size={18} />}
-            label={party.kind === "customer" ? "تحصيل" : "دفع"}
+            label={collect ? "تحصيل" : "دفع"}
             href={`/payments?party=${party.id}`}
             primary
           />
@@ -105,7 +115,7 @@ export default async function StatementPage({
                 <span className="flex-1">الحركة</span>
                 <span className="w-20 shrink-0 text-end">المبلغ</span>
                 <span className="w-20 shrink-0 text-end">
-                  {party.kind === "customer" ? "عليه بعدها" : "ليه بعدها"}
+                  {collect ? "عليه بعدها" : "ليه بعدها"}
                 </span>
               </div>
 
@@ -144,7 +154,7 @@ export default async function StatementPage({
         {rows.length > 0 && (
           <p className="mt-3 px-1 text-[12px] text-ink-mute">
             <span className="font-semibold text-pos">الأخضر</span> = حركة قللت{" "}
-            {party.kind === "customer" ? "اللي عليه" : "اللي ليه"}.
+            {collect ? "اللي عليه" : "اللي ليه"}.
           </p>
         )}
       </Page>

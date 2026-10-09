@@ -126,6 +126,7 @@ function PartyRow({ party, payable }: { party: Party; payable: boolean }) {
           )}
         </div>
 
+        {party.kind === "person" && <Badge tone="brand">سلفة</Badge>}
         {payable && party.kind === "factory" && (
           <Badge tone="neutral">مصنع</Badge>
         )}

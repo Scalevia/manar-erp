@@ -14,7 +14,8 @@ export const TODAY = "2026-09-23";
 
 /* ============================ الأطراف ============================ */
 
-export type PartyKind = "customer" | "factory" | "supplier";
+/** person = شخص بينه وبين المحل سلفة (هو سلّف المحل، أو المحل سلّفه) */
+export type PartyKind = "customer" | "factory" | "supplier" | "person";
 
 export type Party = {
   id: string;
@@ -28,6 +29,8 @@ export type Party = {
   lastActivity: string;
   /** طرف «نقدي» للبيع لزبون طياري — مالوش حساب ومبيظهرش في قايمة العملاء */
   isCash?: boolean;
+  /** ميعاد رجوع السلفة — اختياري، ولو قرّب بيظهر تنبيه في الرئيسية */
+  dueDate?: string;
 };
 
 export const parties: Party[] = [
@@ -51,23 +54,37 @@ export const parties: Party[] = [
   // تجار القماش — عليا ليهم
   { id: "s1", kind: "supplier", name: "حسن الأقمشة", phone: "01011223344", balance: -p(20000), lastActivity: "2026-09-23" },
   { id: "s2", kind: "supplier", name: "مورد الدلتا", phone: "01233445566", balance: -p(6500), lastActivity: "2026-09-18" },
+
+  // السلف — سالب: استلفت منه (عليا له) · موجب: سلّفته (ليا عنده)
+  { id: "p1", kind: "person", name: "حاج سيد العطار", phone: "01019876543", balance: -p(30000), lastActivity: "2026-09-10", dueDate: "2026-09-30" },
+  { id: "p2", kind: "person", name: "محمد الصبي", phone: "01147654321", balance: p(1500), oldestDue: "2026-09-20", lastActivity: "2026-09-20" },
 ];
 
 export const byId = (id: string) => parties.find((x) => x.id === id);
 export const cashParty = parties.find((x) => x.isCash)!;
 export const ofKind = (k: PartyKind) => parties.filter((x) => x.kind === k);
 
-/** العملاء اللي عليهم فلوس، الأقدم الأول — ده ترتيب «مين متأخر» */
+/** «ليا»: عملاء عليهم فلوس + ناس سلّفتهم — الأقدم الأول، ده ترتيب «مين متأخر» */
 export const receivables = () =>
-  ofKind("customer")
-    .filter((x) => x.balance > 0)
-    .sort((a, b) => daysSince(a.oldestDue ?? TODAY) - daysSince(b.oldestDue ?? TODAY));
+  parties
+    .filter((x) => (x.kind === "customer" || x.kind === "person") && x.balance > 0)
+    .sort((a, b) => daysSince(b.oldestDue ?? TODAY) - daysSince(a.oldestDue ?? TODAY));
 
-/** المصانع وتجار القماش اللي ليهم فلوس */
+/** «عليا»: مصانع وتجار قماش ليهم فلوس + ناس استلفت منهم */
 export const payables = () =>
   parties
     .filter((x) => x.kind !== "customer" && x.balance < 0)
     .sort((a, b) => a.balance - b.balance);
+
+/** تحصيل ولا دفع؟ — العميل دايماً تحصيل، والسلفة حسب اتجاهها */
+export const isCollectFrom = (x: Party) =>
+  x.kind === "customer" || (x.kind === "person" && x.balance > 0);
+
+/** السلف اللي ميعادها فات أو جاي خلال أسبوع */
+export const loansDueSoon = () =>
+  ofKind("person")
+    .filter((x) => x.balance !== 0 && x.dueDate && daysSince(TODAY, new Date(x.dueDate)) <= 7)
+    .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
 
 /* ============================ الخزن ============================ */
 
@@ -347,6 +364,12 @@ const statements: Record<string, LedgerRow[]> = {
     { id: "l8", date: "2026-09-04", label: "استلام 150 قطعة · مصنعية", amount: p(4500), balance: -p(11500) },
     { id: "l9", date: "2026-09-15", label: "دفعتله ← من الدرج", amount: -p(4000), balance: -p(7500) },
     { id: "l10", date: "2026-09-21", label: "استلام 220 قطعة · مصنعية", amount: p(6600), balance: -p(18000) },
+  ],
+  p1: [
+    { id: "l14", date: "2026-09-10", label: "استلفت ← دخلت انستاباي", amount: p(30000), balance: -p(30000) },
+  ],
+  p2: [
+    { id: "l15", date: "2026-09-20", label: "سلّفته ← من الدرج", amount: p(1500), balance: p(1500) },
   ],
   s1: [
     { id: "l11", date: "2026-09-06", label: "شراء قماش جينز 180 م", amount: p(16200), balance: -p(16200) },
@@ -673,7 +696,10 @@ export const totals = {
     return cashAccounts.reduce((s, a) => s + a.balance, 0);
   },
   get receivable() {
-    return ofKind("customer").reduce((s, x) => s + Math.max(0, x.balance), 0);
+    // عملاء + ناس سلّفتهم — الاتنين فلوس ليا هترجع
+    return parties
+      .filter((x) => x.kind === "customer" || x.kind === "person")
+      .reduce((s, x) => s + Math.max(0, x.balance), 0);
   },
   get payable() {
     return parties

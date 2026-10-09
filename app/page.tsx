@@ -3,12 +3,14 @@ import {
   AlertTriangle,
   ArrowLeftRight,
   Banknote,
+  HandCoins,
   Package,
   Receipt,
   Scissors,
 } from "lucide-react";
 import { Card, Money, Num, Page, SectionTitle } from "@/components/ui";
-import { cashAccounts, openOrders, totals, TODAY } from "@/lib/mock";
+import { daysSince, shortDate } from "@/lib/format";
+import { cashAccounts, loansDueSoon, openOrders, totals, TODAY } from "@/lib/mock";
 
 const DAYS = ["الحد", "الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت"];
 const MONTHS = [
@@ -118,6 +120,25 @@ export default function Dashboard() {
             </div>
           </Link>
         )}
+
+        {/* ---------------------- سلف ميعادها قرّب أو فات ---------------------- */}
+        {loansDueSoon().map((x) => {
+          const late = daysSince(TODAY, new Date(x.dueDate!)) < 0;
+          return (
+            <Link key={x.id} href={`/accounts/${x.id}`} className="press mt-3 block">
+              <div className="flex items-center gap-3 rounded-2xl border border-warn/25 bg-warn-soft px-4 py-3.5">
+                <HandCoins size={19} className="shrink-0 text-warn" />
+                <div className="min-w-0 flex-1 text-[13px] leading-snug text-warn">
+                  <span className="font-semibold">
+                    {x.balance < 0 ? `سلفة ${x.name}` : `سلفتك لـ ${x.name}`}
+                  </span>{" "}
+                  <Money value={Math.abs(x.balance)} className="font-bold" /> ج —{" "}
+                  {late ? "فات ميعادها" : "ميعادها"} <span className="num">{shortDate(x.dueDate!)}</span>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
 
         {/* ----------------------------- إجراء سريع ----------------------------- */}
         <div className="mt-5 grid grid-cols-[2fr_1fr] gap-2 lg:hidden">

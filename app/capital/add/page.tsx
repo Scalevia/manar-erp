@@ -61,7 +61,12 @@ export default function AddCapitalPage() {
           </p>
           <p className="mt-1.5 flex items-start gap-1.5 text-ink-soft">
             <Info size={14} className="mt-0.5 shrink-0" />
-            لو دي سلفة هترجّعها، متسجلهاش هنا.
+            <span>
+              لو دي سلفة هترجّعها، متسجلهاش هنا.{" "}
+              <Link href="/loans/new?dir=in" className="font-semibold text-brand underline">
+                سجّلها سلفة
+              </Link>
+            </span>
           </p>
         </div>
 

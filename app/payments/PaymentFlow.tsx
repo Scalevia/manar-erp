@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { Card, Empty, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { p } from "@/lib/format";
-import { byId, cashAccounts, payables, receivables, type Party } from "@/lib/mock";
+import { byId, cashAccounts, isCollectFrom, payables, receivables, type Party } from "@/lib/mock";
 
 /**
  * تحصيل من عميل أو دفع لمصنع / تاجر قماش (العملية 7 في الـ spec).
@@ -32,7 +32,7 @@ export default function PaymentFlow({ initialPartyId }: { initialPartyId?: strin
   );
 }
 
-const isCollect = (x: Party) => x.kind === "customer";
+const isCollect = isCollectFrom;
 
 /* ============================ اختيار الطرف ============================ */
 

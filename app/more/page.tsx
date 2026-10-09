@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  ArrowLeftRight,
   BarChart3,
   ChevronRight,
   Factory,
@@ -35,6 +36,7 @@ export default function MorePage() {
         { href: "/purchases", label: "المشتريات", icon: Truck },
         { href: "/payments", label: "تحصيل ودفع", icon: HandCoins },
         { href: "/expenses", label: "المصاريف", icon: Receipt },
+        { href: "/loans", label: "السلف", icon: ArrowLeftRight },
         {
           href: "/more",
           label: "القماش في المحل",
