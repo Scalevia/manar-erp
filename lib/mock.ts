@@ -221,14 +221,14 @@ export type ProductionOrder = {
   label: string;
   factoryId: string;
   modelCode: number;
+  fabricMeters: number;
   fabricCost: number;
   workPerPiece: number;
   extras: number;
   expectedPieces: number;
   receivedGood: number;
   receivedDefective: number;
-  /** قيمة القماش اللي رجع من المصنع (قروش) — مبيتحمّلش على القطع */
-  fabricReturned: number;
+  returnedFabricM: number;
   sold: number;
   status: "open" | "closed";
   openedAt: string;
@@ -238,26 +238,26 @@ export type ProductionOrder = {
 export const orders: ProductionOrder[] = [
   {
     id: "o5", label: "أمر تصنيع سبتمبر", factoryId: "f1", modelCode: 214,
-    fabricCost: p(20000), workPerPiece: p(30), extras: p(1000),
-    expectedPieces: 400, receivedGood: 370, receivedDefective: 10, fabricReturned: 0,
+    fabricMeters: 200, fabricCost: p(20000), workPerPiece: p(30), extras: p(1000),
+    expectedPieces: 400, receivedGood: 370, receivedDefective: 10, returnedFabricM: 0,
     sold: 30, status: "open", openedAt: "2026-08-28",
   },
   {
     id: "o6", label: "أمر تصنيع سبتمبر", factoryId: "f2", modelCode: 235,
-    fabricCost: p(21600), workPerPiece: p(38), extras: p(900),
-    expectedPieces: 240, receivedGood: 120, receivedDefective: 4, fabricReturned: 0,
+    fabricMeters: 180, fabricCost: p(21600), workPerPiece: p(38), extras: p(900),
+    expectedPieces: 240, receivedGood: 120, receivedDefective: 4, returnedFabricM: 0,
     sold: 25, status: "open", openedAt: "2026-09-08",
   },
   {
     id: "o1", label: "أمر تصنيع مارس", factoryId: "f1", modelCode: 214,
-    fabricCost: p(13500), workPerPiece: p(28), extras: p(700),
-    expectedPieces: 300, receivedGood: 288, receivedDefective: 6, fabricReturned: p(450),
+    fabricMeters: 150, fabricCost: p(13500), workPerPiece: p(28), extras: p(700),
+    expectedPieces: 300, receivedGood: 288, receivedDefective: 6, returnedFabricM: 5,
     sold: 168, status: "closed", openedAt: "2026-03-02", closedAt: "2026-03-28",
   },
   {
     id: "o3", label: "أمر تصنيع أغسطس", factoryId: "f3", modelCode: 221,
-    fabricCost: p(17600), workPerPiece: p(24), extras: p(600),
-    expectedPieces: 480, receivedGood: 470, receivedDefective: 8, fabricReturned: 0,
+    fabricMeters: 220, fabricCost: p(17600), workPerPiece: p(24), extras: p(600),
+    expectedPieces: 480, receivedGood: 470, receivedDefective: 8, returnedFabricM: 0,
     sold: 210, status: "closed", openedAt: "2026-07-30", closedAt: "2026-08-24",
   },
 ];
@@ -304,57 +304,38 @@ export function wasteByFactory() {
 
 /* ============================ المشتريات ============================ */
 
-/**
- * القماش بيتسجل **بالفلوس بس** — من غير أمتار ولا أنواع (طلب العميل).
- * «اشتريت قماش بـ 200,000» وخلاص. الملاحظة اختيارية لو حب يفتكر.
- * المشتريات = قماش بس. الأزرار والشحن مصاريف (على أمر التصنيع لو تبعه).
- */
 export type Purchase = {
   id: string;
   date: string;
-  supplierId: string;
+  what: string;
+  meters?: number;
   amount: number;
-  /** اتدفع كام وقت الشراء — الباقي بيتكتب لتاجر القماش */
-  paid: number;
-  accountId?: string;
-  note?: string;
+  supplierName: string;
 };
 
 export const purchases: Purchase[] = [
-  { id: "p1", date: "2026-09-23", supplierId: "s1", amount: p(20000), paid: 0, note: "قطن أبيض" },
-  { id: "p2", date: "2026-09-18", supplierId: "s2", amount: p(18000), paid: p(11500), accountId: "instapay", note: "كتان" },
-  { id: "p4", date: "2026-09-06", supplierId: "s1", amount: p(16200), paid: 0, note: "جينز" },
-  { id: "p5", date: "2026-08-29", supplierId: "s1", amount: p(21000), paid: p(21000), accountId: "drawer", note: "قطن" },
+  { id: "p1", date: "2026-09-23", what: "قماش قطن", meters: 200, amount: p(20000), supplierName: "حسن الأقمشة" },
+  { id: "p2", date: "2026-09-18", what: "قماش كتان", meters: 150, amount: p(18000), supplierName: "مورد الدلتا" },
+  { id: "p3", date: "2026-09-12", what: "أزرار وخيوط", amount: p(800), supplierName: "نقدي" },
+  { id: "p4", date: "2026-09-06", what: "قماش جينز", meters: 180, amount: p(16200), supplierName: "حسن الأقمشة" },
+  { id: "p5", date: "2026-08-29", what: "قماش قطن", meters: 220, amount: p(21000), supplierName: "حسن الأقمشة" },
+  { id: "p6", date: "2026-08-21", what: "شحن وتغليف", amount: p(1200), supplierName: "نقدي" },
 ];
 
 /* ============================ القماش في المحل ============================ */
 
-/** حركة القماش بالفلوس: اشتريت (+) · بعت لمصنع (−) · رجع من مصنع (+) */
-export type FabricMove = {
-  id: string;
-  date: string;
-  kind: "start" | "buy" | "send" | "return";
-  amount: number;
-  label: string;
-};
+export type Fabric = { id: string; name: string; meters: number; costPerMeter: number };
 
-export const fabricMoves: FabricMove[] = [
-  { id: "fm0", date: "2026-08-01", kind: "start", amount: p(12000), label: "اللي كان موجود يوم التهيئة" },
-  { id: "fm1", date: "2026-08-28", kind: "send", amount: p(20000), label: "لمصنع النور · أمر تصنيع سبتمبر" },
-  { id: "fm2", date: "2026-08-29", kind: "buy", amount: p(21000), label: "من حسن الأقمشة" },
-  { id: "fm3", date: "2026-09-06", kind: "buy", amount: p(16200), label: "من حسن الأقمشة" },
-  { id: "fm4", date: "2026-09-08", kind: "send", amount: p(21600), label: "لمصنع الأمانة · أمر تصنيع سبتمبر" },
-  { id: "fm5", date: "2026-09-18", kind: "buy", amount: p(18000), label: "من مورد الدلتا" },
-  { id: "fm6", date: "2026-09-23", kind: "buy", amount: p(20000), label: "من حسن الأقمشة" },
+export const fabrics: Fabric[] = [
+  { id: "fb1", name: "قطن أبيض", meters: 120, costPerMeter: p(100) },
+  { id: "fb2", name: "كتان بيچ", meters: 85, costPerMeter: p(120) },
+  { id: "fb3", name: "جينز أزرق", meters: 90, costPerMeter: p(90) },
 ];
 
-const fabricSign = (m: FabricMove) => (m.kind === "send" ? -1 : 1);
-
-/** القماش اللي عند المصانع = قيمة القماش في أوامر التصنيع المفتوحة */
-export const fabricAtFactories = () =>
-  orders
-    .filter((o) => o.status === "open")
-    .map((o) => ({ orderId: o.id, factoryId: o.factoryId, label: o.label, amount: o.fabricCost }));
+export const fabricAtFactories: Fabric[] = [
+  { id: "fx1", name: "قطن أبيض · مصنع النور", meters: 200, costPerMeter: p(100) },
+  { id: "fx2", name: "كتان بيچ · مصنع الأمانة", meters: 180, costPerMeter: p(120) },
+];
 
 /* ============================ كشوف الحسابات ============================ */
 
@@ -384,10 +365,6 @@ const statements: Record<string, LedgerRow[]> = {
     { id: "l9", date: "2026-09-15", label: "دفعتله ← من الدرج", amount: -p(4000), balance: -p(7500) },
     { id: "l10", date: "2026-09-21", label: "استلام 220 قطعة · مصنعية", amount: p(6600), balance: -p(18000) },
   ],
-  s2: [
-    { id: "l16", date: "2026-09-18", label: "شراء قماش · كتان", amount: p(18000), balance: -p(18000) },
-    { id: "l17", date: "2026-09-18", label: "دفعتله ← من انستاباي", amount: -p(11500), balance: -p(6500) },
-  ],
   p1: [
     { id: "l14", date: "2026-09-10", label: "استلفت ← دخلت انستاباي", amount: p(30000), balance: -p(30000) },
   ],
@@ -395,9 +372,9 @@ const statements: Record<string, LedgerRow[]> = {
     { id: "l15", date: "2026-09-20", label: "سلّفته ← من الدرج", amount: p(1500), balance: p(1500) },
   ],
   s1: [
-    { id: "l11", date: "2026-09-06", label: "شراء قماش · جينز", amount: p(16200), balance: -p(16200) },
+    { id: "l11", date: "2026-09-06", label: "شراء قماش جينز 180 م", amount: p(16200), balance: -p(16200) },
     { id: "l12", date: "2026-09-16", label: "دفعتله ← من انستاباي", amount: -p(16200), balance: 0 },
-    { id: "l13", date: "2026-09-23", label: "شراء قماش · قطن أبيض", amount: p(20000), balance: -p(20000) },
+    { id: "l13", date: "2026-09-23", label: "شراء قماش قطن 200 م", amount: p(20000), balance: -p(20000) },
   ],
 };
 
@@ -458,7 +435,7 @@ function generatedStatement(x: Party): LedgerRow[] {
   const [inLabel, outLabel, lastLabel] =
     x.kind === "factory"
       ? [`استلام ${units(first, 30)} قطعة · مصنعية`, "دفعتله ← من الدرج", `استلام ${units(last, 30)} قطعة · مصنعية`]
-      : ["شراء قماش", "دفعتله ← من انستاباي", "شراء قماش"];
+      : [`شراء قماش ${units(first, 100)} م`, "دفعتله ← من انستاباي", `شراء قماش ${units(last, 100)} م`];
 
   return [
     { id: `${x.id}-1`, date: start, label: inLabel, amount: first, balance: -first },
@@ -710,10 +687,10 @@ export const totals = {
     return models.reduce((s, m) => s + valueOf(m), 0);
   },
   get fabricValue() {
-    return fabricMoves.reduce((s, m) => s + fabricSign(m) * m.amount, 0);
+    return fabrics.reduce((s, f) => s + f.meters * f.costPerMeter, 0);
   },
   get fabricAtFactoriesValue() {
-    return fabricAtFactories().reduce((s, f) => s + f.amount, 0);
+    return fabricAtFactories.reduce((s, f) => s + f.meters * f.costPerMeter, 0);
   },
   get liquidity() {
     return cashAccounts.reduce((s, a) => s + a.balance, 0);
