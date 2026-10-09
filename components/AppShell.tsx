@@ -18,6 +18,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { LogoLockup } from "@/components/Logo";
 
 type Item = { href: string; label: string; icon: LucideIcon };
 
@@ -64,14 +65,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-dvh">
       {/* ---------- السايدبار — ديسكتوب ---------- */}
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-e border-line bg-card lg:flex">
-        <div className="flex items-center gap-2.5 px-5 py-6">
-          <div className="grid size-9 place-items-center rounded-xl bg-brand text-brand-ink">
-            <span className="text-lg font-bold">م</span>
-          </div>
-          <div className="leading-tight">
-            <div className="text-[15px] font-bold">منار</div>
-            <div className="text-xs text-ink-mute">جملة ملابس</div>
-          </div>
+        <div className="px-5 py-6">
+          <LogoLockup size={40} />
         </div>
 
         <nav className="flex-1 space-y-6 px-3 py-2">

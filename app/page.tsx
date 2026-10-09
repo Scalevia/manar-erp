@@ -8,6 +8,7 @@ import {
   Receipt,
   Scissors,
 } from "lucide-react";
+import { LogoLockup } from "@/components/Logo";
 import { Card, Money, Num, Page, SectionTitle } from "@/components/ui";
 import { daysSince, shortDate } from "@/lib/format";
 import { cashAccounts, loansDueSoon, openOrders, totals, TODAY } from "@/lib/mock";
@@ -33,8 +34,8 @@ export default function Dashboard() {
         {/* ------------------------------ الترويسة ------------------------------ */}
         <div className="mb-5 flex items-end justify-between px-1 pt-2">
           <div>
-            <div className="text-[22px] font-bold leading-tight">منار</div>
-            <div className="mt-0.5 text-[13px] text-ink-mute">{today()}</div>
+            <LogoLockup size={42} />
+            <div className="mt-2 text-[13px] text-ink-mute">{today()}</div>
           </div>
           <Link
             href="/more"

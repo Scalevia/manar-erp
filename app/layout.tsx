@@ -11,12 +11,12 @@ const arabic = IBM_Plex_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "منار",
+  title: "مكتب منار",
   description: "إدارة محل جملة ملابس",
-  applicationName: "منار",
+  applicationName: "مكتب منار",
   appleWebApp: {
     capable: true,
-    title: "منار",
+    title: "مكتب منار",
     statusBarStyle: "default",
   },
   formatDetection: { telephone: false },

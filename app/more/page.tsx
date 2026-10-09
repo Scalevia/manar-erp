@@ -120,7 +120,7 @@ export default function MorePage() {
           </Card>
 
           <p className="px-1 pb-2 text-center text-[12px] text-ink-mute">
-            منار · نسخة عرض للتصميم · البيانات كلها تجريبية
+            مكتب منار · نسخة عرض للتصميم · البيانات كلها تجريبية
           </p>
         </div>
       </Page>

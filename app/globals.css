@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------
-   ManarERP — نظام التصميم
-   ألوان دافئة هادية، تباين عالي، أرقام واضحة في الشمس وبالليل.
+   مكتب منار — نظام التصميم
+   كحلي ودهبي على أسطح دافية هادية، تباين عالي، أرقام واضحة في الشمس وبالليل.
    ------------------------------------------------------------------ */
 
 :root {
@@ -21,10 +21,11 @@
   --line: #e3ded6;
   --line-soft: #efebe4;
 
-  /* الهوية */
-  --brand: #0d7068;
+  /* الهوية — كحلي ودهبي (لوجو مكتب منار) */
+  --brand: #1f2a44;
   --brand-ink: #ffffff;
-  --brand-soft: #e2f1ef;
+  --brand-soft: #e7eaf3;
+  --accent: #d9a441; /* الدهبي — خيط اللوجو ولمسات صغيرة */
 
   /* الدلالات */
   --pos: #04724d; /* ليا — فلوس جاية */
@@ -61,9 +62,10 @@
     --line: #2c2926;
     --line-soft: #211f1d;
 
-    --brand: #2bbfb0;
-    --brand-ink: #06201e;
-    --brand-soft: #14322f;
+    --brand: #a9b8e6;
+    --brand-ink: #111a33;
+    --brand-soft: #1a2238;
+    --accent: #e2b35a;
 
     --pos: #3cc98c;
     --pos-soft: #12301f;
@@ -90,9 +92,10 @@
   --line: #2c2926;
   --line-soft: #211f1d;
 
-  --brand: #2bbfb0;
-  --brand-ink: #06201e;
-  --brand-soft: #14322f;
+  --brand: #a9b8e6;
+  --brand-ink: #111a33;
+  --brand-soft: #1a2238;
+  --accent: #e2b35a;
 
   --pos: #3cc98c;
   --pos-soft: #12301f;
@@ -121,6 +124,7 @@
   --color-brand: var(--brand);
   --color-brand-ink: var(--brand-ink);
   --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
 
   --color-pos: var(--pos);
   --color-pos-soft: var(--pos-soft);

@@ -8,8 +8,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "منار — إدارة محل جملة ملابس",
-    short_name: "منار",
+    name: "مكتب منار",
+    short_name: "مكتب منار",
     description: "بيع · مخزون · حسابات · أوامر تصنيع",
     lang: "ar",
     dir: "rtl",
@@ -19,9 +19,10 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     background_color: "#f6f4f1",
     theme_color: "#f6f4f1",
+    // اللوجو: «م» بإبرة وخيط — كحلي ودهبي (المصدر: public/brand/manar-mark.svg)
     icons: [
-      { src: "/icon", sizes: "32x32", type: "image/png" },
-      { src: "/apple-icon", sizes: "180x180", type: "image/png" },
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
   };
 }
