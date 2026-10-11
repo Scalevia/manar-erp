@@ -66,6 +66,15 @@ export default function CapitalPage() {
             )}
           </div>
 
+          {/* اتنقل من الرئيسية: فلوس بس، من غير بضاعة وقماش */}
+          <div className="flex items-center justify-between border-t border-line-soft px-5 py-3">
+            <div>
+              <div className="text-[13px] font-semibold">صافي موقفي</div>
+              <div className="mt-0.5 text-[11px] text-ink-mute">فلوس بس — لو كل الناس سدّت واتسدّ اللي عليا</div>
+            </div>
+            <Money value={totals.net} className="text-[17px] font-bold" />
+          </div>
+
           <button
             type="button"
             onClick={() => setShowParts((v) => !v)}

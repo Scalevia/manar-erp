@@ -520,6 +520,8 @@ function buildInvoices(): Invoice[] {
   const cash = cashParty.id;
   const walkIns: [string, InvoiceLine[], string][] = [
     ["2026-09-23", [{ code: 214, qty: 12, price: p(125) }], "drawer"],
+    ["2026-09-23", [{ code: 221, qty: 24, price: p(110) }], "drawer"],
+    ["2026-09-23", [{ code: 199, qty: 12, price: p(125) }, { code: 208, qty: 12, price: p(130) }], "vcash"],
     ["2026-09-22", [{ code: 221, qty: 24, price: p(110) }], "drawer"],
     ["2026-09-20", [{ code: 208, qty: 12, price: p(130) }, { code: 199, qty: 12, price: p(125) }], "vcash"],
     ["2026-09-18", [{ code: 199, qty: 24, price: p(120) }], "drawer"],
@@ -544,6 +546,76 @@ function buildInvoices(): Invoice[] {
 export const invoices: Invoice[] = buildInvoices();
 
 export const invoiceByNo = (no: number) => invoices.find((x) => x.no === no);
+
+/* ============================== النهاردة ============================== */
+
+/** ملخص اليوم للرئيسية: بعت كام · دخل الخزن كام · مصاريف المحل */
+export function todaySummary() {
+  const sales = invoices.filter((i) => i.date === TODAY);
+  // اللي دخل الخزن: المدفوع وقت البيع + التحصيل من العملاء النهاردة
+  const collected = parties
+    .filter((x) => x.kind === "customer")
+    .flatMap((x) => statementOf(x.id))
+    .filter((r) => r.date === TODAY && r.label.startsWith("دفع"))
+    .reduce((s, r) => s - r.amount, 0);
+  const shopExpenses = expenses
+    .filter((e) => e.date === TODAY && !e.orderId && !categoryById(e.categoryId)?.personal)
+    .reduce((s, e) => s + e.amount, 0);
+  return {
+    salesCount: sales.length,
+    salesTotal: sales.reduce((s, i) => s + invoiceTotal(i), 0),
+    cashIn: sales.reduce((s, i) => s + i.paid, 0) + collected,
+    expenses: shopExpenses,
+  };
+}
+
+export type Activity = {
+  key: string;
+  date: string;
+  time?: string;
+  kind: "invoice" | "payment" | "expense" | "purchase";
+  title: string;
+  sub: string;
+  amount: number;
+  href: string;
+};
+
+/** آخر الحركات — بتطمّنه إن اللي سجّله اتحفظ، ولما ييجي بياعين: مين عمل إيه */
+export function recentActivity(limit = 6): Activity[] {
+  const items: Activity[] = [
+    ...invoices.map((i): Activity => {
+      const x = byId(i.partyId);
+      return {
+        key: `i${i.no}`, date: i.date, time: i.time, kind: "invoice",
+        title: x?.isCash ? "بيع نقدي" : `فاتورة · ${x?.name}`,
+        sub: `#${i.no}`, amount: invoiceTotal(i), href: `/invoices/${i.no}`,
+      };
+    }),
+    ...parties
+      .filter((x) => x.kind === "customer")
+      .flatMap((x) =>
+        statementOf(x.id)
+          .filter((r) => r.label.startsWith("دفع"))
+          .map((r): Activity => ({
+            key: `p${r.id}`, date: r.date, kind: "payment",
+            title: `تحصيل · ${x.name}`, sub: r.label.replace(/^دفع\s*/, "").replace("← ", ""),
+            amount: -r.amount, href: `/accounts/${x.id}`,
+          })),
+      ),
+    ...expenses.map((e): Activity => ({
+      key: `e${e.id}`, date: e.date, kind: "expense",
+      title: categoryById(e.categoryId)?.personal ? "خدته لنفسك" : `مصروف · ${categoryById(e.categoryId)?.label}`,
+      sub: e.note ?? "", amount: e.amount, href: "/expenses",
+    })),
+    ...purchases.map((r): Activity => ({
+      key: `b${r.id}`, date: r.date, kind: "purchase",
+      title: `شراء · ${r.what}`, sub: r.supplierName, amount: r.amount, href: "/purchases",
+    })),
+  ];
+  return items
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.time ?? "").localeCompare(a.time ?? "", undefined, { numeric: true }))
+    .slice(0, limit);
+}
 
 /* ========================== أرقام البيع والربح ========================== */
 
