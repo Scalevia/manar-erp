@@ -12,6 +12,7 @@ import {
   Package,
   Plus,
   Receipt,
+  RotateCcw,
   Settings,
   TrendingUp,
   Truck,
@@ -41,6 +42,7 @@ const sidebar: Item[][] = [
     { href: "/production", label: "أوامر التصنيع", icon: Factory },
     { href: "/purchases", label: "المشتريات", icon: Truck },
     { href: "/expenses", label: "المصاريف", icon: Receipt },
+    { href: "/returns", label: "مرتجع", icon: RotateCcw },
     { href: "/loans", label: "السلف", icon: ArrowLeftRight },
   ],
   [

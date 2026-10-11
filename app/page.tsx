@@ -71,7 +71,15 @@ export default function Dashboard() {
         </Card>
 
         {/* ------------------------------- الخزن ------------------------------- */}
-        <SectionTitle>الخزن</SectionTitle>
+        <SectionTitle
+          action={
+            <Link href="/transfer" className="text-[12px] font-semibold text-brand hover:underline">
+              تحويل بينهم
+            </Link>
+          }
+        >
+          الخزن
+        </SectionTitle>
         <div className="mb-5 grid grid-cols-3 gap-2">
           {cashAccounts.map((a) => (
             <Card key={a.id} className="px-3 py-3">

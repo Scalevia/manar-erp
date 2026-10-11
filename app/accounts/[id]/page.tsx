@@ -91,7 +91,12 @@ export default async function StatementPage({
             href={`/payments?party=${party.id}`}
             primary
           />
-          <Action icon={<HeartHandshake size={18} />} label="مسامحة" />
+          <Action
+            icon={<HeartHandshake size={18} />}
+            label="مسامحة"
+            href={`/settle?party=${party.id}`}
+            disabled={party.balance === 0}
+          />
           {/* tel: بيفتح تطبيق الاتصال على الآيفون بالرقم جاهز */}
           <Action
             icon={<Phone size={18} />}

@@ -200,9 +200,9 @@ export const modelByCode = (code: number) => models.find((m) => m.code === code)
 /** إجمالي القطع في المحل */
 export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0);
 
-/** قيمة الموديل بالقروش */
+/** قيمة الموديل بالقروش — متقرّبة لأقرب جنيه (تكلفة القطعة بس اللي بتتعرض بكسور) */
 export const valueOf = (m: Model) =>
-  m.batches.reduce((s, b) => s + b.pieces * b.unitCost, 0);
+  Math.round(m.batches.reduce((s, b) => s + b.pieces * b.unitCost, 0) / 100) * 100;
 
 /** راكد = آخر بيعة بقالها أكتر من 90 يوم وفيه مخزون */
 export const isStale = (m: Model) =>

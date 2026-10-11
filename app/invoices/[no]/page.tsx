@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, RotateCcw } from "lucide-react";
 import { Badge, Card, Money, Num, Page, PageHeader } from "@/components/ui";
 import { monthName } from "@/lib/format";
 import {
@@ -126,6 +126,16 @@ export default async function InvoicePage({ params }: { params: Promise<{ no: st
           <p className="mt-3 px-1 text-[12px] leading-relaxed text-ink-mute">
             ده اللي اتكتب عليه يوم الفاتورة. اللي دفعه بعد كده بيظهر في كشف حسابه.
           </p>
+        )}
+
+        {!walkIn && (
+          <Link
+            href={`/returns?dir=customer&party=${inv.partyId}`}
+            className="press mt-4 flex items-center justify-center gap-2 rounded-2xl border border-line bg-card py-3.5 text-[15px] font-semibold text-ink-soft"
+          >
+            <RotateCcw size={17} />
+            مرتجع من العميل ده
+          </Link>
         )}
       </Page>
     </>
