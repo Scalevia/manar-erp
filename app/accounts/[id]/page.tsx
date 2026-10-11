@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { HandCoins, HeartHandshake, Phone, RotateCcw } from "lucide-react";
+import { HandCoins, HeartHandshake, Phone } from "lucide-react";
 import { Card, Empty, Money, Page, PageHeader } from "@/components/ui";
 import { formatPhone, shortDate, since } from "@/lib/format";
 import { byId, isCollectFrom, statementOf, TODAY, type Party } from "@/lib/mock";
@@ -25,8 +25,6 @@ export default async function StatementPage({
   const owesMe = party.balance > 0;
   // العميل دايماً «عليه»، والسلفة حسب اتجاهها
   const collect = isCollectFrom(party);
-  const returnsDir =
-    party.kind === "customer" ? "customer" : party.kind === "factory" ? "factory" : null;
   const amount = Math.abs(party.balance);
   const settled = party.balance === 0;
 
@@ -86,8 +84,8 @@ export default async function StatementPage({
         </Card>
 
         {/* -------------------------------- الإجراءات -------------------------------- */}
-        {/* كل حاجة تخص الشخص في مكان واحد — المرتجع للعملاء والمصانع بس */}
-        <div className={`mb-5 grid gap-2 ${returnsDir ? "grid-cols-4" : "grid-cols-3"}`}>
+        {/* المرتجع في «المزيد» بس، مش هنا */}
+        <div className="mb-5 grid grid-cols-3 gap-2">
           <Action
             icon={<HandCoins size={18} />}
             label={collect ? "تحصيل" : "دفع"}
@@ -100,13 +98,6 @@ export default async function StatementPage({
             href={`/settle?party=${party.id}`}
             disabled={party.balance === 0}
           />
-          {returnsDir && (
-            <Action
-              icon={<RotateCcw size={18} />}
-              label="مرتجع"
-              href={`/returns?dir=${returnsDir}&party=${party.id}`}
-            />
-          )}
           {/* tel: بيفتح تطبيق الاتصال على الآيفون بالرقم جاهز */}
           <Action
             icon={<Phone size={18} />}

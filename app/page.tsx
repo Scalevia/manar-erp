@@ -50,7 +50,6 @@ const LATE_DAYS = 90;
  */
 export default function Dashboard() {
   const day = todaySummary();
-  const drawer = cashAccounts.find((a) => a.id === "drawer")!;
   const now = new Date(TODAY);
 
   const late = receivables()
@@ -97,7 +96,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-3 gap-px border-t border-line-soft bg-line-soft">
             <DayCell label="دخل الخزن" value={day.cashIn} tone="pos" />
             <DayCell label="مصاريف" value={day.expenses} tone="neg" href="/expenses" />
-            <DayCell label="في الدرج" value={drawer.balance} />
+            <DayCell label="السيولة" value={totals.liquidity} />
           </div>
         </Card>
 
