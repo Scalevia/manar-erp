@@ -6,12 +6,12 @@ import { Check, Plus, Trash2 } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
 import { Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { cashAccounts, modelByCode, ofKind, orders, stockOf, type Party } from "@/lib/mock";
+import { cashAccounts, modelByCode, ofKind, stockOf, type Party } from "@/lib/mock";
 
 /**
  * المرتجعات (الـ spec، قسم 6 — العمليتين 5 و6):
  *   من عميل: البضاعة ترجع المخزن، والمبلغ ينزل من حسابه — أو يرجعله فلوس من خزنة
- *   للمصنع:  البضاعة تطلع من المخزن، والمبلغ ينزل من المصنعية اللي عليا له
+ *   للمصنع:  البضاعة تطلع من المخزن، والمبلغ ينزل من اللي عليا له بسعر شراها منه
  */
 
 type Dir = "customer" | "factory";
@@ -308,10 +308,10 @@ function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd
 
   const model = code ? modelByCode(Number(code)) : undefined;
   const isCustomer = dir === "customer";
-  // للمصنع: المصنعية بتاعة الموديل ده من المصنع ده، لو اتعمل عنده قبل كده
+  // للمصنع: السعر اللي اشترى بيه الموديل ده من المصنع ده (آخر استلام)
   const work =
     !isCustomer && model
-      ? orders.find((o) => o.factoryId === factoryId && o.modelCode === model.code)?.workPerPiece
+      ? [...model.batches].reverse().find((b) => b.factoryId === factoryId)?.unitCost
       : undefined;
   const priceN = price === "" && work ? work / 100 : Number(price);
   const over = !isCustomer && model && Number(qty) > stockOf(model);
@@ -342,7 +342,7 @@ function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd
             onKeyDown={(e) => e.key === "Enter" && priceRef.current?.focus()} inputMode="numeric" enterKeyHint="next" placeholder="10" className={field} />
         </label>
         <label className="block flex-1">
-          <span className="mb-1 block text-[11px] text-ink-mute">{isCustomer ? "سعر القطعة" : "يخصم عن القطعة"}</span>
+          <span className="mb-1 block text-[11px] text-ink-mute">{isCustomer ? "سعر القطعة" : "بسعر القطعة"}</span>
           <input ref={priceRef} value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))}
             onKeyDown={(e) => e.key === "Enter" && submit()} inputMode="decimal" enterKeyHint="done"
             placeholder={work ? String(work / 100) : "120"} className={field} />
@@ -358,7 +358,7 @@ function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd
           <span className="text-ink-mute">
             {model.name ? `${model.name} · ` : ""}
             <Num value={stockOf(model)} /> قطعة في المحل
-            {work && price === "" && <> · المصنعية <Money value={work} /> ج</>}
+            {work && price === "" && <> · اشتريته منه بـ <Money value={work} decimals /> ج</>}
             {over && <span className="text-warn"> — أكتر من اللي عندك</span>}
           </span>
         )}

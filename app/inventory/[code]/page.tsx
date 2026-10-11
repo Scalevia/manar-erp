@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { Badge, Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
-import { dozens, since } from "@/lib/format";
-import { avgCost, modelByCode, models, stockOf, TODAY, valueOf } from "@/lib/mock";
+import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
+import { dozens, shortDate, since } from "@/lib/format";
+import { avgCost, byId, modelByCode, models, stockOf, TODAY, valueOf } from "@/lib/mock";
 
 export function generateStaticParams() {
   return models.map((m) => ({ code: String(m.code) }));
@@ -41,7 +40,7 @@ export default async function ModelPage({
         <SectionTitle>في المحل</SectionTitle>
         <Card className="mb-4 overflow-hidden">
           {m.batches.map((b, i) => (
-            <div key={b.orderId}>
+            <div key={`${b.receivedAt}-${b.factoryId}`}>
               {i > 0 && <div className="ms-4 border-t border-line-soft" />}
               <div className="flex items-center gap-3 px-4 py-3.5">
                 <div className="min-w-0 flex-1">
@@ -49,10 +48,9 @@ export default async function ModelPage({
                     <Num value={b.pieces} className="font-semibold" /> قطعة
                   </div>
                   <div className="mt-0.5 truncate text-[12px] text-ink-mute">
-                    {b.orderLabel}
+                    استلام <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.factoryId)?.name}
                   </div>
                 </div>
-                {b.provisional && <Badge tone="warn">تكلفة مبدئية</Badge>}
                 <div className="shrink-0 text-end">
                   <Money value={b.unitCost} decimals className="text-[15px] font-bold" />
                   <div className="text-[11px] text-ink-mute">تكلفة القطعة</div>
@@ -61,31 +59,6 @@ export default async function ModelPage({
             </div>
           ))}
         </Card>
-
-        {/* ----------------------------- لسه عند المصنع ----------------------------- */}
-        {m.incoming > 0 && (
-          <>
-            <SectionTitle>لسه عند المصنع</SectionTitle>
-            <Card className="mb-4 px-4 py-3.5">
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <div className="text-[15px]">
-                    <Num value={m.incoming} className="font-semibold" /> قطعة
-                  </div>
-                  <div className="mt-0.5 text-[12px] text-ink-mute">
-                    متوقعة — التكلفة تتظبط لما أمر التصنيع يقفل
-                  </div>
-                </div>
-                <Link
-                  href="/production"
-                  className="press shrink-0 rounded-xl bg-sunken px-3 py-2 text-[13px] font-semibold text-ink-soft"
-                >
-                  أمر التصنيع
-                </Link>
-              </div>
-            </Card>
-          </>
-        )}
 
         {/* --------------------------------- الحركة --------------------------------- */}
         <SectionTitle>الحركة</SectionTitle>

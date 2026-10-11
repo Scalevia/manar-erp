@@ -120,9 +120,7 @@ export default async function StatementPage({
                 <span className="w-10 shrink-0">التاريخ</span>
                 <span className="flex-1">الحركة</span>
                 <span className="w-20 shrink-0 text-end">المبلغ</span>
-                <span className="w-20 shrink-0 text-end">
-                  {collect ? "عليه بعدها" : "ليه بعدها"}
-                </span>
+                <span className="w-24 shrink-0 text-end">الرصيد بعدها</span>
               </div>
 
               {rows.map((r) => {
@@ -135,7 +133,7 @@ export default async function StatementPage({
                         {shortDate(r.date)}
                       </span>
                       <span
-                        className={`min-w-0 flex-1 truncate text-[14px] ${reduces ? "text-pos" : ""}`}
+                        className={`min-w-0 flex-1 text-[13px] leading-snug ${reduces ? "text-pos" : ""}`}
                       >
                         {r.label}
                       </span>
@@ -145,10 +143,18 @@ export default async function StatementPage({
                           reduces ? "text-pos" : "text-ink"
                         }`}
                       />
-                      <Money
-                        value={Math.abs(r.balance)}
-                        className="w-20 shrink-0 text-end text-[13px] text-ink-mute"
-                      />
+                      {/* كل سطر بيقول اتجاهه: المصنع ممكن يبدأ «عليه» (دفعتله تمن قماش)
+                          وبعد البضاعة يبقى «ليه» — رقم من غير اتجاه هنا يلخبط */}
+                      <span className="w-24 shrink-0 text-end text-[12px] text-ink-mute">
+                        {r.balance === 0 ? (
+                          "خالص"
+                        ) : (
+                          <>
+                            {r.balance > 0 ? "عليه " : "ليه "}
+                            <Money value={Math.abs(r.balance)} className="text-[13px]" />
+                          </>
+                        )}
+                      </span>
                     </div>
                   </div>
                 );

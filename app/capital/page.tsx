@@ -3,12 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, Minus, Plus } from "lucide-react";
-import { Badge, Card, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
+import { Card, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { money, monthOnly, pct } from "@/lib/format";
 import {
   capitalChange,
   capitalPeriods,
-  openOrders,
   periodAvailable,
   shopProfit,
   STARTED,
@@ -27,12 +26,9 @@ export default function CapitalPage() {
   const [showParts, setShowParts] = useState(false);
 
   const period = capitalPeriods.find((x) => x.id === selected)!;
-  const provisional = openOrders().length > 0;
 
   const parts: [string, number][] = [
     ["بضاعة في المحل", totals.stockValue],
-    ["قماش في المحل", totals.fabricValue],
-    ["قماش عند المصانع", totals.fabricAtFactoriesValue],
     ["فلوس في الخزن", totals.liquidity],
     ["ليك في السوق", totals.receivable],
     ["عليك", -totals.payable],
@@ -47,7 +43,6 @@ export default function CapitalPage() {
           <div className="px-5 pb-4 pt-5">
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-semibold text-ink-mute">كل اللي تملكه في الشغل</span>
-              {provisional && <Badge tone="warn">تقريبي</Badge>}
             </div>
             <div className="mt-1.5 flex items-baseline gap-1.5">
               {/* رقم لوحده كبير: أرقام بعرضها الطبيعي، مش عرض ثابت */}
@@ -59,11 +54,6 @@ export default function CapitalPage() {
               </span>
               <span className="text-[16px] font-semibold text-ink-mute">ج</span>
             </div>
-            {provisional && (
-              <p className="mt-2.5 text-[12px] leading-relaxed text-ink-mute">
-                فيه أوامر تصنيع مفتوحة — الرقم هيتظبط لما تقفلها.
-              </p>
-            )}
           </div>
 
           {/* اتنقل من الرئيسية: فلوس بس، من غير بضاعة وقماش */}

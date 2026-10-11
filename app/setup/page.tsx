@@ -14,11 +14,9 @@ type Step = {
 const steps: Step[] = [
   { title: "الخزن", fields: "3 أرقام بس", time: "دقيقة", done: true },
   { title: "العملاء", fields: "الاسم · المبلغ · من إمتى", time: "ربع ساعة", done: true },
-  { title: "المصانع", fields: "الاسم · المبلغ", time: "5 دقايق", done: true },
+  { title: "المصانع", fields: "الاسم · ليه كام أو عليه كام", time: "5 دقايق", done: true },
   { title: "تجار القماش", fields: "الاسم · المبلغ", time: "5 دقايق" },
-  { title: "القماش", fields: "النوع · المتر · سعر المتر", time: "10 دقايق" },
   { href: "/setup/stock", title: "البضاعة", fields: "الكود · العدد · التكلفة", time: "نص ساعة" },
-  { title: "أوامر التصنيع المفتوحة", fields: "يدوي، قليلين", time: "10 دقايق" },
 ];
 
 export default function SetupPage() {

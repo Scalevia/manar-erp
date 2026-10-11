@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronLeft, FileText, TrendingUp } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, FileText, TrendingUp } from "lucide-react";
 import { Badge, Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { pct, since } from "@/lib/format";
 import {
@@ -15,13 +15,11 @@ import {
   stockOf,
   TODAY,
   valueOf,
-  wasteByFactory,
 } from "@/lib/mock";
 
 export default function ReportsPage() {
   const profits = [...modelStats].sort((a, b) => profitOf(b) - profitOf(a));
   const stale = staleModels();
-  const waste = wasteByFactory();
 
   const frozen = stale.reduce((s, m) => s + valueOf(m), 0);
   const capital1m = capitalPeriods.find((x) => x.id === "1m");
@@ -153,40 +151,6 @@ export default function ReportsPage() {
           ))}
         </Card>
 
-        {/* ------------------------ الهدر عند المصانع ------------------------ */}
-        <SectionTitle>أنهي مصنع بياكل قماشي؟</SectionTitle>
-        <Card className="mb-6 overflow-hidden">
-          {waste.map((w, i) => {
-            const bad = w.pct > 6;
-            return (
-              <div key={w.factoryId}>
-                {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-                <div className="flex items-center gap-3 px-4 py-3.5">
-                  <span className="flex-1 truncate text-[14px] font-semibold">
-                    {w.name}
-                  </span>
-                  {bad && (
-                    <span className="flex items-center gap-1 text-[12px] font-semibold text-neg">
-                      <AlertTriangle size={14} />
-                      بياكل قماشك
-                    </span>
-                  )}
-                  <span
-                    className={`num w-14 text-end text-[16px] font-bold ${
-                      bad ? "text-neg" : "text-ink"
-                    }`}
-                  >
-                    {pct(w.pct)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </Card>
-
-        <p className="px-1 text-[12px] leading-relaxed text-ink-mute">
-          الهدر بيتحسب لوحده من الفرق بين المتوقع واللي استلمته — من غير ما تسجّله.
-        </p>
       </Page>
     </>
   );

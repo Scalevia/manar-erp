@@ -2,24 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, Factory, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { Card, Money, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import {
-  byId,
-  cashAccounts,
-  expenseCategories,
-  openOrders,
-  type ProductionOrder,
-} from "@/lib/mock";
+import { cashAccounts, expenseCategories } from "@/lib/mock";
 
 export default function NewExpensePage() {
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [accountId, setAccountId] = useState(cashAccounts[0].id);
   const [note, setNote] = useState("");
-  const [showOrder, setShowOrder] = useState(false);
-  const [order, setOrder] = useState<ProductionOrder | null>(null);
   const [saved, setSaved] = useState(false);
 
   const amountP = p(Number(amount) || 0);
@@ -34,8 +26,6 @@ export default function NewExpensePage() {
     setCategoryId("");
     setAccountId(cashAccounts[0].id);
     setNote("");
-    setShowOrder(false);
-    setOrder(null);
     setSaved(false);
   }
 
@@ -56,11 +46,6 @@ export default function NewExpensePage() {
             <div className="mt-2 text-[13px] text-ink-mute">
               من {account.name} · فاضل فيه <Money value={account.balance - amountP} /> ج
             </div>
-            {order && (
-              <div className="mt-2 text-[12px] text-brand">
-                اتضاف على تكلفة {order.label} · موديل <span className="num">{order.modelCode}</span>
-              </div>
-            )}
           </Card>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -110,14 +95,7 @@ export default function NewExpensePage() {
             <button
               key={c.id}
               type="button"
-              onClick={() => {
-                setCategoryId(c.id);
-                // السحب الشخصي عمره ما يبقى على أمر تصنيع
-                if (c.personal) {
-                  setShowOrder(false);
-                  setOrder(null);
-                }
-              }}
+              onClick={() => setCategoryId(c.id)}
               className={`press rounded-xl border px-3 py-3 text-[14px] font-semibold ${
                 categoryId === c.id
                   ? "border-brand bg-brand-soft text-brand"
@@ -165,64 +143,8 @@ export default function NewExpensePage() {
           onChange={(e) => setNote(e.target.value)}
           placeholder="ملاحظة (اختياري) — مثلاً: فطار، تحميل بضاعة"
           aria-label="ملاحظة"
-          className="mb-4 mt-2 h-12 w-full rounded-2xl border border-line bg-card px-4 text-[16px] outline-none placeholder:text-[14px] placeholder:text-ink-mute focus:border-brand"
+          className="mb-5 mt-2 h-12 w-full rounded-2xl border border-line bg-card px-4 text-[16px] outline-none placeholder:text-[14px] placeholder:text-ink-mute focus:border-brand"
         />
-
-        {/* ------------------- تبع أمر تصنيع — نادر، فمخفي ------------------- */}
-        {!personal && (
-          <div className="mb-5">
-            {!showOrder ? (
-              <button
-                type="button"
-                onClick={() => setShowOrder(true)}
-                className="press flex items-center gap-2 text-[13px] font-semibold text-brand"
-              >
-                <Factory size={15} />
-                المصروف ده تبع أمر تصنيع؟
-              </button>
-            ) : (
-              <Card className="overflow-hidden">
-                <div className="flex items-center justify-between bg-sunken px-4 py-2">
-                  <span className="text-[12px] font-semibold text-ink-mute">
-                    بيتضاف على تكلفة أمر التصنيع، مش مصروف عام
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowOrder(false);
-                      setOrder(null);
-                    }}
-                    aria-label="إلغاء"
-                    className="grid size-7 place-items-center rounded-full text-ink-mute active:bg-card"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
-                {openOrders().map((o, i) => (
-                  <div key={o.id}>
-                    {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-                    <button
-                      type="button"
-                      onClick={() => setOrder(o)}
-                      className={`press flex w-full items-center gap-3 px-4 py-3 text-start ${
-                        order?.id === o.id ? "bg-brand-soft" : "active:bg-sunken"
-                      }`}
-                    >
-                      <span className="flex-1 text-[14px]">
-                        <span className="font-semibold">{byId(o.factoryId)?.name}</span>
-                        <span className="text-ink-mute">
-                          {" "}
-                          · {o.label} · <span className="num">{o.modelCode}</span>
-                        </span>
-                      </span>
-                      {order?.id === o.id && <Check size={17} className="text-brand" />}
-                    </button>
-                  </div>
-                ))}
-              </Card>
-            )}
-          </div>
-        )}
 
         <button
           type="button"

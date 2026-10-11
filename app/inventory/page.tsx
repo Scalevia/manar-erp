@@ -12,7 +12,7 @@ export default function InventoryPage() {
 
   const list = useMemo(() => {
     const term = q.trim();
-    const base = models.filter((m) => stockOf(m) > 0 || m.incoming > 0);
+    const base = models.filter((m) => stockOf(m) > 0);
     if (!term) return base;
     return base.filter(
       (m) => String(m.code).includes(term) || (m.name ?? "").includes(term),
@@ -90,11 +90,6 @@ export default function InventoryPage() {
                         )}
                       </div>
 
-                      {m.incoming > 0 && (
-                        <Badge tone="brand">
-                          + <Num value={m.incoming} /> جايين
-                        </Badge>
-                      )}
                       {stale && (
                         <Badge tone="warn">
                           راكد {m.lastSale ? since(m.lastSale, new Date(TODAY)) : ""}

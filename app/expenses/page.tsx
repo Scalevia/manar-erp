@@ -6,7 +6,6 @@ import {
   cashAccounts,
   categoryById,
   expenses,
-  orders,
   TODAY,
   type Expense,
 } from "@/lib/mock";
@@ -25,13 +24,11 @@ export default function ExpensesPage() {
   const month = TODAY.slice(0, 7);
   const thisMonth = expenses.filter((e) => e.date.startsWith(month));
 
-  // مصاريف المحل بس: السحب الشخصي بيتعرض لوحده، واللي على أمر تصنيع بيروح على
-  // تكلفة الأمر ده — الاتنين مش بيقللوا ربح المحل
-  const isShop = (e: Expense) => !isPersonal(e) && !e.orderId;
+  // مصاريف المحل بس: السحب الشخصي بيتعرض لوحده — مش بيقلل ربح المحل
+  const isShop = (e: Expense) => !isPersonal(e);
   const today = thisMonth.filter((e) => e.date === TODAY && isShop(e));
   const work = thisMonth.filter(isShop);
   const personal = thisMonth.filter(isPersonal);
-  const onOrders = thisMonth.filter((e) => e.orderId);
 
   const sum = (rows: Expense[]) => rows.reduce((s, e) => s + e.amount, 0);
 
@@ -69,15 +66,6 @@ export default function ExpensesPage() {
               <Money value={sum(work)} className="mt-1 block text-[20px] font-bold" />
             </div>
           </div>
-          {onOrders.length > 0 && (
-            <div className="flex items-center justify-between border-t border-line-soft px-4 py-3">
-              <div>
-                <div className="text-[13px] text-ink-soft">على أوامر تصنيع الشهر ده</div>
-                <div className="mt-0.5 text-[11px] text-ink-mute">اتضافت على تكلفة القطعة، مش مصاريف محل</div>
-              </div>
-              <Money value={sum(onOrders)} className="text-[15px] font-bold" />
-            </div>
-          )}
           {personal.length > 0 && (
             <div className="flex items-center justify-between border-t border-line-soft px-4 py-3">
               <div>
@@ -100,7 +88,6 @@ export default function ExpensesPage() {
               <Card className="overflow-hidden">
                 {rows.map((e, i) => {
                   const cat = categoryById(e.categoryId);
-                  const order = e.orderId ? orders.find((o) => o.id === e.orderId) : undefined;
                   return (
                     <div key={e.id}>
                       {i > 0 && <div className="ms-4 border-t border-line-soft" />}
@@ -109,11 +96,6 @@ export default function ExpensesPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="truncate text-[14px] font-semibold">{cat?.label}</span>
                             {cat?.personal && <Badge tone="neutral">شخصي</Badge>}
-                            {order && (
-                              <Badge tone="brand">
-                                {order.label} · <span className="num">{order.modelCode}</span>
-                              </Badge>
-                            )}
                           </div>
                           <div className="mt-0.5 truncate text-[12px] text-ink-mute">
                             {[e.note, cashAccounts.find((a) => a.id === e.accountId)?.name]

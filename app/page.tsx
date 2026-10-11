@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ChevronLeft,
-  Factory,
   FileText,
   HandCoins,
   PackagePlus,
@@ -20,7 +19,6 @@ import {
   capitalPeriods,
   cashAccounts,
   loansDueSoon,
-  openOrders,
   receivables,
   recentActivity,
   todaySummary,
@@ -56,7 +54,6 @@ export default function Dashboard() {
     .filter((x) => x.kind === "customer" && x.oldestDue && daysSince(x.oldestDue, now) > LATE_DAYS)
     .slice(0, 3);
   const loans = loansDueSoon();
-  const open = openOrders();
   const capital1m = capitalPeriods.find((x) => x.id === "1m")!;
 
   return (
@@ -73,7 +70,7 @@ export default function Dashboard() {
         <div className="mb-5 grid grid-cols-3 gap-2">
           <Quick href="/expenses/new" icon={Receipt} label="مصروف" primary />
           <Quick href="/payments" icon={HandCoins} label="تحصيل" />
-          <Quick href="/production/receive" icon={PackagePlus} label="استلام" />
+          <Quick href="/receive" icon={PackagePlus} label="استلام" />
         </div>
 
         {/* ------------------------------- النهاردة ------------------------------- */}
@@ -101,7 +98,7 @@ export default function Dashboard() {
         </Card>
 
         {/* ---------------------------- محتاج انتباهك ---------------------------- */}
-        {(late.length > 0 || loans.length > 0 || open.length > 0) && (
+        {(late.length > 0 || loans.length > 0) && (
           <>
             <SectionTitle>محتاج انتباهك</SectionTitle>
             <Card className="mb-5 overflow-hidden">
@@ -155,23 +152,6 @@ export default function Dashboard() {
                 );
               })}
 
-              {open.length > 0 && (
-                <Link
-                  href="/production"
-                  className={`press block active:bg-sunken ${late.length + loans.length > 0 ? "border-t border-line-soft" : ""}`}
-                >
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <Factory size={17} className="shrink-0 text-warn" />
-                    <div className="min-w-0 flex-1 text-[13px]">
-                      <span className="font-semibold">
-                        <Num value={open.length} /> {open.length === 1 ? "أمر تصنيع مفتوح" : "أوامر تصنيع مفتوحة"}
-                      </span>
-                      <span className="text-ink-mute"> — التكلفة لسه مبدئية</span>
-                    </div>
-                    <ChevronLeft size={16} className="shrink-0 text-ink-mute" />
-                  </div>
-                </Link>
-              )}
             </Card>
           </>
         )}
