@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { dozens, shortDate, since } from "@/lib/format";
-import { avgCost, byId, modelByCode, models, stockOf, TODAY, valueOf } from "@/lib/mock";
+import { avgCost, byId, jobById, jobTitle, modelByCode, models, stockOf, TODAY, valueOf } from "@/lib/mock";
 
 export function generateStaticParams() {
   return models.map((m) => ({ code: String(m.code) }));
@@ -49,6 +49,7 @@ export default async function ModelPage({
                   </div>
                   <div className="mt-0.5 truncate text-[12px] text-ink-mute">
                     استلام <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.factoryId)?.name}
+                    {b.jobId && jobById(b.jobId) && <> · {jobTitle(jobById(b.jobId)!)}</>}
                   </div>
                 </div>
                 <div className="shrink-0 text-end">

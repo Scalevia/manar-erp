@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ChevronLeft,
+  Factory,
   FileText,
   HandCoins,
   PackagePlus,
@@ -15,10 +16,15 @@ import { LogoLockup } from "@/components/Logo";
 import { Card, Money, Num, Page, SectionTitle } from "@/components/ui";
 import { daysSince, shortDate, since } from "@/lib/format";
 import {
+  byId,
   capitalChange,
   capitalPeriods,
   cashAccounts,
+  jobSummary,
+  jobTitle,
   loansDueSoon,
+  openJobs,
+  staleJobs,
   receivables,
   recentActivity,
   todaySummary,
@@ -54,6 +60,7 @@ export default function Dashboard() {
     .filter((x) => x.kind === "customer" && x.oldestDue && daysSince(x.oldestDue, now) > LATE_DAYS)
     .slice(0, 3);
   const loans = loansDueSoon();
+  const stale = staleJobs();
   const capital1m = capitalPeriods.find((x) => x.id === "1m")!;
 
   return (
@@ -98,7 +105,7 @@ export default function Dashboard() {
         </Card>
 
         {/* ---------------------------- محتاج انتباهك ---------------------------- */}
-        {(late.length > 0 || loans.length > 0) && (
+        {(late.length > 0 || loans.length > 0 || stale.length > 0) && (
           <>
             <SectionTitle>محتاج انتباهك</SectionTitle>
             <Card className="mb-5 overflow-hidden">
@@ -152,6 +159,30 @@ export default function Dashboard() {
                 );
               })}
 
+              {/* أمر مفتوح ومفيش استلام فيه من فترة — يمكن نسي يقفله */}
+              {stale.map((j, i) => {
+                const last = jobSummary(j).lastReceipt;
+                return (
+                  <Link
+                    key={j.id}
+                    href={`/jobs/${j.id}`}
+                    className={`press block active:bg-sunken ${late.length + loans.length + i > 0 ? "border-t border-line-soft" : ""}`}
+                  >
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <Factory size={17} className="shrink-0 text-warn" />
+                      <div className="min-w-0 flex-1 text-[13px]">
+                        <span className="font-semibold">
+                          {jobTitle(j)} · {byId(j.factoryId ?? "")?.name}
+                        </span>{" "}
+                        <span className="text-ink-mute">
+                          — {last ? "آخر استلام" : "لسه موصلش منه حاجة"} {since(last ?? j.openedAt, now)}
+                        </span>
+                      </div>
+                      <ChevronLeft size={16} className="shrink-0 text-ink-mute" />
+                    </div>
+                  </Link>
+                );
+              })}
             </Card>
           </>
         )}
@@ -184,6 +215,19 @@ export default function Dashboard() {
                 <Money value={a.balance} className="mt-0.5 block text-[15px] font-bold" />
               </div>
             ))}
+          </div>
+          {/* فلوس اتحولت لقماش أو لشغل لسه موصلش — محسوبة في رأس المال، مش في السيولة */}
+          <div className="grid grid-cols-2 gap-px border-t border-line-soft bg-line-soft">
+            <Link href="/jobs" className="press block bg-card px-4 py-3 active:bg-sunken">
+              <div className="truncate text-[11px] text-ink-mute">
+                في أوامر التصنيع · <span className="num">{openJobs().length}</span>
+              </div>
+              <Money value={totals.inJobs} className="mt-0.5 block text-[15px] font-bold" />
+            </Link>
+            <Link href="/fabric" className="press block bg-card px-4 py-3 active:bg-sunken">
+              <div className="truncate text-[11px] text-ink-mute">قماش في المحل</div>
+              <Money value={totals.fabric} className="mt-0.5 block text-[15px] font-bold" />
+            </Link>
           </div>
         </Card>
 
@@ -279,6 +323,7 @@ const ACTIVITY_ICON: Record<Activity["kind"], LucideIcon> = {
   payment: HandCoins,
   expense: Receipt,
   purchase: Truck,
+  receive: PackagePlus,
 };
 
 function ActivityRow({ a, first }: { a: Activity; first: boolean }) {

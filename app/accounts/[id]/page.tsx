@@ -3,7 +3,16 @@ import { notFound } from "next/navigation";
 import { HandCoins, HeartHandshake, Phone } from "lucide-react";
 import { Card, Empty, Money, Page, PageHeader } from "@/components/ui";
 import { formatPhone, shortDate, since } from "@/lib/format";
-import { byId, isCollectFrom, statementOf, TODAY, type Party } from "@/lib/mock";
+import {
+  byId,
+  isCollectFrom,
+  jobsOfFactory,
+  jobSummary,
+  jobTitle,
+  statementOf,
+  TODAY,
+  type Party,
+} from "@/lib/mock";
 
 function kindLabel(x: Party) {
   if (x.kind === "customer") return "عميل";
@@ -106,6 +115,37 @@ export default async function StatementPage({
             disabled={!party.phone}
           />
         </div>
+
+        {/* ---------------------------- أوامر التصنيع ---------------------------- */}
+        {/* الاستلام مبيظهرش في كشف المصنع — بيطلع من الأمر. فالأوامر هنا عشان يلاقيها */}
+        {party.kind === "factory" && jobsOfFactory(party.id).length > 0 && (
+          <>
+            <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">أوامر التصنيع عنده</h2>
+            <Card className="mb-5 overflow-hidden">
+              {jobsOfFactory(party.id).map((j, i) => {
+                const s = jobSummary(j);
+                return (
+                  <Link
+                    key={j.id}
+                    href={`/jobs/${j.id}`}
+                    className={`press flex items-center gap-3 px-4 py-3 active:bg-sunken ${i > 0 ? "border-t border-line-soft" : ""}`}
+                  >
+                    <span className="text-[14px] font-semibold">{jobTitle(j)}</span>
+                    <span className="min-w-0 flex-1 truncate text-[12px] text-ink-mute">
+                      {j.name}
+                      {j.closedAt ? " · اتقفل" : ""}
+                    </span>
+                    {!j.closedAt && (
+                      <span className="text-[12px] text-ink-mute">
+                        فاضل <Money value={s.remaining} className="font-semibold text-ink-soft" />
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </Card>
+          </>
+        )}
 
         {/* ------------------------------- كشف الحساب ------------------------------- */}
         <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">كشف الحساب</h2>

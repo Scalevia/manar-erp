@@ -100,13 +100,15 @@ export const cashAccounts: CashAccount[] = [
 
 /**
  * دفعة بضاعة استلمها من مصنع — نفس الكود ممكن يتكرر بسعرين (الـ spec، قسم 4).
- * سعر القطعة بيتحدد وقت الاستلام: اللي صرفه على الحتة ÷ اللي وصل فعلاً.
+ * سعر القطعة بيكتبه هو وقت الاستلام، وقيمتها بتطلع من فلوس أمر التصنيع (قسم 5).
  */
 export type Batch = {
   receivedAt: string;
   factoryId: string;
   pieces: number;
   unitCost: number;
+  /** أمر التصنيع اللي طلعت منه — فاضي للبضاعة اللي كانت موجودة قبل البرنامج */
+  jobId?: string;
 };
 
 export type Model = {
@@ -120,16 +122,17 @@ export type Model = {
 export const models: Model[] = [
   {
     code: 214, name: "قميص كاروهات",
+    // أمر 7: وصل 300 ثم 390 — اتباع 200 من الدفعة الأولى
     batches: [
-      { receivedAt: "2026-03-28", factoryId: "f1", pieces: 120, unitCost: p(85) },
-      { receivedAt: "2026-09-21", factoryId: "f1", pieces: 340, unitCost: p(90) },
+      { receivedAt: "2026-09-04", factoryId: "f1", pieces: 100, unitCost: p(82), jobId: "j7" },
+      { receivedAt: "2026-09-21", factoryId: "f1", pieces: 390, unitCost: p(82), jobId: "j7" },
     ],
-    lastSale: "2026-09-20", soldThisMonth: 85,
+    lastSale: "2026-09-20", soldThisMonth: 200,
   },
   { code: 208, name: "بنطلون جينز", batches: [{ receivedAt: "2026-08-20", factoryId: "f2", pieces: 180, unitCost: p(78) }], lastSale: "2026-09-22", soldThisMonth: 140 },
-  { code: 221, name: "تيشيرت قطن", batches: [{ receivedAt: "2026-09-12", factoryId: "f3", pieces: 260, unitCost: p(75) }], lastSale: "2026-09-21", soldThisMonth: 210 },
+  { code: 221, name: "تيشيرت قطن", batches: [{ receivedAt: "2026-09-12", factoryId: "f3", pieces: 260, unitCost: p(75), jobId: "j8" }], lastSale: "2026-09-21", soldThisMonth: 210 },
   { code: 199, name: "قميص سادة", batches: [{ receivedAt: "2026-07-25", factoryId: "f1", pieces: 150, unitCost: p(88) }], lastSale: "2026-09-18", soldThisMonth: 60 },
-  { code: 235, name: "جاكيت خفيف", batches: [{ receivedAt: "2026-09-16", factoryId: "f2", pieces: 95, unitCost: p(100) }], lastSale: "2026-09-19", soldThisMonth: 25 },
+  { code: 235, name: "جاكيت خفيف", batches: [{ receivedAt: "2026-09-16", factoryId: "f2", pieces: 95, unitCost: p(100), jobId: "j6" }], lastSale: "2026-09-19", soldThisMonth: 25 },
   { code: 190, name: "جاكيت شتوي", batches: [{ receivedAt: "2026-02-20", factoryId: "f2", pieces: 45, unitCost: p(120) }], lastSale: "2026-06-02", soldThisMonth: 0 },
   { code: 176, name: "بلوزة صيفي", batches: [{ receivedAt: "2026-04-15", factoryId: "f3", pieces: 120, unitCost: p(86.67) }], lastSale: "2026-04-25", soldThisMonth: 0 },
   { code: 183, name: "شورت", batches: [{ receivedAt: "2026-05-10", factoryId: "f3", pieces: 60, unitCost: p(85) }], lastSale: "2026-05-30", soldThisMonth: 0 },
@@ -155,31 +158,170 @@ export const avgCost = (m: Model) => {
   return n === 0 ? 0 : Math.round(valueOf(m) / n);
 };
 
-/* ===================== شراء قماش للمصنع (مفيش مخزن قماش) ===================== */
+/* ===================== أوامر التصنيع — شنطة فلوس للشغلانة ===================== */
 
 /**
- * القماش مش بيتسجل قماش — «اشتريت بمليون قماش، هكتبها دفعة للمصنع» (العميل).
- * الشراية الواحدة بتظهر في تلات أماكن: هنا، وكشف تاجر القماش («شراء قماش»)،
- * وكشف المصنع («دفعة: تمن قماش»). والباقي اللي مندفعش بيتكتب عليه لتاجر القماش.
+ * الـ spec، قسم 5: كل جنيه بيتصرف على الشغلانة (قماش، مصنعية، سوست، شحن) بيدخل
+ * الأمر، وكل استلام بيطلع منه بالعدد × السعر اللي هو كتبه.
+ *   الفاضل = اللي اتصرف − قيمة اللي اتستلم — محسوب، مش خانة متخزنة.
+ * الاستلام **مبيلمسش حساب المصنع**: المصنعية اتسجلت صرف على الأمر خلاص.
  */
-export type Purchase = {
+export type CloseMode = "spread" | "factory" | "loss";
+
+export type Job = {
+  id: string;
+  /** رقم الأمر — من sequence في الداتابيز */
+  no: number;
+  /** ممكن يتساب فاضي لحد أول مصنعية أو أول استلام */
+  factoryId?: string;
+  name?: string;
+  openedAt: string;
+  closedAt?: string;
+  /** الفاضل راح فين عند القفل — فاضي لو الأمر اتقفل على صفر */
+  closeMode?: CloseMode;
+};
+
+export const jobs: Job[] = [
+  { id: "j6", no: 6, factoryId: "f2", name: "235 جاكيت خفيف", openedAt: "2026-08-25", closedAt: "2026-09-17" },
+  { id: "j7", no: 7, factoryId: "f1", name: "214 صيف", openedAt: "2026-08-20" },
+  { id: "j8", no: 8, factoryId: "f3", name: "221 تيشيرت", openedAt: "2026-09-06", closedAt: "2026-09-13" },
+  { id: "j9", no: 9, factoryId: "f1", name: "199 شتوي", openedAt: "2026-09-05" },
+];
+
+/** بنود الصرف — صفوف في جدول زي أنواع المصاريف */
+export type JobCostItem = { id: string; label: string };
+
+export const jobCostItems: JobCostItem[] = [
+  { id: "fabric", label: "قماش" },
+  { id: "labor", label: "مصنعية" },
+  { id: "trims", label: "سوست وإكسسوار" },
+  { id: "shipping", label: "شحن" },
+  { id: "other", label: "تاني" },
+];
+
+export const costItemById = (id: string) => jobCostItems.find((x) => x.id === id);
+
+/** صرف على أمر — الأمر بيزيد بالمبلغ كله، والطرف ليه اللي مندفعش */
+export type JobCost = {
+  id: string;
+  jobId: string;
+  date: string;
+  itemId: string;
+  /** لمين — اختياري لو مدفوع كله (شحن، يومية تحميل) */
+  partyId?: string;
+  amount: number;
+  paid: number;
+  accountId?: string;
+  note?: string;
+  /** قماش «من عندي» — طالع من القماش اللي في المحل، مش شراية جديدة: الخزنة متتلمسش */
+  fromStock?: boolean;
+};
+
+export const jobCosts: JobCost[] = [
+  // أمر 7 · مصنع النور — نفس المثال اللي في الـ spec
+  { id: "jc1", jobId: "j7", date: "2026-08-20", itemId: "fabric", partyId: "s1", amount: p(21000), paid: p(21000), accountId: "drawer", note: "قطن" },
+  { id: "jc2", jobId: "j7", date: "2026-08-23", itemId: "fabric", partyId: "s1", amount: p(20000), paid: 0, note: "قطن أبيض" },
+  { id: "jc3", jobId: "j7", date: "2026-08-25", itemId: "trims", amount: p(3000), paid: p(3000), accountId: "drawer", note: "سوست وزراير" },
+  { id: "jc4", jobId: "j7", date: "2026-09-01", itemId: "labor", partyId: "f1", amount: p(14000), paid: 0 },
+  // أمر 6 · مصنع الأمانة — اتقفل على صفر
+  { id: "jc5", jobId: "j6", date: "2026-08-25", itemId: "fabric", partyId: "s2", amount: p(6500), paid: 0, note: "كتان" },
+  { id: "jc6", jobId: "j6", date: "2026-09-02", itemId: "labor", partyId: "f2", amount: p(14500), paid: 0 },
+  // أمر 9 · مصنع النور — لسه موصلش منه حاجة
+  { id: "jc7", jobId: "j9", date: "2026-09-05", itemId: "fabric", partyId: "s1", amount: p(15000), paid: p(15000), accountId: "instapay", note: "مولتون" },
+  { id: "jc8", jobId: "j9", date: "2026-09-09", itemId: "trims", amount: p(1200), paid: p(1200), accountId: "drawer", note: "زراير" },
+  { id: "jc9", jobId: "j9", date: "2026-09-18", itemId: "labor", partyId: "f1", amount: p(8000), paid: 0 },
+  { id: "jc12", jobId: "j9", date: "2026-09-22", itemId: "fabric", amount: p(12000), paid: 0, fromStock: true, note: "قطن مصري" },
+  // أمر 8 · مصنع الشروق — اتقفل على صفر
+  { id: "jc10", jobId: "j8", date: "2026-09-06", itemId: "fabric", partyId: "s1", amount: p(16200), paid: 0, note: "قطن ليكرا" },
+  { id: "jc11", jobId: "j8", date: "2026-09-08", itemId: "labor", partyId: "f3", amount: p(9000), paid: 0 },
+];
+
+/** استلام من المصنع — كل دفعة لوحدها، والقيمة بتطلع من الأمر */
+export type JobReceipt = {
+  id: string;
+  jobId: string;
+  date: string;
+  lines: { code: number; qty: number; unitCost: number }[];
+};
+
+export const jobReceipts: JobReceipt[] = [
+  { id: "jr1", jobId: "j7", date: "2026-09-04", lines: [{ code: 214, qty: 300, unitCost: p(82) }] },
+  { id: "jr2", jobId: "j7", date: "2026-09-21", lines: [{ code: 214, qty: 390, unitCost: p(82) }] },
+  { id: "jr3", jobId: "j6", date: "2026-09-08", lines: [{ code: 235, qty: 120, unitCost: p(100) }] },
+  { id: "jr4", jobId: "j6", date: "2026-09-16", lines: [{ code: 235, qty: 90, unitCost: p(100) }] },
+  { id: "jr5", jobId: "j8", date: "2026-09-10", lines: [{ code: 221, qty: 256, unitCost: p(75) }] },
+  { id: "jr6", jobId: "j8", date: "2026-09-12", lines: [{ code: 221, qty: 80, unitCost: p(75) }] },
+];
+
+/* ---------------------- القماش اللي في المحل — بالفلوس بس ---------------------- */
+
+/**
+ * قماش اشتراه وشاله عنده (الـ spec، قسم 5): مفيش متر ولا كيلو ولا أنواع —
+ * «قماش عندي» رقم واحد بالفلوس. بيزيد بالشراية، وبيقل لما يبعت منه لأمر
+ * («صرفت · قماش · من عندي»). القماش اللي بيتشرى للأمر على طول مبيعديش هنا.
+ */
+export type FabricBuy = {
   id: string;
   date: string;
   supplierId: string;
-  factoryId: string;
   amount: number;
-  /** اتدفع كام وقت الشراء — الباقي عليه لتاجر القماش */
   paid: number;
   accountId?: string;
   note?: string;
 };
 
-export const purchases: Purchase[] = [
-  { id: "pu1", date: "2026-08-20", supplierId: "s1", factoryId: "f1", amount: p(21000), paid: p(21000), accountId: "drawer", note: "قطن" },
-  { id: "pu2", date: "2026-08-25", supplierId: "s2", factoryId: "f2", amount: p(6500), paid: 0, note: "كتان" },
-  { id: "pu3", date: "2026-09-06", supplierId: "s1", factoryId: "f3", amount: p(16200), paid: 0, note: "جينز" },
-  { id: "pu4", date: "2026-09-23", supplierId: "s1", factoryId: "f1", amount: p(20000), paid: 0, note: "قطن أبيض" },
+export const fabricBuys: FabricBuy[] = [
+  { id: "fb1", date: "2026-09-20", supplierId: "s1", amount: p(30000), paid: p(30000), accountId: "instapay", note: "قطن مصري" },
 ];
+
+/** القماش اللي طلع من المحل لأوامر */
+export const fabricSends = () => jobCosts.filter((c) => c.fromStock);
+
+export const fabricOnHand = () =>
+  fabricBuys.reduce((s, b) => s + b.amount, 0) - fabricSends().reduce((s, c) => s + c.amount, 0);
+
+export const jobById = (id: string) => jobs.find((j) => j.id === id);
+export const jobTitle = (j: Job) => `أمر ${j.no}`;
+export const isOpen = (j: Job) => !j.closedAt;
+export const openJobs = () => jobs.filter(isOpen).sort((a, b) => b.no - a.no);
+export const closedJobs = () => jobs.filter((j) => !isOpen(j)).sort((a, b) => b.no - a.no);
+export const jobsOfFactory = (factoryId: string) =>
+  jobs.filter((j) => j.factoryId === factoryId).sort((a, b) => b.no - a.no);
+export const nextJobNo = () => Math.max(...jobs.map((j) => j.no)) + 1;
+
+export const receiptValue = (r: JobReceipt) => r.lines.reduce((s, l) => s + l.qty * l.unitCost, 0);
+export const receiptPieces = (r: JobReceipt) => r.lines.reduce((s, l) => s + l.qty, 0);
+
+/** أرقام الأمر كلها محسوبة من الصرف والاستلام */
+export function jobSummary(j: Job) {
+  const costs = jobCosts.filter((c) => c.jobId === j.id);
+  const receipts = jobReceipts.filter((r) => r.jobId === j.id);
+  const spent = costs.reduce((s, c) => s + c.amount, 0);
+  const receivedValue = receipts.reduce((s, r) => s + receiptValue(r), 0);
+  const receivedPieces = receipts.reduce((s, r) => s + receiptPieces(r), 0);
+  // القطع اللي لسه في المخزن من الأمر ده — عليها بس بيتوزع الفاضل عند القفل
+  const inStock = models
+    .flatMap((m) => m.batches)
+    .filter((b) => b.jobId === j.id)
+    .reduce((s, b) => s + b.pieces, 0);
+  const lastReceipt = receipts.map((r) => r.date).sort().pop();
+  // البنود متجمعة — «اتصرف عليه إيه»
+  const byItem = jobCostItems
+    .map((it) => ({ ...it, amount: costs.filter((c) => c.itemId === it.id).reduce((s, c) => s + c.amount, 0) }))
+    .filter((x) => x.amount > 0);
+  return {
+    costs, receipts, spent, receivedValue, receivedPieces, inStock, lastReceipt, byItem,
+    remaining: spent - receivedValue,
+  };
+}
+
+/** أمر مفتوح ومفيش استلام فيه من أكتر من 14 يوم — يمكن نسي يقفله */
+export const STALE_JOB_DAYS = 14;
+export const staleJobs = () =>
+  openJobs().filter((j) => {
+    const last = jobSummary(j).lastReceipt ?? j.openedAt;
+    return daysSince(last, new Date(TODAY)) > STALE_JOB_DAYS;
+  });
 
 /* ============================ كشوف الحسابات ============================ */
 
@@ -204,22 +346,17 @@ const statements: Record<string, LedgerRow[]> = {
     { id: "l6", date: "2026-09-14", label: "دفع ← انستاباي", amount: -p(10000), balance: p(38600) },
     { id: "l7", date: "2026-09-19", label: "مرتجع 5 قطع", amount: -p(600), balance: p(38000) },
   ],
+  // المصانع: المصنعية بس — الاستلام مبيلمسش حسابهم (الـ spec، قسم 5)
   f1: [
-    { id: "l8", date: "2026-08-20", label: "دفعة: تمن قماش · حسن الأقمشة", amount: -p(21000), balance: p(21000) },
-    { id: "l9", date: "2026-09-04", label: "استلام 300 قطعة · موديل 214 × 90", amount: p(27000), balance: -p(6000) },
-    { id: "l10", date: "2026-09-15", label: "دفعتله ← من الدرج", amount: -p(4000), balance: -p(2000) },
-    { id: "l18", date: "2026-09-21", label: "استلام 400 قطعة · موديل 214 × 90", amount: p(36000), balance: -p(38000) },
-    { id: "l19", date: "2026-09-23", label: "دفعة: تمن قماش · حسن الأقمشة", amount: -p(20000), balance: -p(18000) },
+    { id: "l8", date: "2026-09-01", label: "مصنعية · أمر 7", amount: p(14000), balance: -p(14000) },
+    { id: "l10", date: "2026-09-15", label: "دفعتله ← من الدرج", amount: -p(4000), balance: -p(10000) },
+    { id: "l18", date: "2026-09-18", label: "مصنعية · أمر 9", amount: p(8000), balance: -p(18000) },
   ],
   f2: [
-    { id: "l20", date: "2026-08-25", label: "دفعة: تمن قماش · مورد الدلتا", amount: -p(6500), balance: p(6500) },
-    { id: "l21", date: "2026-09-08", label: "استلام 120 قطعة · موديل 235 × 100", amount: p(12000), balance: -p(5500) },
-    { id: "l22", date: "2026-09-16", label: "استلام 90 قطعة · موديل 235 × 100", amount: p(9000), balance: -p(14500) },
+    { id: "l20", date: "2026-09-02", label: "مصنعية · أمر 6", amount: p(14500), balance: -p(14500) },
   ],
   f3: [
-    { id: "l23", date: "2026-09-06", label: "دفعة: تمن قماش · حسن الأقمشة", amount: -p(16200), balance: p(16200) },
-    { id: "l24", date: "2026-09-10", label: "استلام 256 قطعة · موديل 221 × 75", amount: p(19200), balance: -p(3000) },
-    { id: "l25", date: "2026-09-12", label: "استلام 80 قطعة · موديل 221 × 75", amount: p(6000), balance: -p(9000) },
+    { id: "l23", date: "2026-09-08", label: "مصنعية · أمر 8", amount: p(9000), balance: -p(9000) },
   ],
   p1: [
     { id: "l14", date: "2026-09-10", label: "استلفت ← دخلت انستاباي", amount: p(30000), balance: -p(30000) },
@@ -228,14 +365,18 @@ const statements: Record<string, LedgerRow[]> = {
     { id: "l15", date: "2026-09-20", label: "سلّفته ← من الدرج", amount: p(1500), balance: p(1500) },
   ],
   s1: [
-    { id: "l26", date: "2026-08-20", label: "شراء قماش · قطن · لمصنع النور", amount: p(21000), balance: -p(21000) },
+    { id: "l26", date: "2026-08-20", label: "قماش · أمر 7 · قطن", amount: p(21000), balance: -p(21000) },
     { id: "l27", date: "2026-08-20", label: "دفعتله ← من الدرج", amount: -p(21000), balance: 0 },
-    { id: "l11", date: "2026-09-06", label: "شراء قماش · جينز · لمصنع الشروق", amount: p(16200), balance: -p(16200) },
-    { id: "l12", date: "2026-09-16", label: "دفعتله ← من انستاباي", amount: -p(16200), balance: 0 },
-    { id: "l13", date: "2026-09-23", label: "شراء قماش · قطن أبيض · لمصنع النور", amount: p(20000), balance: -p(20000) },
+    { id: "l13", date: "2026-08-23", label: "قماش · أمر 7 · قطن أبيض", amount: p(20000), balance: -p(20000) },
+    { id: "l29", date: "2026-09-05", label: "قماش · أمر 9 · مولتون", amount: p(15000), balance: -p(35000) },
+    { id: "l30", date: "2026-09-05", label: "دفعتله ← من انستاباي", amount: -p(15000), balance: -p(20000) },
+    { id: "l11", date: "2026-09-06", label: "قماش · أمر 8 · قطن ليكرا", amount: p(16200), balance: -p(36200) },
+    { id: "l12", date: "2026-09-16", label: "دفعتله ← من انستاباي", amount: -p(16200), balance: -p(20000) },
+    { id: "l31", date: "2026-09-20", label: "قماش · للمحل · قطن مصري", amount: p(30000), balance: -p(50000) },
+    { id: "l32", date: "2026-09-20", label: "دفعتله ← من انستاباي", amount: -p(30000), balance: -p(20000) },
   ],
   s2: [
-    { id: "l28", date: "2026-08-25", label: "شراء قماش · كتان · لمصنع الأمانة", amount: p(6500), balance: -p(6500) },
+    { id: "l28", date: "2026-08-25", label: "قماش · أمر 6 · كتان", amount: p(6500), balance: -p(6500) },
   ],
 };
 
@@ -434,7 +575,7 @@ export type Activity = {
   key: string;
   date: string;
   time?: string;
-  kind: "invoice" | "payment" | "expense" | "purchase";
+  kind: "invoice" | "payment" | "expense" | "purchase" | "receive";
   title: string;
   sub: string;
   amount: number;
@@ -468,11 +609,28 @@ export function recentActivity(limit = 6): Activity[] {
       title: categoryById(e.categoryId)?.personal ? "خدته لنفسك" : `مصروف · ${categoryById(e.categoryId)?.label}`,
       sub: e.note ?? "", amount: e.amount, href: "/expenses",
     })),
-    ...purchases.map((r): Activity => ({
-      key: `b${r.id}`, date: r.date, kind: "purchase",
-      title: `شراء قماش · ${byId(r.supplierId)?.name}`, sub: `لـ ${byId(r.factoryId)?.name}`,
-      amount: r.amount, href: "/purchases",
+    ...jobCosts.map((c): Activity => {
+      const j = jobById(c.jobId)!;
+      return {
+        key: `b${c.id}`, date: c.date, kind: "purchase",
+        title: `${costItemById(c.itemId)?.label}${c.fromStock ? " من عندي" : ""} · ${jobTitle(j)}`,
+        sub: c.partyId ? byId(c.partyId)?.name ?? "" : c.note ?? "",
+        amount: c.amount, href: `/jobs/${j.id}`,
+      };
+    }),
+    ...fabricBuys.map((b): Activity => ({
+      key: `f${b.id}`, date: b.date, kind: "purchase",
+      title: `شراء قماش للمحل · ${byId(b.supplierId)?.name}`, sub: b.note ?? "",
+      amount: b.amount, href: "/fabric",
     })),
+    ...jobReceipts.map((r): Activity => {
+      const j = jobById(r.jobId)!;
+      return {
+        key: `r${r.id}`, date: r.date, kind: "receive",
+        title: `استلام · ${jobTitle(j)}`, sub: `${receiptPieces(r)} قطعة · ${byId(j.factoryId ?? "")?.name ?? ""}`,
+        amount: receiptValue(r), href: `/jobs/${j.id}`,
+      };
+    }),
   ];
   return items
     .sort((a, b) => b.date.localeCompare(a.date) || (b.time ?? "").localeCompare(a.time ?? "", undefined, { numeric: true }))
@@ -635,12 +793,26 @@ export const totals = {
   get net() {
     return totals.liquidity + totals.receivable - totals.payable;
   },
-  /** رأس المال = كل اللي يملكه في الشغل: بضاعة + فلوس + ليه − عليه (القماش مش مخزون — دفعات للمصانع) */
+  /** الفاضل في الأوامر المفتوحة — فلوس اتصرفت على شغل لسه موصلش. مش سيولة. */
+  get inJobs() {
+    return openJobs().reduce((s, j) => s + jobSummary(j).remaining, 0);
+  },
+  /** القماش اللي في المحل ولسه مبعتوش لأمر — بالفلوس بس */
+  get fabric() {
+    return fabricOnHand();
+  },
+  /**
+   * رأس المال = كل اللي يملكه في الشغل: بضاعة + قماش في المحل + فلوس + ليه +
+   * فلوس في أوامر التصنيع − عليه. من غير القماش والأوامر، أول ما يشتري قماش
+   * رأس المال يبان إنه نزل.
+   */
   get capital() {
     return (
       totals.stockValue +
+      totals.fabric +
       totals.liquidity +
-      totals.receivable -
+      totals.receivable +
+      totals.inJobs -
       totals.payable
     );
   },

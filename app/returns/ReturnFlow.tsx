@@ -6,7 +6,7 @@ import { Check, Plus, Trash2 } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
 import { Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { cashAccounts, modelByCode, ofKind, stockOf, type Party } from "@/lib/mock";
+import { cashAccounts, jobById, jobSummary, jobTitle, modelByCode, ofKind, stockOf, type Party } from "@/lib/mock";
 
 /**
  * المرتجعات (الـ spec، قسم 6 — العمليتين 5 و6):
@@ -15,7 +15,7 @@ import { cashAccounts, modelByCode, ofKind, stockOf, type Party } from "@/lib/mo
  */
 
 type Dir = "customer" | "factory";
-type Line = { id: number; code: number; qty: number; price: number };
+type Line = { id: number; code: number; qty: number; price: number; jobId?: string };
 
 const REASONS: Record<Dir, string[]> = {
   customer: ["مش ماشية معاه", "عيب", "سبب تاني"],
@@ -42,7 +42,15 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
 
   // الرصيد بعد: العميل موجب (عليه) والمصنع سالب (ليه)
   const owedBefore = party ? Math.abs(party.balance) : 0;
-  const owedAfter = isCustomer && refund ? owedBefore : owedBefore - total;
+  // للمصنع: اللي من أمر مفتوح بيرجع للأمر، والباقي (أمر مقفول) بينزل من حساب المصنع
+  const toJobs = new Map<string, number>();
+  let toFactory = 0;
+  for (const l of isCustomer ? [] : lines) {
+    const j = l.jobId ? jobById(l.jobId) : undefined;
+    if (j && !j.closedAt) toJobs.set(j.id, (toJobs.get(j.id) ?? 0) + l.qty * l.price);
+    else toFactory += l.qty * l.price;
+  }
+  const owedAfter = isCustomer ? (refund ? owedBefore : owedBefore - total) : owedBefore - toFactory;
 
   function switchDir(d: Dir) {
     setDir(d);
@@ -253,12 +261,33 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                     </span>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
-                    <span className="text-ink-soft">{party.name}</span>
-                    <span className="font-bold">
-                      <Balance value={owedAfter} customer={isCustomer} />
-                    </span>
-                  </div>
+                  <>
+                    {[...toJobs].map(([id, amount]) => {
+                      const j = jobById(id)!;
+                      const before = jobSummary(j).remaining;
+                      return (
+                        <div key={id} className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
+                          <div>
+                            <div className="text-ink-soft">{jobTitle(j)}</div>
+                            <div className="mt-0.5 text-[11px] text-ink-mute">الفلوس بترجع للأمر</div>
+                          </div>
+                          <span>
+                            <Money value={before} className="text-ink-mute" />
+                            {"  ←  "}
+                            <Money value={before + amount} className="font-bold" />
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {(isCustomer || toFactory > 0) && (
+                      <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
+                        <span className="text-ink-soft">{party.name}</span>
+                        <span className="font-bold">
+                          <Balance value={owedAfter} customer={isCustomer} />
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
               </Card>
             )}
@@ -305,21 +334,21 @@ function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd
   const codeRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
+  const nextId = useRef(1);
 
   const model = code ? modelByCode(Number(code)) : undefined;
   const isCustomer = dir === "customer";
-  // للمصنع: السعر اللي اشترى بيه الموديل ده من المصنع ده (آخر استلام)
-  const work =
-    !isCustomer && model
-      ? [...model.batches].reverse().find((b) => b.factoryId === factoryId)?.unitCost
-      : undefined;
+  // للمصنع: تكلفة القطعة من آخر استلام للموديل ده من المصنع ده — ومنه بنعرف الأمر
+  const batch =
+    !isCustomer && model ? [...model.batches].reverse().find((b) => b.factoryId === factoryId) : undefined;
+  const work = batch?.unitCost;
   const priceN = price === "" && work ? work / 100 : Number(price);
   const over = !isCustomer && model && Number(qty) > stockOf(model);
   const ready = !!model && Number(qty) > 0 && priceN > 0;
 
   function submit() {
     if (!ready) return;
-    onAdd({ id: Date.now(), code: Number(code), qty: Number(qty), price: p(priceN) });
+    onAdd({ id: nextId.current++, code: Number(code), qty: Number(qty), price: p(priceN), jobId: batch?.jobId });
     setCode("");
     setQty("");
     setPrice("");
@@ -358,7 +387,7 @@ function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd
           <span className="text-ink-mute">
             {model.name ? `${model.name} · ` : ""}
             <Num value={stockOf(model)} /> قطعة في المحل
-            {work && price === "" && <> · اشتريته منه بـ <Money value={work} decimals /> ج</>}
+            {work && price === "" && <> · تكلفته <Money value={work} decimals /> ج{batch?.jobId && jobById(batch.jobId) ? <> · {jobTitle(jobById(batch.jobId)!)}</> : null}</>}
             {over && <span className="text-warn"> — أكتر من اللي عندك</span>}
           </span>
         )}

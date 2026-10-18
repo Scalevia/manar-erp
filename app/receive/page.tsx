@@ -1,11 +1,11 @@
 import ReceiveFlow from "./ReceiveFlow";
 
-/** ?factory=f1 بيفتح على المصنع ده على طول */
+/** ?job=j7 بيفتح على الأمر ده على طول (من جوه الأمر) */
 export default async function ReceivePage({
   searchParams,
 }: {
-  searchParams: Promise<{ factory?: string }>;
+  searchParams: Promise<{ job?: string }>;
 }) {
-  const { factory } = await searchParams;
-  return <ReceiveFlow initialFactoryId={factory} />;
+  const { job } = await searchParams;
+  return <ReceiveFlow initialJobId={job} />;
 }

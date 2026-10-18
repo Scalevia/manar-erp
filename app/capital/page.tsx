@@ -31,6 +31,8 @@ export default function CapitalPage() {
     ["بضاعة في المحل", totals.stockValue],
     ["فلوس في الخزن", totals.liquidity],
     ["ليك في السوق", totals.receivable],
+    ["قماش في المحل", totals.fabric],
+    ["في أوامر التصنيع", totals.inJobs],
     ["عليك", -totals.payable],
   ];
 

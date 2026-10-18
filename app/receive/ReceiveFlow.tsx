@@ -5,31 +5,33 @@ import Link from "next/link";
 import { Calculator, Check, Plus, Trash2 } from "lucide-react";
 import { Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
 import { money2, p } from "@/lib/format";
-import { modelByCode, ofKind, stockOf, type Party } from "@/lib/mock";
+import { byId, jobById, jobSummary, jobTitle, modelByCode, openJobs, stockOf, type Job } from "@/lib/mock";
 
 /**
- * استلام بضاعة من المصنع = عملية شراء عادية (الـ spec، قسم 5).
+ * استلام من المصنع — من أمر تصنيع (الـ spec، قسم 5).
  *
- * المصنع بيسلّم على دفعات، وكل دفعة بتتحسب لوحدها: الموديل · العدد · سعر القطعة.
- * التاجر بيعرف السعر وقت الاستلام: اللي صرفه على الحتة ÷ اللي وصل فعلاً —
- * فالسقطات (القصة 100 تيجي 95) بتدخل في السعر لوحدها. مفيش سعر مبدئي.
+ * المصنع بيسلّم على دفعات، وكل دفعة: الموديل · العدد · سعر القطعة اللي هو بيكتبه.
+ * قيمة الدفعة (العدد × السعر) بتطلع من فلوس الأمر. السقطات مبتتسجلش — بتطلع
+ * لوحدها فاضل في الأمر وقت القفل. والاستلام **مبيلمسش حساب المصنع**: المصنعية
+ * اتسجلت صرف على الأمر خلاص.
  */
 
 type Line = { id: number; code: number; name?: string; isNew: boolean; qty: number; price: number };
 
-export default function ReceiveFlow({ initialFactoryId }: { initialFactoryId?: string }) {
-  const factories = ofKind("factory");
-  const [factory, setFactory] = useState<Party | null>(factories.find((f) => f.id === initialFactoryId) ?? null);
+export default function ReceiveFlow({ initialJobId }: { initialJobId?: string }) {
+  const open = openJobs();
+  const initial = initialJobId ? jobById(initialJobId) : open.length === 1 ? open[0] : undefined;
+  const [job, setJob] = useState<Job | null>(initial && !initial.closedAt ? initial : null);
   const [lines, setLines] = useState<Line[]>([]);
   const [saved, setSaved] = useState(false);
 
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
   const pieces = lines.reduce((s, l) => s + l.qty, 0);
-  // رصيد المصنع: سالب = ليه عندي · موجب = عليه (دفعتله قماش أكتر من البضاعة)
-  const owedBefore = factory ? -factory.balance : 0;
-  const owedAfter = owedBefore + total;
+  const remaining = job ? jobSummary(job).remaining : 0;
+  const after = remaining - total;
+  const factory = job?.factoryId ? byId(job.factoryId) : undefined;
 
-  if (saved && factory) {
+  if (saved && job) {
     return (
       <>
         <PageHeader title="اتحفظ" />
@@ -42,10 +44,10 @@ export default function ReceiveFlow({ initialFactoryId }: { initialFactoryId?: s
               <Num value={pieces} /> قطعة دخلت المخزن
             </div>
             <div className="mt-1 text-[13px] text-ink-mute">
-              من {factory.name} · <Money value={total} /> ج
+              {jobTitle(job)} · {factory?.name} · <Money value={total} /> ج
             </div>
             <div className="mt-5 border-t border-line-soft pt-4 text-[14px] font-semibold">
-              <FactoryBalance value={owedAfter} />
+              <Remaining value={after} />
             </div>
           </Card>
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -60,10 +62,10 @@ export default function ReceiveFlow({ initialFactoryId }: { initialFactoryId?: s
               استلام تاني
             </button>
             <Link
-              href={`/accounts/${factory.id}`}
+              href={`/jobs/${job.id}`}
               className="press rounded-2xl border border-line bg-card py-3.5 text-center text-[15px] font-semibold text-ink-soft"
             >
-              كشف حسابه
+              {jobTitle(job)}
             </Link>
           </div>
         </Page>
@@ -71,31 +73,41 @@ export default function ReceiveFlow({ initialFactoryId }: { initialFactoryId?: s
     );
   }
 
-  if (!factory) {
+  if (!job) {
     return (
       <>
-        <PageHeader title="استلام من المصنع" sub="اختار المصنع" back="/" />
+        <PageHeader title="استلام من المصنع" sub="من أنهي أمر؟" back="/" />
         <Page>
           <Card className="overflow-hidden">
-            {factories.map((f, i) => (
-              <div key={f.id}>
-                {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-                <button
-                  type="button"
-                  onClick={() => setFactory(f)}
-                  className="press flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-sunken"
-                >
-                  <span className="flex-1 truncate text-[15px] font-semibold">{f.name}</span>
-                  {f.balance !== 0 && (
-                    <span className="text-[12px] text-ink-mute">
-                      {f.balance < 0 ? "ليه " : "عليه "}
-                      <Money value={Math.abs(f.balance)} />
+            {open.length === 0 && <Empty>مفيش أوامر مفتوحة</Empty>}
+            {open.map((j, i) => {
+              const s = jobSummary(j);
+              return (
+                <div key={j.id}>
+                  {i > 0 && <div className="ms-4 border-t border-line-soft" />}
+                  <button
+                    type="button"
+                    onClick={() => setJob(j)}
+                    disabled={!j.factoryId}
+                    className="press flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-sunken disabled:opacity-45"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[15px] font-semibold">
+                        {jobTitle(j)} · {j.factoryId ? byId(j.factoryId)?.name : "لسه من غير مصنع"}
+                      </div>
+                      {j.name && <div className="mt-0.5 truncate text-[12px] text-ink-mute">{j.name}</div>}
+                    </div>
+                    <span className="shrink-0 text-[12px] text-ink-mute">
+                      فاضل <Money value={s.remaining} className="font-semibold text-ink-soft" />
                     </span>
-                  )}
-                </button>
-              </div>
-            ))}
+                  </button>
+                </div>
+              );
+            })}
           </Card>
+          <Link href="/jobs/new" className="mt-4 block text-center text-[13px] font-semibold text-brand">
+            أمر جديد
+          </Link>
         </Page>
       </>
     );
@@ -105,23 +117,27 @@ export default function ReceiveFlow({ initialFactoryId }: { initialFactoryId?: s
     <>
       <PageHeader
         title="استلام من المصنع"
-        sub={factory.name}
+        sub={`${jobTitle(job)} · ${factory?.name ?? ""}`}
         action={
-          <button
-            type="button"
-            onClick={() => setFactory(null)}
-            className="press rounded-xl bg-sunken px-3 py-1.5 text-[13px] font-semibold text-ink-soft"
-          >
-            تغيير
-          </button>
+          open.length > 1 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setJob(null);
+                setLines([]);
+              }}
+              className="press rounded-xl bg-sunken px-3 py-1.5 text-[13px] font-semibold text-ink-soft"
+            >
+              تغيير
+            </button>
+          ) : undefined
         }
+        back={initialJobId ? `/jobs/${job.id}` : undefined}
       />
       <Page>
         <div className="mb-4 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
-          <span className="text-[13px] text-ink-soft">{factory.name} دلوقتي</span>
-          <span className="text-[14px] font-bold">
-            <FactoryBalance value={owedBefore} now />
-          </span>
+          <span className="text-[13px] text-ink-soft">فاضل في {jobTitle(job)}</span>
+          <Money value={remaining} className="text-[15px] font-bold" />
         </div>
 
         {/* -------------------------------- السطور -------------------------------- */}
@@ -155,7 +171,7 @@ export default function ReceiveFlow({ initialFactoryId }: { initialFactoryId?: s
             ))
           )}
           <div className="border-t border-line">
-            <AddLine onAdd={(l) => setLines((v) => [...v, l])} />
+            <AddLine left={after} onAdd={(l) => setLines((v) => [...v, l])} />
           </div>
         </Card>
 
@@ -175,11 +191,19 @@ export default function ReceiveFlow({ initialFactoryId }: { initialFactoryId?: s
               <Money value={total} className="font-bold" />
             </div>
             <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
-              <span className="text-ink-soft">{factory.name}</span>
+              <span className="text-ink-soft">{jobTitle(job)}</span>
               <span className="font-bold">
-                <FactoryBalance value={owedAfter} />
+                <Remaining value={after} />
               </span>
             </div>
+            {after < 0 && (
+              <p className="border-t border-line-soft bg-warn-soft px-4 py-2.5 text-[12px] text-warn">
+                كده الأمر هيبقى بالسالب <Money value={-after} /> — يمكن السعر عالي؟ ولو لسه هتصرف عليه حاجة، عادي.
+              </p>
+            )}
+            <p className="border-t border-line-soft px-4 py-2.5 text-[11px] text-ink-mute">
+              حساب {factory?.name} مش هيتغير — المصنعية متسجلة على الأمر.
+            </p>
           </Card>
         )}
 
@@ -196,34 +220,30 @@ export default function ReceiveFlow({ initialFactoryId }: { initialFactoryId?: s
   );
 }
 
-/** موجب = ليه عندي · سالب = عليه (دفعتله أكتر) · صفر = خالصين */
-function FactoryBalance({ value, now }: { value: number; now?: boolean }) {
-  if (value === 0) return <span className="text-pos">خالصين</span>;
+/** الفاضل في الأمر بعد الاستلام */
+function Remaining({ value }: { value: number }) {
+  if (value === 0) return <span className="text-pos">هيفضل فيه صفر</span>;
   if (value > 0)
     return (
-      <span className="text-neg">
-        {now ? "ليه " : "هيبقى ليه "}
-        <Money value={value} />
+      <span>
+        هيفضل فيه <Money value={value} />
       </span>
     );
   return (
-    <span className="text-pos">
-      {now ? "عليه " : "هيبقى عليه "}
-      <Money value={-value} />
-      <span className="text-[11px] font-normal text-ink-mute"> (دفعتله أكتر)</span>
+    <span className="text-neg">
+      هيبقى بالسالب <Money value={-value} />
     </span>
   );
 }
 
 /* ====================== إضافة سطر — الكيبورد مبيقفلش ====================== */
 
-function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
+function AddLine({ left, onAdd }: { left: number; onAdd: (l: Line) => void }) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
-  const [calc, setCalc] = useState(false);
-  const [spent, setSpent] = useState("");
+  const [spread, setSpread] = useState(false);
 
   const codeRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
@@ -231,9 +251,9 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
 
   const model = code ? modelByCode(Number(code)) : undefined;
   const isNew = !!code && !model;
-  // «احسبلي السعر»: اللي صرفته على الحتة ÷ اللي وصل فعلاً
-  const calcPrice = Number(spent) > 0 && Number(qty) > 0 ? Number(spent) / Number(qty) : 0;
-  const priceN = calc ? calcPrice : Number(price);
+  // «وزّع الفاضل على القطع»: الفاضل في الأمر ÷ القطع اللي في السطر ده — مفيد في آخر دفعة
+  const spreadPrice = left > 0 && Number(qty) > 0 ? left / 100 / Number(qty) : 0;
+  const priceN = spread ? spreadPrice : Number(price);
   const ready = Number(code) > 0 && Number(qty) > 0 && priceN > 0;
 
   function submit() {
@@ -250,8 +270,7 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
     setName("");
     setQty("");
     setPrice("");
-    setSpent("");
-    setCalc(false);
+    setSpread(false);
     codeRef.current?.focus();
   }
 
@@ -271,13 +290,13 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
           <span className="mb-1 block text-[11px] text-ink-mute">وصل</span>
           <input ref={qtyRef} value={qty} onChange={(e) => setQty(e.target.value.replace(/\D/g, ""))}
             onKeyDown={(e) => e.key === "Enter" && priceRef.current?.focus()}
-            inputMode="numeric" enterKeyHint="next" placeholder="950" className={field} />
+            inputMode="numeric" enterKeyHint="next" placeholder="390" className={field} />
         </label>
         <label className="block flex-1">
           <span className="mb-1 block text-[11px] text-ink-mute">سعر القطعة</span>
-          {calc ? (
+          {spread ? (
             <div className={`${field} grid place-items-center bg-sunken`}>
-              {calcPrice > 0 ? money2(p(calcPrice)) : "—"}
+              {spreadPrice > 0 ? money2(p(spreadPrice)) : "—"}
             </div>
           ) : (
             <input ref={priceRef} value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))}
@@ -307,32 +326,23 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
           )}
           {isNew && <span className="font-semibold text-brand">كود جديد — هيتعمل موديل جديد</span>}
         </span>
-        <button
-          type="button"
-          onClick={() => setCalc((v) => !v)}
-          className={`press flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 font-semibold ${calc ? "bg-brand-soft text-brand" : "text-brand"}`}
-        >
-          <Calculator size={14} />
-          {calc ? "هكتب السعر بنفسي" : "احسبلي السعر"}
-        </button>
+        {left > 0 && (
+          <button
+            type="button"
+            onClick={() => setSpread((v) => !v)}
+            className={`press flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 font-semibold ${spread ? "bg-brand-soft text-brand" : "text-brand"}`}
+          >
+            <Calculator size={14} />
+            {spread ? "هكتب السعر بنفسي" : "وزّع الفاضل على القطع"}
+          </button>
+        )}
       </div>
 
-      {calc && (
-        <div className="mt-2 rounded-xl bg-sunken px-3 py-3">
-          <label className="block">
-            <span className="mb-1 block text-[12px] text-ink-soft">صرفت كام على الحتة دي؟ (قماش ومصنعية وكله)</span>
-            <input value={spent} onChange={(e) => setSpent(e.target.value.replace(/[^\d.]/g, ""))}
-              inputMode="decimal" placeholder="78000" className={`${field} bg-card`} />
-          </label>
-          {calcPrice > 0 && (
-            <p className="mt-2 text-[12px] text-ink-soft">
-              <span className="num">{Number(spent).toLocaleString("en-US")}</span> ÷{" "}
-              <span className="num">{Number(qty).toLocaleString("en-US")}</span> قطعة وصلت ={" "}
-              <span className="num font-bold text-ink">{money2(p(calcPrice))}</span> للقطعة
-            </p>
-          )}
-          <p className="mt-1 text-[11px] text-ink-mute">السقطات بتدخل لوحدها: بتقسم على اللي وصل فعلاً.</p>
-        </div>
+      {spread && spreadPrice > 0 && (
+        <p className="mt-2 rounded-xl bg-sunken px-3 py-2.5 text-[12px] text-ink-soft">
+          فاضل <span className="num">{money2(left)}</span> ÷ <span className="num">{Number(qty).toLocaleString("en-US")}</span> قطعة ={" "}
+          <span className="num font-bold text-ink">{money2(p(spreadPrice))}</span> للقطعة — الأمر هيفضل فيه صفر تقريباً.
+        </p>
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   ChevronRight,
+  Factory,
   FileText,
   Moon,
   PackagePlus,
@@ -13,10 +14,11 @@ import {
   Scissors,
   TrendingUp,
   Users,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
-import { Card, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
-import { ofKind } from "@/lib/mock";
+import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
+import { ofKind, openJobs, totals } from "@/lib/mock";
 
 type Item = {
   href: string;
@@ -30,7 +32,19 @@ export default function MorePage() {
     {
       title: "الشغل",
       items: [
+        {
+          href: "/jobs",
+          label: "أوامر التصنيع",
+          icon: Factory,
+          hint: <><Num value={openJobs().length} /> مفتوحين</>,
+        },
         { href: "/receive", label: "استلام من المصنع", icon: PackagePlus },
+        {
+          href: "/fabric",
+          label: "القماش اللي عندي",
+          icon: Warehouse,
+          hint: <Money value={totals.fabric} />,
+        },
         { href: "/purchases", label: "شراء قماش", icon: Scissors },
         { href: "/expenses", label: "المصاريف", icon: Receipt },
         { href: "/loans", label: "السلف", icon: ArrowLeftRight },
