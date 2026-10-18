@@ -38,8 +38,16 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. To test on a phone, use the Network URL that
-`next dev` prints and make sure the phone is on the same Wi-Fi.
+Open `http://localhost:3000`. To test on a phone on the same Wi-Fi, open
+this computer's Wi-Fi address (`ipconfig` → Wi-Fi → IPv4), e.g.
+`http://192.168.1.29:3000`. The Network URL that `next dev` prints can be a
+virtual adapter's address (VirtualBox's `192.168.56.1`) that the phone can't
+reach.
+
+Next 16 blocks dev assets for any host but `localhost` unless it's listed in
+`allowedDevOrigins`; the page still renders but no button works.
+`next.config.ts` allows this computer's own network addresses, read when the
+dev server starts, so restart it after the router hands out a new address.
 
 ## Conventions
 
