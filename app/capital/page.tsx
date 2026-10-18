@@ -82,8 +82,7 @@ export default function CapitalPage() {
                 <div key={label} className="flex items-center justify-between py-1.5 text-[13px]">
                   <span className="text-ink-soft">{label}</span>
                   <span className="font-semibold">
-                    {value < 0 && <span className="num">−</span>}
-                    <Money value={Math.abs(value)} />
+                    <Money value={Math.abs(value)} sign={value < 0 ? "−" : undefined} />
                   </span>
                 </div>
               ))}
@@ -121,8 +120,7 @@ export default function CapitalPage() {
                         <span className="num">{pct(Math.abs(Math.round(growthPct(x) * 10) / 10))}</span>
                       </span>
                       <span className="w-20 text-end text-[13px] text-ink-mute">
-                        <span className="num">{up ? "+" : "−"}</span>
-                        <Money value={Math.abs(change)} />
+                        <Money value={Math.abs(change)} sign={up ? "+" : "−"} />
                       </span>
                     </>
                   ) : (
@@ -215,8 +213,7 @@ function Why({ period }: { period: CapitalPeriod }) {
 function Signed({ value, className = "" }: { value: number; className?: string }) {
   return (
     <span className={className}>
-      <span className="num">{value >= 0 ? "+" : "−"}</span>
-      <Money value={Math.abs(value)} />
+      <Money value={Math.abs(value)} sign={value >= 0 ? "+" : "−"} />
     </span>
   );
 }

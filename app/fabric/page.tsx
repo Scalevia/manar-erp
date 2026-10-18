@@ -72,8 +72,7 @@ export default function FabricPage() {
                   {m.sub && <div className="mt-0.5 truncate text-[12px] text-ink-mute">{m.sub}</div>}
                 </div>
                 <span className={`text-[14px] font-bold ${m.out ? "text-ink-soft" : "text-pos"}`}>
-                  <span className="num">{m.out ? "−" : "+"}</span>
-                  <Money value={m.amount} />
+                  <Money value={m.amount} sign={m.out ? "−" : "+"} />
                 </span>
               </div>
             </Link>

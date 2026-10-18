@@ -247,8 +247,7 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                 <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
                   <span className="text-ink-soft">المخزن</span>
                   <span className={`font-bold ${isCustomer ? "text-pos" : "text-neg"}`}>
-                    <span className="num">{isCustomer ? "+" : "−"}</span>
-                    <Num value={pieces} /> قطعة
+                    <Num value={pieces} sign={isCustomer ? "+" : "−"} /> قطعة
                   </span>
                 </div>
                 {isCustomer && refund ? (

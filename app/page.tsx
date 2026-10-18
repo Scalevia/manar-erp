@@ -250,8 +250,10 @@ export default function Dashboard() {
               <div className="mt-0.5 text-[12px] text-ink-mute">
                 <Money value={totals.capital} /> ج · آخر شهر{" "}
                 <span className={capitalChange(capital1m) >= 0 ? "text-pos" : "text-neg"}>
-                  <span className="num">{capitalChange(capital1m) >= 0 ? "+" : "−"}</span>
-                  <Money value={Math.abs(capitalChange(capital1m))} />
+                  <Money
+                    value={Math.abs(capitalChange(capital1m))}
+                    sign={capitalChange(capital1m) >= 0 ? "+" : "−"}
+                  />
                 </span>
               </div>
             </div>

@@ -92,6 +92,7 @@ export default function SpendFlow({
     setLaborFactoryId(null);
     setAmount("");
     setPaid("");
+    setAccountId(cashAccounts[0].id);
     setNote("");
     setSaved(false);
   }

@@ -45,25 +45,39 @@ export function Page({ children }: { children: React.ReactNode }) {
 
 /* ----------------------------------- الأرقام ---------------------------------- */
 
+/**
+ * الإشارة لازم تبقى جوه نفس الـ span مع الرقم: كل `.num` جزيرة LTR لوحدها، فلو
+ * الإشارة في span تاني، الـ RTL بيحطها على يمين الرقم («12,000−»).
+ */
+type Sign = "+" | "−";
+
 /** مبلغ بالقروش → نص. الأرقام لاتينية وعرضها ثابت. */
 export function Money({
   value,
   decimals = false,
+  sign,
   className = "",
 }: {
   value: number;
   decimals?: boolean;
+  sign?: Sign;
   className?: string;
 }) {
   return (
     <span className={`num ${className}`}>
+      {sign}
       {decimals ? money2(value) : money(value)}
     </span>
   );
 }
 
-export function Num({ value, className = "" }: { value: number; className?: string }) {
-  return <span className={`num ${className}`}>{num(value)}</span>;
+export function Num({ value, sign, className = "" }: { value: number; sign?: Sign; className?: string }) {
+  return (
+    <span className={`num ${className}`}>
+      {sign}
+      {num(value)}
+    </span>
+  );
 }
 
 /* ----------------------------------- الكروت ---------------------------------- */

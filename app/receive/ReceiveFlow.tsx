@@ -182,8 +182,7 @@ export default function ReceiveFlow({ initialJobId }: { initialJobId?: string })
             <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
               <span className="text-ink-soft">المخزن</span>
               <span className="font-bold text-pos">
-                <span className="num">+</span>
-                <Num value={pieces} /> قطعة
+                <Num value={pieces} sign="+" /> قطعة
               </span>
             </div>
             <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
