@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { Card, Money, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { byId, cashAccounts, expenseCategories, jobSummary, jobTitle, openJobs } from "@/lib/mock";
+import { cashAccounts, expenseCategories, factoryOf, jobSummary, jobTitle, openJobs } from "@/lib/mock";
 
 export default function NewExpensePage() {
   const [amount, setAmount] = useState("");
@@ -150,7 +150,7 @@ export default function NewExpensePage() {
                   }`}
                 >
                   {jobTitle(j)}
-                  <span className="ms-1 text-[11px] font-normal opacity-80">· {byId(j.factoryId ?? "")?.name}</span>
+                  <span className="ms-1 text-[11px] font-normal opacity-80">· {factoryOf(j).name}</span>
                 </button>
               ))}
             </div>

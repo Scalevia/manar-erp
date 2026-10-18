@@ -7,6 +7,7 @@ import {
   byId,
   cashAccounts,
   costItemById,
+  factoryOf,
   jobById,
   jobSummary,
   jobTitle,
@@ -30,7 +31,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   if (!j) notFound();
 
   const s = jobSummary(j);
-  const factory = j.factoryId ? byId(j.factoryId) : undefined;
+  const factory = factoryOf(j);
   const open = !j.closedAt;
 
   type Move = { key: string; date: string; title: string; sub: string; amount: number; out: boolean };
@@ -67,7 +68,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   return (
     <>
       <PageHeader
-        title={`${jobTitle(j)} · ${factory?.name ?? "لسه من غير مصنع"}`}
+        title={`${jobTitle(j)} · ${factory.name}`}
         sub={j.name}
         back="/jobs"
         action={open ? <Badge tone="brand">مفتوح</Badge> : <Badge>اتقفل</Badge>}
@@ -148,11 +149,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           <span className="font-semibold text-pos">الأخضر</span> = استلام، بيقلل الفاضل في الأمر.
         </p>
 
-        {factory && (
-          <Link href={`/accounts/${factory.id}`} className="mt-4 block text-center text-[13px] font-semibold text-brand">
-            كشف حساب {factory.name}
-          </Link>
-        )}
+        <Link href={`/accounts/${factory.id}`} className="mt-4 block text-center text-[13px] font-semibold text-brand">
+          كشف حساب {factory.name}
+        </Link>
       </Page>
     </>
   );

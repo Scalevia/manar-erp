@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { Card, Money, Num, Page, PageHeader } from "@/components/ui";
 import { money2 } from "@/lib/format";
-import { byId, jobById, jobSummary, jobTitle, type CloseMode } from "@/lib/mock";
+import { factoryOf, jobById, jobSummary, jobTitle, type CloseMode } from "@/lib/mock";
 
 /**
  * قفل الأمر — الفاضل يروح فين (الـ spec، قسم 5):
@@ -18,7 +18,7 @@ import { byId, jobById, jobSummary, jobTitle, type CloseMode } from "@/lib/mock"
 export default function CloseFlow({ jobId }: { jobId: string }) {
   const job = jobById(jobId)!;
   const s = jobSummary(job);
-  const factory = job.factoryId ? byId(job.factoryId) : undefined;
+  const factory = factoryOf(job);
   const R = s.remaining;
   const N = s.inStock;
   const negative = R < 0;
@@ -30,7 +30,7 @@ export default function CloseFlow({ jobId }: { jobId: string }) {
   const perUnit = N > 0 ? Math.trunc(R / N) : 0;
   const leftover = R - perUnit * N;
 
-  const factoryOwed = factory ? -factory.balance : 0;
+  const factoryOwed = -factory.balance;
   const factoryAfter = factoryOwed - R;
 
   const options: { id: CloseMode; title: string; when: string; result: React.ReactNode; disabled?: string }[] = [
@@ -52,7 +52,7 @@ export default function CloseFlow({ jobId }: { jobId: string }) {
             id: "factory" as const,
             title: "المصنع عليه الباقي",
             when: "المصنع خد فلوس ومسلّمش بيها",
-            result: factory ? (
+            result: (
               <>
                 {factory.name}:{" "}
                 {factoryAfter >= 0 ? (
@@ -65,8 +65,7 @@ export default function CloseFlow({ jobId }: { jobId: string }) {
                   </>
                 )}
               </>
-            ) : null,
-            disabled: factory ? undefined : "الأمر لسه من غير مصنع",
+            ),
           },
         ]
       : []),
@@ -117,7 +116,7 @@ export default function CloseFlow({ jobId }: { jobId: string }) {
     <>
       <PageHeader
         title={`قفل ${jobTitle(job)}`}
-        sub={[factory?.name, job.name].filter(Boolean).join(" · ")}
+        sub={[factory.name, job.name].filter(Boolean).join(" · ")}
         back={`/jobs/${job.id}`}
       />
       <Page>

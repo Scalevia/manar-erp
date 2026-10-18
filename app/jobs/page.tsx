@@ -3,8 +3,8 @@ import { ChevronLeft, Plus } from "lucide-react";
 import { Badge, Card, Empty, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { daysSince, shortDate, since } from "@/lib/format";
 import {
-  byId,
   closedJobs,
+  factoryOf,
   jobSummary,
   jobTitle,
   openJobs,
@@ -73,7 +73,7 @@ export default function JobsPage() {
 
 function JobRow({ j, first }: { j: Job; first: boolean }) {
   const s = jobSummary(j);
-  const factory = j.factoryId ? byId(j.factoryId) : undefined;
+  const factory = factoryOf(j);
   const last = s.lastReceipt ?? j.openedAt;
   const stale = !j.closedAt && daysSince(last, new Date(TODAY)) > STALE_JOB_DAYS;
 
@@ -83,7 +83,7 @@ function JobRow({ j, first }: { j: Job; first: boolean }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="text-[15px] font-bold">{jobTitle(j)}</span>
-            <span className="truncate text-[14px] text-ink-soft">· {factory?.name ?? "لسه من غير مصنع"}</span>
+            <span className="truncate text-[14px] text-ink-soft">· {factory.name}</span>
             {stale && <Badge tone="warn">{s.lastReceipt ? "مفيش استلام" : "لسه موصلش"} {since(last, new Date(TODAY))}</Badge>}
           </div>
           {j.name && <div className="mt-0.5 truncate text-[12px] text-ink-mute">{j.name}</div>}

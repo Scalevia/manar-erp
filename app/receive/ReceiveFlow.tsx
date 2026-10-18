@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Calculator, Check, Plus, Trash2 } from "lucide-react";
 import { Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
 import { money2, p } from "@/lib/format";
-import { byId, jobById, jobSummary, jobTitle, modelByCode, openJobs, stockOf, type Job } from "@/lib/mock";
+import { factoryOf, jobById, jobSummary, jobTitle, modelByCode, openJobs, stockOf, type Job } from "@/lib/mock";
 
 /**
  * استلام من المصنع — من أمر تصنيع (الـ spec، قسم 5).
@@ -29,7 +29,6 @@ export default function ReceiveFlow({ initialJobId }: { initialJobId?: string })
   const pieces = lines.reduce((s, l) => s + l.qty, 0);
   const remaining = job ? jobSummary(job).remaining : 0;
   const after = remaining - total;
-  const factory = job?.factoryId ? byId(job.factoryId) : undefined;
 
   if (saved && job) {
     return (
@@ -44,7 +43,7 @@ export default function ReceiveFlow({ initialJobId }: { initialJobId?: string })
               <Num value={pieces} /> قطعة دخلت المخزن
             </div>
             <div className="mt-1 text-[13px] text-ink-mute">
-              {jobTitle(job)} · {factory?.name} · <Money value={total} /> ج
+              {jobTitle(job)} · {factoryOf(job).name} · <Money value={total} /> ج
             </div>
             <div className="mt-5 border-t border-line-soft pt-4 text-[14px] font-semibold">
               <Remaining value={after} />
@@ -88,12 +87,11 @@ export default function ReceiveFlow({ initialJobId }: { initialJobId?: string })
                   <button
                     type="button"
                     onClick={() => setJob(j)}
-                    disabled={!j.factoryId}
-                    className="press flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-sunken disabled:opacity-45"
+                    className="press flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-sunken"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[15px] font-semibold">
-                        {jobTitle(j)} · {j.factoryId ? byId(j.factoryId)?.name : "لسه من غير مصنع"}
+                        {jobTitle(j)} · {factoryOf(j).name}
                       </div>
                       {j.name && <div className="mt-0.5 truncate text-[12px] text-ink-mute">{j.name}</div>}
                     </div>
@@ -117,7 +115,7 @@ export default function ReceiveFlow({ initialJobId }: { initialJobId?: string })
     <>
       <PageHeader
         title="استلام من المصنع"
-        sub={`${jobTitle(job)} · ${factory?.name ?? ""}`}
+        sub={`${jobTitle(job)} · ${factoryOf(job).name}`}
         action={
           open.length > 1 ? (
             <button
@@ -201,7 +199,7 @@ export default function ReceiveFlow({ initialJobId }: { initialJobId?: string })
               </p>
             )}
             <p className="border-t border-line-soft px-4 py-2.5 text-[11px] text-ink-mute">
-              حساب {factory?.name} مش هيتغير — المصنعية متسجلة على الأمر.
+              حساب {factoryOf(job).name} مش هيتغير — المصنعية متسجلة على الأمر.
             </p>
           </Card>
         )}

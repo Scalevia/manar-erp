@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, ChevronLeft } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
-import { SupplierPicker } from "@/components/SupplierPicker";
+import { PartyPicker } from "@/components/PartyPicker";
 import { Card, Money, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
 import { cashAccounts, fabricOnHand, type Party } from "@/lib/mock";
@@ -68,8 +68,19 @@ export default function BuyFabricPage() {
     <>
       <PageHeader title="شراء قماش للمحل" sub="هتشيله عندك وتبعته بعدين" back="/fabric" />
       <Page>
+        {/* الشاشة دي للقماش اللي هيتشال في المحل بس — الشراء لأمر على طول بيتسجل من جوه الأمر */}
+        <Link
+          href="/jobs"
+          className="press mb-4 flex items-center justify-between gap-3 rounded-2xl bg-sunken px-4 py-3 active:opacity-80"
+        >
+          <span className="text-[12px] leading-relaxed text-ink-soft">
+            هتبعته لمصنع على طول؟ سجّله من جوه الأمر: صرفت ← قماش ← اشتريته دلوقتي
+          </span>
+          <ChevronLeft size={16} className="shrink-0 text-ink-mute" />
+        </Link>
+
         <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">اشتريت من مين؟</div>
-        <SupplierPicker value={supplier} onChange={setSupplier} />
+        <PartyPicker kind="supplier" value={supplier} onChange={setSupplier} />
 
         <Card className="mb-4 px-4 py-4">
           <span className="mb-1.5 block text-[13px] font-semibold">اشتريت بكام؟</span>

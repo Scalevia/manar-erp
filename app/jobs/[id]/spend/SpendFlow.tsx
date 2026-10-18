@@ -4,19 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
-import { SupplierPicker } from "@/components/SupplierPicker";
+import { PartyPicker } from "@/components/PartyPicker";
 import { Card, Money, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
 import {
-  byId,
   cashAccounts,
   costItemById,
   fabricOnHand,
+  factoryOf,
   jobById,
   jobCostItems,
   jobSummary,
   jobTitle,
-  ofKind,
   type Party,
 } from "@/lib/mock";
 
@@ -28,29 +27,19 @@ import {
  *   شحن · سوست · تاني: على الأمر على طول، من خزنة — مبيسألش «لمين؟» (طلب العميل)
  */
 
-export type Source = "stock" | "buy";
+type Source = "stock" | "buy";
 
-export default function SpendFlow({
-  jobId,
-  initialItem,
-  initialSource,
-}: {
-  jobId: string;
-  initialItem?: string;
-  initialSource?: Source;
-}) {
+export default function SpendFlow({ jobId }: { jobId: string }) {
   const job = jobById(jobId)!;
   const summary = jobSummary(job);
-  const jobFactory = job.factoryId ? byId(job.factoryId) : undefined;
+  const jobFactory = factoryOf(job);
   const onHand = fabricOnHand();
   // لو عنده قماش في المحل، الغالب إنه بيبعت منه
   const defaultSource: Source = onHand > 0 ? "stock" : "buy";
 
-  const [itemId, setItemId] = useState(costItemById(initialItem ?? "") ? initialItem! : "");
-  const [source, setSource] = useState<Source>(initialSource ?? defaultSource);
+  const [itemId, setItemId] = useState("");
+  const [source, setSource] = useState<Source>(defaultSource);
   const [supplier, setSupplier] = useState<Party | null>(null);
-  // المصنعية لو الأمر لسه من غير مصنع — اللي يختاره يبقى مصنع الأمر
-  const [laborFactoryId, setLaborFactoryId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [paid, setPaid] = useState("");
   const [accountId, setAccountId] = useState(cashAccounts[0].id);
@@ -61,12 +50,8 @@ export default function SpendFlow({
   const fromStock = itemId === "fabric" && source === "stock";
   const buyingFabric = itemId === "fabric" && source === "buy";
   const isLabor = itemId === "labor";
-  // البنود اللي ليها طرف: قماش بيتشرى، ومصنعية. الباقي كاش على الأمر على طول
-  const party: Party | null = buyingFabric
-    ? supplier
-    : isLabor
-      ? (jobFactory ?? (laborFactoryId ? byId(laborFactoryId) ?? null : null))
-      : null;
+  // البنود اللي ليها طرف: قماش بيتشرى، ومصنعية (لمصنع الأمر). الباقي كاش على الأمر على طول
+  const party: Party | null = buyingFabric ? supplier : isLabor ? jobFactory : null;
   const hasParty = buyingFabric || isLabor;
 
   const amountP = p(Number(amount) || 0);
@@ -89,7 +74,6 @@ export default function SpendFlow({
     setItemId("");
     setSource(defaultSource);
     setSupplier(null);
-    setLaborFactoryId(null);
     setAmount("");
     setPaid("");
     setAccountId(cashAccounts[0].id);
@@ -149,7 +133,7 @@ export default function SpendFlow({
     <>
       <PageHeader
         title={`صرفت على ${jobTitle(job)}`}
-        sub={[jobFactory?.name, job.name].filter(Boolean).join(" · ")}
+        sub={[jobFactory.name, job.name].filter(Boolean).join(" · ")}
         back={`/jobs/${job.id}`}
       />
       <Page>
@@ -204,36 +188,24 @@ export default function SpendFlow({
             {buyingFabric && (
               <>
                 <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">اشتريته من مين؟</div>
-                <SupplierPicker value={supplier} onChange={setSupplier} />
+                <PartyPicker kind="supplier" value={supplier} onChange={setSupplier} />
               </>
             )}
-            {/* المصنعية لمصنع الأمر — مبيسألش (طلب العميل). بيسأل بس لو الأمر لسه من غير مصنع */}
-            {isLabor &&
-              (jobFactory ? (
-                <div className="mb-4 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
-                  <span className="text-[14px] font-semibold">لـ {jobFactory.name}</span>
-                  <span className="text-[12px] text-ink-mute">
-                    {jobFactory.balance < 0 ? (
-                      <>
-                        ليه دلوقتي <Money value={-jobFactory.balance} />
-                      </>
-                    ) : (
-                      "مصنع الأمر"
-                    )}
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">لأنهي مصنع؟ (هيبقى مصنع الأمر)</div>
-                  <div className="mb-4 flex flex-wrap gap-2">
-                    {ofKind("factory").map((f) => (
-                      <button key={f.id} type="button" onClick={() => setLaborFactoryId(f.id)} aria-pressed={laborFactoryId === f.id} className={chip(laborFactoryId === f.id)}>
-                        {f.name}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ))}
+            {/* المصنعية لمصنع الأمر — مبيسألش «لمين؟» (طلب العميل) */}
+            {isLabor && (
+              <div className="mb-4 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
+                <span className="text-[14px] font-semibold">لـ {jobFactory.name}</span>
+                <span className="text-[12px] text-ink-mute">
+                  {jobFactory.balance < 0 ? (
+                    <>
+                      ليه دلوقتي <Money value={-jobFactory.balance} />
+                    </>
+                  ) : (
+                    "مصنع الأمر"
+                  )}
+                </span>
+              </div>
+            )}
 
             {/* ------------------------------- المبلغ ------------------------------- */}
             <Card className="mb-4 px-4 py-4">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Card, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { shortDate } from "@/lib/format";
-import { byId, fabricBuys, fabricSends, jobById, jobTitle, totals } from "@/lib/mock";
+import { byId, fabricBuys, fabricSends, factoryOf, jobById, jobTitle, totals } from "@/lib/mock";
 
 /**
  * القماش اللي في المحل — بالفلوس بس، من غير متر ولا أنواع (الـ spec، قسم 5).
@@ -25,7 +25,7 @@ export default function FabricPage() {
       return {
         key: c.id,
         date: c.date,
-        title: `بعت لـ ${jobTitle(j)} · ${byId(j.factoryId ?? "")?.name ?? ""}`,
+        title: `بعت لـ ${jobTitle(j)} · ${factoryOf(j).name}`,
         sub: c.note ?? "",
         amount: c.amount,
         out: true,
@@ -79,7 +79,8 @@ export default function FabricPage() {
           ))}
         </Card>
         <p className="mt-3 px-1 text-[12px] text-ink-mute">
-          القماش اللي بتشتريه وتبعته للمصنع على طول مبيعدّيش هنا — بيدخل الأمر مباشرة.
+          القماش اللي بتشتريه وتبعته للمصنع على طول مبيعدّيش هنا — سجّله من جوه الأمر: صرفت ← قماش ← اشتريته
+          دلوقتي.
         </p>
       </Page>
     </>

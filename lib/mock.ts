@@ -172,8 +172,11 @@ export type Job = {
   id: string;
   /** رقم الأمر — من sequence في الداتابيز */
   no: number;
-  /** ممكن يتساب فاضي لحد أول مصنعية أو أول استلام */
-  factoryId?: string;
+  /**
+   * إجباري: الأمر بيتفتح عند مصنع. قماش اتشرى قبل ما يقرر المصنع بيتشال في
+   * المحل («القماش اللي عندي»)، ويتبعت للأمر «من عندي» لما يتفتح.
+   */
+  factoryId: string;
   name?: string;
   openedAt: string;
   closedAt?: string;
@@ -282,6 +285,7 @@ export const fabricOnHand = () =>
 
 export const jobById = (id: string) => jobs.find((j) => j.id === id);
 export const jobTitle = (j: Job) => `أمر ${j.no}`;
+export const factoryOf = (j: Job) => byId(j.factoryId)!;
 export const isOpen = (j: Job) => !j.closedAt;
 export const openJobs = () => jobs.filter(isOpen).sort((a, b) => b.no - a.no);
 export const closedJobs = () => jobs.filter((j) => !isOpen(j)).sort((a, b) => b.no - a.no);
@@ -551,22 +555,15 @@ export const invoiceByNo = (no: number) => invoices.find((x) => x.no === no);
 
 /* ============================== النهاردة ============================== */
 
-/** ملخص اليوم للرئيسية: بعت كام · دخل الخزن كام · مصاريف المحل */
+/** ملخص اليوم للرئيسية: بعت كام · مصاريف المحل */
 export function todaySummary() {
   const sales = invoices.filter((i) => i.date === TODAY);
-  // اللي دخل الخزن: المدفوع وقت البيع + التحصيل من العملاء النهاردة
-  const collected = parties
-    .filter((x) => x.kind === "customer")
-    .flatMap((x) => statementOf(x.id))
-    .filter((r) => r.date === TODAY && r.label.startsWith("دفع"))
-    .reduce((s, r) => s - r.amount, 0);
   const shopExpenses = expenses
     .filter((e) => e.date === TODAY && !categoryById(e.categoryId)?.personal)
     .reduce((s, e) => s + e.amount, 0);
   return {
     salesCount: sales.length,
     salesTotal: sales.reduce((s, i) => s + invoiceTotal(i), 0),
-    cashIn: sales.reduce((s, i) => s + i.paid, 0) + collected,
     expenses: shopExpenses,
   };
 }
@@ -627,7 +624,7 @@ export function recentActivity(limit = 6): Activity[] {
       const j = jobById(r.jobId)!;
       return {
         key: `r${r.id}`, date: r.date, kind: "receive",
-        title: `استلام · ${jobTitle(j)}`, sub: `${receiptPieces(r)} قطعة · ${byId(j.factoryId ?? "")?.name ?? ""}`,
+        title: `استلام · ${jobTitle(j)}`, sub: `${receiptPieces(r)} قطعة · ${factoryOf(j).name}`,
         amount: receiptValue(r), href: `/jobs/${j.id}`,
       };
     }),

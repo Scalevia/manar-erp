@@ -16,14 +16,13 @@ import { LogoLockup } from "@/components/Logo";
 import { Card, Money, Num, Page, SectionTitle } from "@/components/ui";
 import { daysSince, shortDate, since } from "@/lib/format";
 import {
-  byId,
   capitalChange,
   capitalPeriods,
   cashAccounts,
+  factoryOf,
   jobSummary,
   jobTitle,
   loansDueSoon,
-  openJobs,
   staleJobs,
   receivables,
   recentActivity,
@@ -74,10 +73,12 @@ export default function Dashboard() {
         </div>
 
         {/* -------------------------- أكتر حاجات بيعملها -------------------------- */}
-        <div className="mb-5 grid grid-cols-3 gap-2">
+        <div className="mb-5 grid grid-cols-4 gap-2">
           <Quick href="/expenses/new" icon={Receipt} label="مصروف" primary />
           <Quick href="/payments" icon={HandCoins} label="تحصيل" />
-          <Quick href="/receive" icon={PackagePlus} label="استلام" />
+          <Quick href="/receive" icon={PackagePlus} label="استلام من المصنع" />
+          {/* بلمسة من الرئيسية بدل «المزيد» */}
+          <Quick href="/jobs" icon={Factory} label="أوامر التصنيع" />
         </div>
 
         {/* ------------------------------- النهاردة ------------------------------- */}
@@ -97,8 +98,9 @@ export default function Dashboard() {
               </span>
             </div>
           </Link>
-          <div className="grid grid-cols-3 gap-px border-t border-line-soft bg-line-soft">
-            <DayCell label="دخل الخزن" value={day.cashIn} tone="pos" />
+          {/* «قبضت» اتشالت: كانت بتجمع المدفوع وقت البيع مع تحصيل ديون قديمة،
+              فالفرق بينها وبين «بعت» كان بيتفهم غلط إنه الآجل */}
+          <div className="grid grid-cols-2 gap-px border-t border-line-soft bg-line-soft">
             <DayCell label="مصاريف" value={day.expenses} tone="neg" href="/expenses" />
             <DayCell label="السيولة" value={totals.liquidity} />
           </div>
@@ -172,7 +174,7 @@ export default function Dashboard() {
                       <Factory size={17} className="shrink-0 text-warn" />
                       <div className="min-w-0 flex-1 text-[13px]">
                         <span className="font-semibold">
-                          {jobTitle(j)} · {byId(j.factoryId ?? "")?.name}
+                          {jobTitle(j)} · {factoryOf(j).name}
                         </span>{" "}
                         <span className="text-ink-mute">
                           — {last ? "آخر استلام" : "لسه موصلش منه حاجة"} {since(last ?? j.openedAt, now)}
@@ -215,19 +217,6 @@ export default function Dashboard() {
                 <Money value={a.balance} className="mt-0.5 block text-[15px] font-bold" />
               </div>
             ))}
-          </div>
-          {/* فلوس اتحولت لقماش أو لشغل لسه موصلش — محسوبة في رأس المال، مش في السيولة */}
-          <div className="grid grid-cols-2 gap-px border-t border-line-soft bg-line-soft">
-            <Link href="/jobs" className="press block bg-card px-4 py-3 active:bg-sunken">
-              <div className="truncate text-[11px] text-ink-mute">
-                في أوامر التصنيع · <span className="num">{openJobs().length}</span>
-              </div>
-              <Money value={totals.inJobs} className="mt-0.5 block text-[15px] font-bold" />
-            </Link>
-            <Link href="/fabric" className="press block bg-card px-4 py-3 active:bg-sunken">
-              <div className="truncate text-[11px] text-ink-mute">قماش في المحل</div>
-              <Money value={totals.fabric} className="mt-0.5 block text-[15px] font-bold" />
-            </Link>
           </div>
         </Card>
 
@@ -281,12 +270,13 @@ function Quick({
   return (
     <Link
       href={href}
-      className={`press flex flex-col items-center justify-center gap-1.5 rounded-2xl py-3.5 ${
+      className={`press flex flex-col items-center justify-center gap-1.5 rounded-2xl px-1 py-3.5 ${
         primary ? "bg-brand text-brand-ink" : "border border-line bg-card text-ink-soft"
       }`}
     >
       <Icon size={20} />
-      <span className="text-[13px] font-bold">{label}</span>
+      {/* «أوامر التصنيع» على الشاشات الضيقة بتنزل سطرين بدل ما تطلع بره الزرار */}
+      <span className="text-center text-[13px] font-bold leading-tight">{label}</span>
     </Link>
   );
 }
