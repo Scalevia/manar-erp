@@ -14,8 +14,11 @@ export const TODAY = "2026-09-23";
 
 /* ============================ الأطراف ============================ */
 
-/** person = شخص بينه وبين المحل سلفة (هو سلّف المحل، أو المحل سلّفه) */
-export type PartyKind = "customer" | "factory" | "supplier" | "person";
+/**
+ * person = شخص بينه وبين المحل سلفة (هو سلّف المحل، أو المحل سلّفه)
+ * trader = تاجر بيشتري منه بضاعة جاهزة («شراء مخزون»)
+ */
+export type PartyKind = "customer" | "factory" | "supplier" | "person" | "trader";
 
 export type Party = {
   id: string;
@@ -55,6 +58,9 @@ export const parties: Party[] = [
   { id: "s1", kind: "supplier", name: "حسن الأقمشة", phone: "01011223344", balance: -p(20000), lastActivity: "2026-09-23" },
   { id: "s2", kind: "supplier", name: "مورد الدلتا", phone: "01233445566", balance: -p(6500), lastActivity: "2026-08-25" },
 
+  // تجار بضاعة جاهزة — عليا ليهم
+  { id: "t1", kind: "trader", name: "الحاج محمود للجملة", phone: "01098765432", balance: -p(4500), lastActivity: "2026-09-19" },
+
   // السلف — سالب: استلفت منه (عليا له) · موجب: سلّفته (ليا عنده)
   { id: "p1", kind: "person", name: "حاج سيد العطار", phone: "01019876543", balance: -p(30000), lastActivity: "2026-09-10", dueDate: "2026-09-30" },
   { id: "p2", kind: "person", name: "محمد الصبي", phone: "01147654321", balance: p(1500), oldestDue: "2026-09-20", lastActivity: "2026-09-20" },
@@ -70,7 +76,7 @@ export const receivables = () =>
     .filter((x) => (x.kind === "customer" || x.kind === "person") && x.balance > 0)
     .sort((a, b) => daysSince(b.oldestDue ?? TODAY) - daysSince(a.oldestDue ?? TODAY));
 
-/** «عليا»: مصانع وتجار قماش ليهم فلوس + ناس استلفت منهم */
+/** «عليا»: مصانع وتجار (قماش أو بضاعة) ليهم فلوس + ناس استلفت منهم */
 export const payables = () =>
   parties
     .filter((x) => x.kind !== "customer" && x.balance < 0)
@@ -99,12 +105,15 @@ export const cashAccounts: CashAccount[] = [
 /* ============================ الموديلات ============================ */
 
 /**
- * دفعة بضاعة استلمها من مصنع — نفس الكود ممكن يتكرر بسعرين (الـ spec، قسم 4).
- * سعر القطعة بيكتبه هو وقت الاستلام، وقيمتها بتطلع من فلوس أمر التصنيع (قسم 5).
+ * دفعة بضاعة دخلت المخزن — من مصنع (استلام) أو من تاجر (شراء مخزون).
+ * نفس الكود ممكن يتكرر بسعرين (الـ spec، قسم 4). من المصنع: سعر القطعة بيكتبه
+ * هو وقت الاستلام، وقيمتها بتطلع من فلوس أمر التصنيع (قسم 5). من التاجر: السعر
+ * اللي اشترى بيه.
  */
 export type Batch = {
   receivedAt: string;
-  factoryId: string;
+  /** المصنع (استلام) أو التاجر (شراء مخزون) */
+  sourceId: string;
   pieces: number;
   unitCost: number;
   /** أمر التصنيع اللي طلعت منه — فاضي للبضاعة اللي كانت موجودة قبل البرنامج */
@@ -124,19 +133,21 @@ export const models: Model[] = [
     code: 214, name: "قميص كاروهات",
     // أمر 7: وصل 300 ثم 390 — اتباع 200 من الدفعة الأولى
     batches: [
-      { receivedAt: "2026-09-04", factoryId: "f1", pieces: 100, unitCost: p(82), jobId: "j7" },
-      { receivedAt: "2026-09-21", factoryId: "f1", pieces: 390, unitCost: p(82), jobId: "j7" },
+      { receivedAt: "2026-09-04", sourceId: "f1", pieces: 100, unitCost: p(82), jobId: "j7" },
+      { receivedAt: "2026-09-21", sourceId: "f1", pieces: 390, unitCost: p(82), jobId: "j7" },
     ],
     lastSale: "2026-09-20", soldThisMonth: 200,
   },
-  { code: 208, name: "بنطلون جينز", batches: [{ receivedAt: "2026-08-20", factoryId: "f2", pieces: 180, unitCost: p(78) }], lastSale: "2026-09-22", soldThisMonth: 140 },
-  { code: 221, name: "تيشيرت قطن", batches: [{ receivedAt: "2026-09-12", factoryId: "f3", pieces: 260, unitCost: p(75), jobId: "j8" }], lastSale: "2026-09-21", soldThisMonth: 210 },
-  { code: 199, name: "قميص سادة", batches: [{ receivedAt: "2026-07-25", factoryId: "f1", pieces: 150, unitCost: p(88) }], lastSale: "2026-09-18", soldThisMonth: 60 },
-  { code: 235, name: "جاكيت خفيف", batches: [{ receivedAt: "2026-09-16", factoryId: "f2", pieces: 95, unitCost: p(100), jobId: "j6" }], lastSale: "2026-09-19", soldThisMonth: 25 },
-  { code: 190, name: "جاكيت شتوي", batches: [{ receivedAt: "2026-02-20", factoryId: "f2", pieces: 45, unitCost: p(120) }], lastSale: "2026-06-02", soldThisMonth: 0 },
-  { code: 176, name: "بلوزة صيفي", batches: [{ receivedAt: "2026-04-15", factoryId: "f3", pieces: 120, unitCost: p(86.67) }], lastSale: "2026-04-25", soldThisMonth: 0 },
-  { code: 183, name: "شورت", batches: [{ receivedAt: "2026-05-10", factoryId: "f3", pieces: 60, unitCost: p(85) }], lastSale: "2026-05-30", soldThisMonth: 0 },
-  { code: 168, batches: [{ receivedAt: "2026-06-12", factoryId: "f1", pieces: 70, unitCost: p(88) }], lastSale: "2026-09-14", soldThisMonth: 18 },
+  { code: 208, name: "بنطلون جينز", batches: [{ receivedAt: "2026-08-20", sourceId: "f2", pieces: 180, unitCost: p(78) }], lastSale: "2026-09-22", soldThisMonth: 140 },
+  { code: 221, name: "تيشيرت قطن", batches: [{ receivedAt: "2026-09-12", sourceId: "f3", pieces: 260, unitCost: p(75), jobId: "j8" }], lastSale: "2026-09-21", soldThisMonth: 210 },
+  { code: 199, name: "قميص سادة", batches: [{ receivedAt: "2026-07-25", sourceId: "f1", pieces: 150, unitCost: p(88) }], lastSale: "2026-09-18", soldThisMonth: 60 },
+  { code: 235, name: "جاكيت خفيف", batches: [{ receivedAt: "2026-09-16", sourceId: "f2", pieces: 95, unitCost: p(100), jobId: "j6" }], lastSale: "2026-09-19", soldThisMonth: 25 },
+  { code: 190, name: "جاكيت شتوي", batches: [{ receivedAt: "2026-02-20", sourceId: "f2", pieces: 45, unitCost: p(120) }], lastSale: "2026-06-02", soldThisMonth: 0 },
+  { code: 176, name: "بلوزة صيفي", batches: [{ receivedAt: "2026-04-15", sourceId: "f3", pieces: 120, unitCost: p(86.67) }], lastSale: "2026-04-25", soldThisMonth: 0 },
+  { code: 183, name: "شورت", batches: [{ receivedAt: "2026-05-10", sourceId: "f3", pieces: 60, unitCost: p(85) }], lastSale: "2026-05-30", soldThisMonth: 0 },
+  // شراء مخزون: 100 قطعة جاهزة من الحاج محمود — اتباع منهم 12
+  { code: 240, name: "بلوزة شتوي", batches: [{ receivedAt: "2026-09-19", sourceId: "t1", pieces: 88, unitCost: p(95) }], lastSale: "2026-09-22", soldThisMonth: 12 },
+  { code: 168, batches: [{ receivedAt: "2026-06-12", sourceId: "f1", pieces: 70, unitCost: p(88) }], lastSale: "2026-09-14", soldThisMonth: 18 },
 ];
 
 export const modelByCode = (code: number) => models.find((m) => m.code === code);
@@ -381,6 +392,10 @@ const statements: Record<string, LedgerRow[]> = {
   ],
   s2: [
     { id: "l28", date: "2026-08-25", label: "قماش · أمر 6 · كتان", amount: p(6500), balance: -p(6500) },
+  ],
+  t1: [
+    { id: "l33", date: "2026-09-19", label: "شراء 100 قطعة · موديل 240 × 95", amount: p(9500), balance: -p(9500) },
+    { id: "l34", date: "2026-09-19", label: "دفعتله ← من الدرج", amount: -p(5000), balance: -p(4500) },
   ],
 };
 

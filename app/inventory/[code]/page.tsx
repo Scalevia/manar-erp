@@ -40,7 +40,7 @@ export default async function ModelPage({
         <SectionTitle>في المحل</SectionTitle>
         <Card className="mb-4 overflow-hidden">
           {m.batches.map((b, i) => (
-            <div key={`${b.receivedAt}-${b.factoryId}`}>
+            <div key={`${b.receivedAt}-${b.sourceId}`}>
               {i > 0 && <div className="ms-4 border-t border-line-soft" />}
               <div className="flex items-center gap-3 px-4 py-3.5">
                 <div className="min-w-0 flex-1">
@@ -48,7 +48,8 @@ export default async function ModelPage({
                     <Num value={b.pieces} className="font-semibold" /> قطعة
                   </div>
                   <div className="mt-0.5 truncate text-[12px] text-ink-mute">
-                    استلام <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.factoryId)?.name}
+                    {byId(b.sourceId)?.kind === "trader" ? "شراء" : "استلام"}{" "}
+                    <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.sourceId)?.name}
                     {b.jobId && jobById(b.jobId) && <> · {jobTitle(jobById(b.jobId)!)}</>}
                   </div>
                 </div>

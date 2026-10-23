@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { Badge, Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
 import { since } from "@/lib/format";
 import { isStale, models, stockOf, TODAY, totals, valueOf } from "@/lib/mock";
@@ -27,6 +27,15 @@ export default function InventoryPage() {
           <>
             <Num value={models.length} /> موديل · <Money value={totals.stockValue} /> ج
           </>
+        }
+        action={
+          <Link
+            href="/inventory/buy"
+            className="press flex items-center gap-1 rounded-xl bg-brand px-3 py-1.5 text-[13px] font-bold text-brand-ink"
+          >
+            <Plus size={16} strokeWidth={2.6} />
+            شراء مخزون
+          </Link>
         }
       />
 

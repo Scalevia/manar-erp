@@ -18,6 +18,7 @@ function kindLabel(x: Party) {
   if (x.kind === "customer") return "عميل";
   if (x.kind === "factory") return "مصنع";
   if (x.kind === "supplier") return "تاجر قماش";
+  if (x.kind === "trader") return "تاجر بضاعة";
   return x.balance > 0 ? "سلفة · سلّفته" : "سلفة · استلفت منه";
 }
 

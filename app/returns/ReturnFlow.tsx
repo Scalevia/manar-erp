@@ -339,7 +339,7 @@ function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd
   const isCustomer = dir === "customer";
   // للمصنع: تكلفة القطعة من آخر استلام للموديل ده من المصنع ده — ومنه بنعرف الأمر
   const batch =
-    !isCustomer && model ? [...model.batches].reverse().find((b) => b.factoryId === factoryId) : undefined;
+    !isCustomer && model ? [...model.batches].reverse().find((b) => b.sourceId === factoryId) : undefined;
   const work = batch?.unitCost;
   const priceN = price === "" && work ? work / 100 : Number(price);
   const over = !isCustomer && model && Number(qty) > stockOf(model);

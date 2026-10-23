@@ -133,6 +133,7 @@ function PartyRow({ party, payable }: { party: Party; payable: boolean }) {
         {payable && party.kind === "supplier" && (
           <Badge tone="neutral">قماش</Badge>
         )}
+        {payable && party.kind === "trader" && <Badge tone="neutral">تاجر</Badge>}
 
         <Money
           value={amount}

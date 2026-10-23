@@ -6,15 +6,16 @@ import { Card, Money } from "@/components/ui";
 import { isEgyptMobile } from "@/lib/format";
 import { ofKind, TODAY, type Party } from "@/lib/mock";
 
-type Kind = "supplier" | "factory";
+type Kind = "supplier" | "factory" | "trader";
 
 const LABELS: Record<Kind, { add: string; name: string; one: string }> = {
   supplier: { add: "تاجر قماش جديد", name: "اسم تاجر القماش", one: "تاجر قماش" },
   factory: { add: "مصنع جديد", name: "اسم المصنع", one: "مصنع" },
+  trader: { add: "تاجر جديد", name: "اسم التاجر", one: "تاجر" },
 };
 
 /**
- * اختيار تاجر قماش أو مصنع من القايمة، أو إضافة واحد جديد من نفس الشاشة
+ * اختيار تاجر (قماش أو بضاعة) أو مصنع من القايمة، أو إضافة واحد جديد من نفس الشاشة
  * (الاسم، والموبايل اختياري) — مفيش شاشة إدارة لوحدها، زي «عميل جديد» في البيع.
  * بيرجّع الطرف لما يبقى جاهز، وnull لحد كده.
  */
