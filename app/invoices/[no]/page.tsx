@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
-import { Badge, Card, Money, Num, Page, PageHeader } from "@/components/ui";
+import { Badge, Card, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { monthName } from "@/lib/format";
 import {
   byId,
@@ -11,7 +11,7 @@ import {
   invoicePieces,
   invoices,
   invoiceTotal,
-  modelByCode,
+  modelById,
 } from "@/lib/mock";
 
 export function generateStaticParams() {
@@ -77,26 +77,26 @@ export default async function InvoicePage({ params }: { params: Promise<{ no: st
             <span className="flex-1">العدد × السعر</span>
             <span className="shrink-0 text-end">الإجمالي</span>
           </div>
-          {inv.lines.map((l, i) => (
-            <div key={i} className="border-t border-line-soft">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <div className="w-12 shrink-0">
-                  <div className="num text-[16px] font-bold">{l.code}</div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[14px]">
-                    <span className="num">{l.qty}</span> × <Money value={l.price} /> ج
-                  </div>
-                  {modelByCode(l.code)?.name && (
-                    <div className="mt-0.5 truncate text-[12px] text-ink-mute">
-                      {modelByCode(l.code)?.name}
+          {inv.lines.map((l, i) => {
+            const m = modelById(l.modelId);
+            return (
+              <div key={i} className="border-t border-line-soft">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <ModelTag code={m?.code} name={m?.name} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[14px]">
+                      <span className="num">{l.qty}</span> × <Money value={l.price} /> ج
                     </div>
-                  )}
+                    {/* الاسم تحت لو الكود هو اللي فوق */}
+                    {m?.code !== undefined && m.name && (
+                      <div className="mt-0.5 truncate text-[12px] text-ink-mute">{m.name}</div>
+                    )}
+                  </div>
+                  <Money value={l.qty * l.price} className="shrink-0 text-[15px] font-bold" />
                 </div>
-                <Money value={l.qty * l.price} className="shrink-0 text-[15px] font-bold" />
               </div>
-            </div>
-          ))}
+            );
+          })}
         </Card>
 
         {/* ------------------------------- الحساب ------------------------------- */}

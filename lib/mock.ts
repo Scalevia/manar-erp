@@ -8,7 +8,7 @@
  * الـ spec: مفيش رصيد متخزن.
  */
 
-import { p, daysSince } from "./format";
+import { p, daysSince, normalizeArabic } from "./format";
 
 export const TODAY = "2026-09-23";
 
@@ -120,8 +120,14 @@ export type Batch = {
   jobId?: string;
 };
 
+/**
+ * الموديل بالكود أو بالاسم أو الاتنين — لازم واحد منهم على الأقل (الـ spec،
+ * قسم 4). فيه هدوم من غير كود بيعرفها باسمها بس. كل حاجة بتتربط بالـ id، مش
+ * بالكود.
+ */
 export type Model = {
-  code: number;
+  id: string;
+  code?: number;
   name?: string;
   batches: Batch[];
   lastSale?: string;
@@ -130,7 +136,7 @@ export type Model = {
 
 export const models: Model[] = [
   {
-    code: 214, name: "قميص كاروهات",
+    id: "m214", code: 214, name: "قميص كاروهات",
     // أمر 7: وصل 300 ثم 390 — اتباع 200 من الدفعة الأولى
     batches: [
       { receivedAt: "2026-09-04", sourceId: "f1", pieces: 100, unitCost: p(82), jobId: "j7" },
@@ -138,19 +144,47 @@ export const models: Model[] = [
     ],
     lastSale: "2026-09-20", soldThisMonth: 200,
   },
-  { code: 208, name: "بنطلون جينز", batches: [{ receivedAt: "2026-08-20", sourceId: "f2", pieces: 180, unitCost: p(78) }], lastSale: "2026-09-22", soldThisMonth: 140 },
-  { code: 221, name: "تيشيرت قطن", batches: [{ receivedAt: "2026-09-12", sourceId: "f3", pieces: 260, unitCost: p(75), jobId: "j8" }], lastSale: "2026-09-21", soldThisMonth: 210 },
-  { code: 199, name: "قميص سادة", batches: [{ receivedAt: "2026-07-25", sourceId: "f1", pieces: 150, unitCost: p(88) }], lastSale: "2026-09-18", soldThisMonth: 60 },
-  { code: 235, name: "جاكيت خفيف", batches: [{ receivedAt: "2026-09-16", sourceId: "f2", pieces: 95, unitCost: p(100), jobId: "j6" }], lastSale: "2026-09-19", soldThisMonth: 25 },
-  { code: 190, name: "جاكيت شتوي", batches: [{ receivedAt: "2026-02-20", sourceId: "f2", pieces: 45, unitCost: p(120) }], lastSale: "2026-06-02", soldThisMonth: 0 },
-  { code: 176, name: "بلوزة صيفي", batches: [{ receivedAt: "2026-04-15", sourceId: "f3", pieces: 120, unitCost: p(86.67) }], lastSale: "2026-04-25", soldThisMonth: 0 },
-  { code: 183, name: "شورت", batches: [{ receivedAt: "2026-05-10", sourceId: "f3", pieces: 60, unitCost: p(85) }], lastSale: "2026-05-30", soldThisMonth: 0 },
+  { id: "m208", code: 208, name: "بنطلون جينز", batches: [{ receivedAt: "2026-08-20", sourceId: "f2", pieces: 180, unitCost: p(78) }], lastSale: "2026-09-22", soldThisMonth: 140 },
+  { id: "m221", code: 221, name: "تيشيرت قطن", batches: [{ receivedAt: "2026-09-12", sourceId: "f3", pieces: 260, unitCost: p(75), jobId: "j8" }], lastSale: "2026-09-21", soldThisMonth: 210 },
+  { id: "m199", code: 199, name: "قميص سادة", batches: [{ receivedAt: "2026-07-25", sourceId: "f1", pieces: 150, unitCost: p(88) }], lastSale: "2026-09-18", soldThisMonth: 60 },
+  { id: "m235", code: 235, name: "جاكيت خفيف", batches: [{ receivedAt: "2026-09-16", sourceId: "f2", pieces: 95, unitCost: p(100), jobId: "j6" }], lastSale: "2026-09-19", soldThisMonth: 25 },
+  { id: "m190", code: 190, name: "جاكيت شتوي", batches: [{ receivedAt: "2026-02-20", sourceId: "f2", pieces: 45, unitCost: p(120) }], lastSale: "2026-06-02", soldThisMonth: 0 },
+  { id: "m176", code: 176, name: "بلوزة صيفي", batches: [{ receivedAt: "2026-04-15", sourceId: "f3", pieces: 120, unitCost: p(86.67) }], lastSale: "2026-04-25", soldThisMonth: 0 },
+  { id: "m183", code: 183, name: "شورت", batches: [{ receivedAt: "2026-05-10", sourceId: "f3", pieces: 60, unitCost: p(85) }], lastSale: "2026-05-30", soldThisMonth: 0 },
   // شراء مخزون: 100 قطعة جاهزة من الحاج محمود — اتباع منهم 12
-  { code: 240, name: "بلوزة شتوي", batches: [{ receivedAt: "2026-09-19", sourceId: "t1", pieces: 88, unitCost: p(95) }], lastSale: "2026-09-22", soldThisMonth: 12 },
-  { code: 168, batches: [{ receivedAt: "2026-06-12", sourceId: "f1", pieces: 70, unitCost: p(88) }], lastSale: "2026-09-14", soldThisMonth: 18 },
+  { id: "m240", code: 240, name: "بلوزة شتوي", batches: [{ receivedAt: "2026-09-19", sourceId: "t1", pieces: 88, unitCost: p(95) }], lastSale: "2026-09-22", soldThisMonth: 12 },
+  { id: "m168", code: 168, batches: [{ receivedAt: "2026-06-12", sourceId: "f1", pieces: 70, unitCost: p(88) }], lastSale: "2026-09-14", soldThisMonth: 18 },
+  // من غير كود — بيعرفها باسمها بس
+  { id: "mk1", name: "طقم ولادي", batches: [{ receivedAt: "2026-04-20", sourceId: "f3", pieces: 48, unitCost: p(70) }], lastSale: "2026-09-20", soldThisMonth: 12 },
+  { id: "mk2", name: "بيجامة حريمي", batches: [{ receivedAt: "2026-03-15", sourceId: "f2", pieces: 36, unitCost: p(95) }], lastSale: "2026-09-10", soldThisMonth: 6 },
 ];
 
+export const modelById = (id: string) => models.find((m) => m.id === id);
 export const modelByCode = (code: number) => models.find((m) => m.code === code);
+
+/** «214 · قميص كاروهات» · «168» · «طقم ولادي» */
+export const modelLabel = (m: Pick<Model, "code" | "name">) =>
+  m.code !== undefined && m.name ? `${m.code} · ${m.name}` : m.code !== undefined ? String(m.code) : m.name ?? "";
+
+/**
+ * الموديل اللي اتكتب بالظبط: أرقام = كود · حروف = اسم بعد التوحيد
+ * («بلوزه» تلاقي «بلوزة»). مفيش = موديل جديد أو غلطة.
+ */
+export function findModel(q: string): Model | undefined {
+  const t = normalizeArabic(q);
+  if (!t) return undefined;
+  if (/^\d+$/.test(t)) return modelByCode(Number(t));
+  return models.find((m) => m.name && normalizeArabic(m.name) === t);
+}
+
+/** للبحث والاقتراحات: الكود فيه الأرقام دي، أو الاسم فيه الكلام ده */
+export function searchModels(q: string): Model[] {
+  const t = normalizeArabic(q);
+  if (!t) return [];
+  return models.filter(
+    (m) => (m.code !== undefined && String(m.code).includes(t)) || (!!m.name && normalizeArabic(m.name).includes(t)),
+  );
+}
 
 /** إجمالي القطع في المحل */
 export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0);
@@ -255,16 +289,16 @@ export type JobReceipt = {
   id: string;
   jobId: string;
   date: string;
-  lines: { code: number; qty: number; unitCost: number }[];
+  lines: { modelId: string; qty: number; unitCost: number }[];
 };
 
 export const jobReceipts: JobReceipt[] = [
-  { id: "jr1", jobId: "j7", date: "2026-09-04", lines: [{ code: 214, qty: 300, unitCost: p(82) }] },
-  { id: "jr2", jobId: "j7", date: "2026-09-21", lines: [{ code: 214, qty: 390, unitCost: p(82) }] },
-  { id: "jr3", jobId: "j6", date: "2026-09-08", lines: [{ code: 235, qty: 120, unitCost: p(100) }] },
-  { id: "jr4", jobId: "j6", date: "2026-09-16", lines: [{ code: 235, qty: 90, unitCost: p(100) }] },
-  { id: "jr5", jobId: "j8", date: "2026-09-10", lines: [{ code: 221, qty: 256, unitCost: p(75) }] },
-  { id: "jr6", jobId: "j8", date: "2026-09-12", lines: [{ code: 221, qty: 80, unitCost: p(75) }] },
+  { id: "jr1", jobId: "j7", date: "2026-09-04", lines: [{ modelId: "m214", qty: 300, unitCost: p(82) }] },
+  { id: "jr2", jobId: "j7", date: "2026-09-21", lines: [{ modelId: "m214", qty: 390, unitCost: p(82) }] },
+  { id: "jr3", jobId: "j6", date: "2026-09-08", lines: [{ modelId: "m235", qty: 120, unitCost: p(100) }] },
+  { id: "jr4", jobId: "j6", date: "2026-09-16", lines: [{ modelId: "m235", qty: 90, unitCost: p(100) }] },
+  { id: "jr5", jobId: "j8", date: "2026-09-10", lines: [{ modelId: "m221", qty: 256, unitCost: p(75) }] },
+  { id: "jr6", jobId: "j8", date: "2026-09-12", lines: [{ modelId: "m221", qty: 80, unitCost: p(75) }] },
 ];
 
 /* ---------------------- القماش اللي في المحل — بالفلوس بس ---------------------- */
@@ -473,7 +507,7 @@ export const statementOf = (partyId: string): LedgerRow[] => {
 
 /* ============================== الفواتير ============================== */
 
-export type InvoiceLine = { code: number; qty: number; price: number };
+export type InvoiceLine = { modelId: string; qty: number; price: number };
 
 export type Invoice = {
   no: number;
@@ -500,17 +534,17 @@ export function invoiceKind(inv: Invoice): "cash" | "partial" | "credit" {
   return "credit";
 }
 
-const MODEL_CODES = [214, 208, 221, 199, 235, 168];
+const MODEL_IDS = ["m214", "m208", "m221", "m199", "m235", "m168"];
 
 /** بيعة واحدة مقسومة على موديلين، بنفس إجمالي القطع والسعر */
 function splitLines(pieces: number, seed: number): InvoiceLine[] {
-  const a = MODEL_CODES[seed % MODEL_CODES.length];
-  const b = MODEL_CODES[(seed + 2) % MODEL_CODES.length];
+  const a = MODEL_IDS[seed % MODEL_IDS.length];
+  const b = MODEL_IDS[(seed + 2) % MODEL_IDS.length];
   const qa = Math.ceil(pieces * 0.6);
   const qb = pieces - qa;
   return qb > 0
-    ? [{ code: a, qty: qa, price: PRICE }, { code: b, qty: qb, price: PRICE }]
-    : [{ code: a, qty: qa, price: PRICE }];
+    ? [{ modelId: a, qty: qa, price: PRICE }, { modelId: b, qty: qb, price: PRICE }]
+    : [{ modelId: a, qty: qa, price: PRICE }];
 }
 
 function buildInvoices(): Invoice[] {
@@ -519,11 +553,11 @@ function buildInvoices(): Invoice[] {
     // مطابقة لكشوف الحساب المكتوبة بالإيد
     {
       date: "2026-09-12", partyId: "c1", paid: 0,
-      lines: [{ code: 214, qty: 40, price: p(120) }, { code: 208, qty: 20, price: p(120) }],
+      lines: [{ modelId: "m214", qty: 40, price: p(120) }, { modelId: "m208", qty: 20, price: p(120) }],
     },
     {
       date: "2026-09-03", partyId: "c2", paid: 0,
-      lines: [{ code: 221, qty: 70, price: p(130) }, { code: 199, qty: 50, price: p(130) }],
+      lines: [{ modelId: "m221", qty: 70, price: p(130) }, { modelId: "m199", qty: 50, price: p(130) }],
     },
   ];
 
@@ -540,14 +574,14 @@ function buildInvoices(): Invoice[] {
   // بيع نقدي — زبون جملة من غير حساب
   const cash = cashParty.id;
   const walkIns: [string, InvoiceLine[], string][] = [
-    ["2026-09-23", [{ code: 214, qty: 12, price: p(125) }], "drawer"],
-    ["2026-09-23", [{ code: 221, qty: 24, price: p(110) }], "drawer"],
-    ["2026-09-23", [{ code: 199, qty: 12, price: p(125) }, { code: 208, qty: 12, price: p(130) }], "vcash"],
-    ["2026-09-22", [{ code: 221, qty: 24, price: p(110) }], "drawer"],
-    ["2026-09-20", [{ code: 208, qty: 12, price: p(130) }, { code: 199, qty: 12, price: p(125) }], "vcash"],
-    ["2026-09-18", [{ code: 199, qty: 24, price: p(120) }], "drawer"],
-    ["2026-09-15", [{ code: 235, qty: 6, price: p(160) }], "instapay"],
-    ["2026-09-09", [{ code: 221, qty: 36, price: p(105) }], "drawer"],
+    ["2026-09-23", [{ modelId: "m214", qty: 12, price: p(125) }], "drawer"],
+    ["2026-09-23", [{ modelId: "m221", qty: 24, price: p(110) }], "drawer"],
+    ["2026-09-23", [{ modelId: "m199", qty: 12, price: p(125) }, { modelId: "m208", qty: 12, price: p(130) }], "vcash"],
+    ["2026-09-22", [{ modelId: "m221", qty: 24, price: p(110) }], "drawer"],
+    ["2026-09-20", [{ modelId: "m208", qty: 12, price: p(130) }, { modelId: "m199", qty: 12, price: p(125) }, { modelId: "mk1", qty: 12, price: p(85) }], "vcash"],
+    ["2026-09-18", [{ modelId: "m199", qty: 24, price: p(120) }], "drawer"],
+    ["2026-09-15", [{ modelId: "m235", qty: 6, price: p(160) }], "instapay"],
+    ["2026-09-09", [{ modelId: "m221", qty: 36, price: p(105) }], "drawer"],
   ];
   for (const [date, lines, accountId] of walkIns) {
     const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
@@ -652,16 +686,16 @@ export function recentActivity(limit = 6): Activity[] {
 /* ========================== أرقام البيع والربح ========================== */
 
 /** مبيعات آخر 3 شهور لكل موديل — منها بييجي تقرير «أنهي موديل بيكسب» */
-export type ModelStat = { code: number; sold: number; revenue: number; cost: number };
+export type ModelStat = { modelId: string; sold: number; revenue: number; cost: number };
 
 export const modelStats: ModelStat[] = [
-  { code: 214, sold: 340, revenue: p(40800), cost: p(29920) },
-  { code: 208, sold: 180, revenue: p(21600), cost: p(14040) },
-  { code: 221, sold: 210, revenue: p(21000), cost: p(15540) },
-  { code: 199, sold: 60, revenue: p(7800), cost: p(5280) },
-  { code: 235, sold: 25, revenue: p(3750), cost: p(2400) },
-  { code: 190, sold: 45, revenue: p(6750), cost: p(5400) },
-  { code: 168, sold: 18, revenue: p(1980), cost: p(1584) },
+  { modelId: "m214", sold: 340, revenue: p(40800), cost: p(29920) },
+  { modelId: "m208", sold: 180, revenue: p(21600), cost: p(14040) },
+  { modelId: "m221", sold: 210, revenue: p(21000), cost: p(15540) },
+  { modelId: "m199", sold: 60, revenue: p(7800), cost: p(5280) },
+  { modelId: "m235", sold: 25, revenue: p(3750), cost: p(2400) },
+  { modelId: "m190", sold: 45, revenue: p(6750), cost: p(5400) },
+  { modelId: "m168", sold: 18, revenue: p(1980), cost: p(1584) },
 ];
 
 export const profitOf = (s: ModelStat) => s.revenue - s.cost;

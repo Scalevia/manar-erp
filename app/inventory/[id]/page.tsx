@@ -1,26 +1,30 @@
 import { notFound } from "next/navigation";
 import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { dozens, shortDate, since } from "@/lib/format";
-import { avgCost, byId, jobById, jobTitle, modelByCode, models, stockOf, TODAY, valueOf } from "@/lib/mock";
+import { avgCost, byId, jobById, jobTitle, modelById, models, stockOf, TODAY, valueOf } from "@/lib/mock";
 
 export function generateStaticParams() {
-  return models.map((m) => ({ code: String(m.code) }));
+  return models.map((m) => ({ id: m.id }));
 }
 
 export default async function ModelPage({
   params,
 }: {
-  params: Promise<{ code: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const { code } = await params;
-  const m = modelByCode(Number(code));
+  const { id } = await params;
+  const m = modelById(id);
   if (!m) notFound();
 
   const stock = stockOf(m);
 
   return (
     <>
-      <PageHeader title={`موديل ${m.code}`} sub={m.name} back="/inventory" />
+      <PageHeader
+        title={m.code !== undefined ? `موديل ${m.code}` : (m.name ?? "")}
+        sub={m.code !== undefined ? m.name : "من غير كود"}
+        back="/inventory"
+      />
 
       <Page>
         {/* -------------------------------- الإجمالي -------------------------------- */}

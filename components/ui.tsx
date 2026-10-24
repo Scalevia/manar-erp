@@ -80,6 +80,23 @@ export function Num({ value, sign, className = "" }: { value: number; sign?: Sig
   );
 }
 
+/**
+ * الموديل في أول السطر: الكود لو موجود، وإلا الاسم. الكود عرضه ثابت عشان
+ * الأعمدة تتصف، والاسم بياخد مساحته ويتقص لو طويل. isNew: «جديد» تحته.
+ */
+export function ModelTag({ code, name, isNew }: { code?: number; name?: string; isNew?: boolean }) {
+  return (
+    <div className={code !== undefined ? "w-12 shrink-0" : "min-w-0 max-w-[45%] shrink-0"}>
+      {code !== undefined ? (
+        <div className="num text-[16px] font-bold">{code}</div>
+      ) : (
+        <div className="truncate text-[14px] font-bold">{name}</div>
+      )}
+      {isNew && <div className="text-[10px] font-semibold text-brand">جديد</div>}
+    </div>
+  );
+}
+
 /* ----------------------------------- الكروت ---------------------------------- */
 
 export function Card({

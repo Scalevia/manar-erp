@@ -101,6 +101,29 @@ export function monthOnly(iso: string): string {
 
 /* ------------------------------------------------------------------ */
 
+/** ٢١٤ → 214 — كيبورد الآيفون بالعربي ممكن يكتب أرقام هندية */
+export function latinDigits(s: string): string {
+  return s
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
+}
+
+/**
+ * للمقارنة بس، مش للعرض: «بلوزه» = «بلوزة» · «أطقم» = «اطقم» · «بيبى» = «بيبي».
+ * من غيرها نفس الموديل يتسجل مرتين لأنه اتكتب بطريقتين.
+ */
+export function normalizeArabic(s: string): string {
+  return latinDigits(s)
+    .replace(/[ً-ْـ]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/* ------------------------------------------------------------------ */
+
 /** أرقام الموبايل المصري: 11 رقم وبيبدأ بـ 010 / 011 / 012 / 015 */
 export function isEgyptMobile(phone: string): boolean {
   return /^01[0125]\d{8}$/.test(phone);

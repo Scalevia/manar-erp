@@ -4,9 +4,10 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
-import { Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
+import { ModelInput, ModelModeToggle, ModelSuggestions, notFoundText, useModelField } from "@/components/ModelField";
+import { Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { cashAccounts, jobById, jobSummary, jobTitle, modelByCode, ofKind, stockOf, type Party } from "@/lib/mock";
+import { cashAccounts, jobById, jobSummary, jobTitle, modelById, ofKind, stockOf, type Party } from "@/lib/mock";
 
 /**
  * المرتجعات (الـ spec، قسم 6 — العمليتين 5 و6):
@@ -15,7 +16,7 @@ import { cashAccounts, jobById, jobSummary, jobTitle, modelByCode, ofKind, stock
  */
 
 type Dir = "customer" | "factory";
-type Line = { id: number; code: number; qty: number; price: number; jobId?: string };
+type Line = { id: number; modelId: string; qty: number; price: number; jobId?: string };
 
 const REASONS: Record<Dir, string[]> = {
   customer: ["مش ماشية معاه", "عيب", "سبب تاني"],
@@ -170,7 +171,7 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                   <div key={l.id}>
                     {i > 0 && <div className="ms-4 border-t border-line-soft" />}
                     <div className="flex items-center gap-3 px-4 py-3">
-                      <span className="num w-11 shrink-0 text-[16px] font-bold">{l.code}</span>
+                      <ModelTag code={modelById(l.modelId)?.code} name={modelById(l.modelId)?.name} />
                       <span className="flex-1 text-[13px] text-ink-mute">
                         <span className="num">×{l.qty}</span> · <Money value={l.price} /> ج
                       </span>
@@ -327,15 +328,15 @@ function Balance({ value, customer }: { value: number; customer: boolean }) {
 /* ====================== إضافة سطر — الكيبورد مبيقفلش ====================== */
 
 function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd: (l: Line) => void }) {
-  const [code, setCode] = useState("");
+  const [field, modelRef] = useModelField({ allowNew: false });
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
-  const codeRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
   const nextId = useRef(1);
 
-  const model = code ? modelByCode(Number(code)) : undefined;
+  const model = field.model;
+  const notFound = notFoundText(field);
   const isCustomer = dir === "customer";
   // للمصنع: تكلفة القطعة من آخر استلام للموديل ده من المصنع ده — ومنه بنعرف الأمر
   const batch =
@@ -347,49 +348,48 @@ function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd
 
   function submit() {
     if (!ready) return;
-    onAdd({ id: nextId.current++, code: Number(code), qty: Number(qty), price: p(priceN), jobId: batch?.jobId });
-    setCode("");
+    onAdd({ id: nextId.current++, modelId: model.id, qty: Number(qty), price: p(priceN), jobId: batch?.jobId });
     setQty("");
     setPrice("");
-    codeRef.current?.focus();
+    field.reset();
   }
 
-  const field = "num h-11 w-full rounded-xl border border-line bg-page px-2.5 text-center text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-ink-mute/50 focus:border-brand";
+  const input = "num h-11 w-full rounded-xl border border-line bg-page px-2.5 text-center text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-ink-mute/50 focus:border-brand";
 
   return (
     <div className="px-4 py-3">
       <div className="flex items-end gap-2">
-        <label className="block w-20">
-          <span className="mb-1 block text-[11px] text-ink-mute">موديل</span>
-          <input ref={codeRef} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            onKeyDown={(e) => e.key === "Enter" && qtyRef.current?.focus()} inputMode="numeric" enterKeyHint="next" placeholder="214" className={field} />
-        </label>
+        <ModelInput field={field} inputRef={modelRef} onEnter={() => qtyRef.current?.focus()} />
         <label className="block w-16">
           <span className="mb-1 block text-[11px] text-ink-mute">عدد</span>
           <input ref={qtyRef} value={qty} onChange={(e) => setQty(e.target.value.replace(/\D/g, ""))}
-            onKeyDown={(e) => e.key === "Enter" && priceRef.current?.focus()} inputMode="numeric" enterKeyHint="next" placeholder="10" className={field} />
+            onKeyDown={(e) => e.key === "Enter" && priceRef.current?.focus()} inputMode="numeric" enterKeyHint="next" placeholder="10" className={input} />
         </label>
-        <label className="block flex-1">
+        <label className={`block ${field.byName ? "w-20" : "flex-1"}`}>
           <span className="mb-1 block text-[11px] text-ink-mute">{isCustomer ? "سعر القطعة" : "بسعر القطعة"}</span>
           <input ref={priceRef} value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))}
             onKeyDown={(e) => e.key === "Enter" && submit()} inputMode="decimal" enterKeyHint="done"
-            placeholder={work ? String(work / 100) : "120"} className={field} />
+            placeholder={work ? String(work / 100) : "120"} className={input} />
         </label>
         <button type="button" onClick={submit} disabled={!ready} aria-label="إضافة السطر"
           className="press grid size-11 shrink-0 place-items-center rounded-xl bg-brand text-brand-ink disabled:opacity-30">
           <Plus size={20} strokeWidth={2.6} />
         </button>
       </div>
-      <div className="mt-2 min-h-[18px] text-[12px]">
-        {code && !model && <span className="text-neg">مفيش موديل بالكود ده</span>}
-        {model && (
-          <span className="text-ink-mute">
-            {model.name ? `${model.name} · ` : ""}
-            <Num value={stockOf(model)} /> قطعة في المحل
-            {work && price === "" && <> · تكلفته <Money value={work} decimals /> ج{batch?.jobId && jobById(batch.jobId) ? <> · {jobTitle(jobById(batch.jobId)!)}</> : null}</>}
-            {over && <span className="text-warn"> — أكتر من اللي عندك</span>}
-          </span>
-        )}
+      <ModelSuggestions field={field} onPicked={() => qtyRef.current?.focus()} />
+      <div className="mt-2 flex min-h-[20px] items-center justify-between gap-2 text-[12px]">
+        <span>
+          {notFound && <span className="text-neg">{notFound}</span>}
+          {model && (
+            <span className="text-ink-mute">
+              {field.other && `${field.other} · `}
+              <Num value={stockOf(model)} /> قطعة في المحل
+              {work && price === "" && <> · تكلفته <Money value={work} decimals /> ج{batch?.jobId && jobById(batch.jobId) ? <> · {jobTitle(jobById(batch.jobId)!)}</> : null}</>}
+              {over && <span className="text-warn"> — أكتر من اللي عندك</span>}
+            </span>
+          )}
+        </span>
+        <ModelModeToggle field={field} />
       </div>
     </div>
   );

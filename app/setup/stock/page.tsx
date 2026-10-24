@@ -3,35 +3,39 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Undo2 } from "lucide-react";
-import { Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
+import { ModelInput, ModelModeToggle, ModelSuggestions, newModelText, useModelField } from "@/components/ModelField";
+import { Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
 
-type Entry = { id: number; code: number; pieces: number; cost: number };
+/** الموديل بكوده أو باسمه — فيه بضاعة من غير كود */
+type Entry = { id: number; code?: number; name?: string; pieces: number; cost: number };
 
 /**
  * الإدخال السريع (الـ spec، قسم 11).
  *
- * القاعدة: **الكيبورد مبيقفلش.** كود → عدد → تكلفة → تمام → السطر يطلع فوق
- * والمؤشر يرجع لأول خانة. الكود أرقام صافية فالكيبورد الرقمي مبيتبدلش.
+ * القاعدة: **الكيبورد مبيقفلش.** موديل → عدد → تكلفة → تمام → السطر يطلع فوق
+ * والمؤشر يرجع لأول خانة. الموديل بالكود (كيبورد أرقام) أو بالاسم لو مالوش كود.
  *
  * تكرار الكود **مسموح ومتوقع** — نفس الموديل ممكن يكون بتكلفتين من أمرين تصنيع.
  */
 export default function StockEntryPage() {
   const [rows, setRows] = useState<Entry[]>([
+    { id: 4, name: "طقم ولادي", pieces: 48, cost: p(70) },
     { id: 3, code: 190, pieces: 45, cost: p(120) },
     { id: 2, code: 208, pieces: 180, cost: p(92) },
     { id: 1, code: 214, pieces: 340, cost: p(85) },
   ]);
 
-  const [code, setCode] = useState("");
+  const [field, modelRef] = useModelField({ allowNew: true });
   const [pieces, setPieces] = useState("");
   const [cost, setCost] = useState("");
 
-  const codeRef = useRef<HTMLInputElement>(null);
   const piecesRef = useRef<HTMLInputElement>(null);
   const costRef = useRef<HTMLInputElement>(null);
 
-  const ready = Number(code) > 0 && Number(pieces) > 0 && Number(cost) > 0;
+  const model = field.model;
+  const newText = newModelText(field);
+  const ready = (!!model || field.isNew) && Number(pieces) > 0 && Number(cost) > 0;
 
   const totalPieces = rows.reduce((s, r) => s + r.pieces, 0);
   const totalValue = rows.reduce((s, r) => s + r.pieces * r.cost, 0);
@@ -39,15 +43,20 @@ export default function StockEntryPage() {
   function add() {
     if (!ready) return;
     setRows((v) => [
-      { id: Date.now(), code: Number(code), pieces: Number(pieces), cost: p(Number(cost)) },
+      {
+        id: Date.now(),
+        code: model ? model.code : field.newCode,
+        name: model ? model.name : field.newName,
+        pieces: Number(pieces),
+        cost: p(Number(cost)),
+      },
       ...v,
     ]);
-    setCode("");
     setPieces("");
     setCost("");
     // اهتزاز خفيف يأكد الحفظ من غير ما يبص على الشاشة
     navigator.vibrate?.(12);
-    codeRef.current?.focus();
+    field.reset();
   }
 
   return (
@@ -67,16 +76,7 @@ export default function StockEntryPage() {
         {/* ------------------------------ صف الإدخال ------------------------------ */}
         <Card className="mb-4 px-4 py-3.5">
           <div className="flex items-end gap-2">
-            <Field
-              ref={codeRef}
-              label="موديل"
-              value={code}
-              onChange={setCode}
-              onEnter={() => piecesRef.current?.focus()}
-              width="w-20"
-              placeholder="214"
-              autoFocus
-            />
+            <ModelInput field={field} inputRef={modelRef} onEnter={() => piecesRef.current?.focus()} autoFocus />
             <Field
               ref={piecesRef}
               label="عدد"
@@ -92,7 +92,7 @@ export default function StockEntryPage() {
               value={cost}
               onChange={setCost}
               onEnter={add}
-              width="flex-1"
+              width={field.byName ? "w-20" : "flex-1"}
               placeholder="85"
             />
             <button
@@ -105,7 +105,17 @@ export default function StockEntryPage() {
             </button>
           </div>
 
-          <p className="mt-2.5 text-[11px] leading-relaxed text-ink-mute">
+          <ModelSuggestions field={field} onPicked={() => piecesRef.current?.focus()} />
+
+          <div className="mt-2 flex min-h-[20px] items-center justify-between gap-2 text-[12px] text-ink-mute">
+            <span>
+              {model && field.other}
+              {newText && <span className="font-semibold text-brand">{newText}</span>}
+            </span>
+            <ModelModeToggle field={field} />
+          </div>
+
+          <p className="mt-2 text-[11px] leading-relaxed text-ink-mute">
             نفس الكود ممكن يتكرر بتكلفتين — دي دفعتين من أمرين تصنيع مختلفين.
           </p>
         </Card>
@@ -119,7 +129,7 @@ export default function StockEntryPage() {
               <div key={r.id}>
                 {i > 0 && <div className="ms-4 border-t border-line-soft" />}
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <span className="num w-11 shrink-0 text-[16px] font-bold">{r.code}</span>
+                  <ModelTag code={r.code} name={r.name} />
                   <span className="flex-1 text-[14px]">
                     <Num value={r.pieces} className="font-semibold" />{" "}
                     <span className="text-ink-mute">قطعة</span>

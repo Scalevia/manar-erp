@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ChevronLeft, FileText, TrendingUp } from "lucide-react";
-import { Badge, Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
+import { Badge, Card, ModelTag, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { pct, since } from "@/lib/format";
 import {
   capitalChange,
@@ -8,7 +8,7 @@ import {
   invoices,
   marginOf,
   totals,
-  modelByCode,
+  modelById,
   modelStats,
   profitOf,
   staleModels,
@@ -83,21 +83,20 @@ export default function ReportsPage() {
         <Card className="mb-6 overflow-hidden">
           {profits.map((s, i) => {
             const weak = marginOf(s) < 22;
+            const m = modelById(s.modelId);
             return (
-              <div key={s.code}>
+              <div key={s.modelId}>
                 {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-                <Link href={`/inventory/${s.code}`} className="press block active:bg-sunken">
+                <Link href={`/inventory/${s.modelId}`} className="press block active:bg-sunken">
                   <div className="flex items-center gap-3 px-4 py-3.5">
-                    <span className="num w-11 shrink-0 text-[16px] font-bold">
-                      {s.code}
-                    </span>
+                    <ModelTag code={m?.code} name={m?.name} />
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] text-ink-mute">
                         باع <Num value={s.sold} /> قطعة
                       </div>
-                      <div className="mt-0.5 truncate text-[12px] text-ink-mute">
-                        {modelByCode(s.code)?.name}
-                      </div>
+                      {m?.code !== undefined && m.name && (
+                        <div className="mt-0.5 truncate text-[12px] text-ink-mute">{m.name}</div>
+                      )}
                     </div>
                     {weak && <Badge tone="warn">ضعيف</Badge>}
                     <div className="shrink-0 text-end">
@@ -128,11 +127,11 @@ export default function ReportsPage() {
         </SectionTitle>
         <Card className="mb-6 overflow-hidden">
           {stale.map((m, i) => (
-            <div key={m.code}>
+            <div key={m.id}>
               {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-              <Link href={`/inventory/${m.code}`} className="press block active:bg-sunken">
+              <Link href={`/inventory/${m.id}`} className="press block active:bg-sunken">
                 <div className="flex items-center gap-3 px-4 py-3.5">
-                  <span className="num w-11 shrink-0 text-[16px] font-bold">{m.code}</span>
+                  <ModelTag code={m.code} name={m.name} />
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px]">
                       <Num value={stockOf(m)} className="font-semibold" /> قطعة

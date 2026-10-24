@@ -12,19 +12,26 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { Badge, Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
+import {
+  ModelInput,
+  ModelModeToggle,
+  ModelSuggestions,
+  notFoundText,
+  useModelField,
+} from "@/components/ModelField";
+import { Badge, Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { formatPhone, isEgyptMobile, p } from "@/lib/format";
 import {
   cashAccounts,
   cashParty,
-  modelByCode,
+  modelById,
   ofKind,
   stockOf,
   TODAY,
   type Party,
 } from "@/lib/mock";
 
-type Line = { id: number; code: number; qty: number; price: number };
+type Line = { id: number; modelId: string; qty: number; price: number };
 
 export default function SellPage() {
   const [customer, setCustomer] = useState<Party | null>(null);
@@ -94,7 +101,7 @@ export default function SellPage() {
               <div key={l.id}>
                 {i > 0 && <div className="ms-4 border-t border-line-soft" />}
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <span className="num w-11 shrink-0 text-[16px] font-bold">{l.code}</span>
+                  <ModelTag code={modelById(l.modelId)?.code} name={modelById(l.modelId)?.name} />
                   <span className="flex-1 text-[13px] text-ink-mute">
                     <span className="num">×{l.qty}</span>
                     {"  "}
@@ -215,43 +222,34 @@ export default function SellPage() {
 /* ====================== إضافة سطر — الكيبورد مبيقفلش ====================== */
 
 function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
-  const [code, setCode] = useState("");
+  const [field, modelRef] = useModelField({ allowNew: false });
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
 
-  const codeRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
 
-  const model = code ? modelByCode(Number(code)) : undefined;
+  const model = field.model;
   const ready = !!model && Number(qty) > 0 && Number(price) > 0;
+  const notFound = notFoundText(field);
 
   function submit() {
     if (!ready) return;
     onAdd({
       id: Date.now(),
-      code: Number(code),
+      modelId: model.id,
       qty: Number(qty),
       price: p(Number(price)),
     });
-    setCode("");
     setQty("");
     setPrice("");
-    codeRef.current?.focus();
+    field.reset();
   }
 
   return (
     <div className="px-4 py-3">
       <div className="flex items-end gap-2">
-        <Field
-          ref={codeRef}
-          label="موديل"
-          value={code}
-          onChange={setCode}
-          onEnter={() => qtyRef.current?.focus()}
-          width="w-20"
-          placeholder="214"
-        />
+        <ModelInput field={field} inputRef={modelRef} onEnter={() => qtyRef.current?.focus()} />
         <Field
           ref={qtyRef}
           label="عدد"
@@ -267,7 +265,7 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
           value={price}
           onChange={setPrice}
           onEnter={submit}
-          width="flex-1"
+          width={field.byName ? "w-20" : "flex-1"}
           placeholder="120"
         />
         <button
@@ -281,18 +279,23 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
         </button>
       </div>
 
-      {/* تأكيد بصري إن الكود موجود وفيه مخزون */}
-      <div className="mt-2 min-h-[18px] text-[12px]">
-        {code && !model && <span className="text-neg">مفيش موديل بالكود ده</span>}
-        {model && (
-          <span className="text-ink-mute">
-            {model.name ? `${model.name} · ` : ""}
-            <Num value={stockOf(model)} /> قطعة في المحل
-            {Number(qty) > stockOf(model) && (
-              <span className="text-warn"> — أكتر من اللي عندك</span>
-            )}
-          </span>
-        )}
+      <ModelSuggestions field={field} onPicked={() => qtyRef.current?.focus()} />
+
+      {/* تأكيد بصري إن الموديل موجود وفيه مخزون */}
+      <div className="mt-2 flex min-h-[20px] items-center justify-between gap-2 text-[12px]">
+        <span>
+          {notFound && <span className="text-neg">{notFound}</span>}
+          {model && (
+            <span className="text-ink-mute">
+              {field.other && `${field.other} · `}
+              <Num value={stockOf(model)} /> قطعة في المحل
+              {Number(qty) > stockOf(model) && (
+                <span className="text-warn"> — أكتر من اللي عندك</span>
+              )}
+            </span>
+          )}
+        </span>
+        <ModelModeToggle field={field} />
       </div>
     </div>
   );

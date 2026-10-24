@@ -11,6 +11,7 @@ import {
   jobById,
   jobSummary,
   jobTitle,
+  modelById,
   receiptPieces,
   receiptValue,
 } from "@/lib/mock";
@@ -59,7 +60,12 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       key: r.id,
       date: r.date,
       title: `استلام ${receiptPieces(r)} قطعة`,
-      sub: r.lines.map((l) => `${l.code} × ${l.qty} × ${l.unitCost / 100}`).join(" · "),
+      sub: r.lines
+        .map((l) => {
+          const m = modelById(l.modelId);
+          return `${m?.code ?? m?.name} × ${l.qty} × ${l.unitCost / 100}`;
+        })
+        .join(" · "),
       amount: receiptValue(r),
       out: true,
     })),

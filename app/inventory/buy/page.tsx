@@ -4,10 +4,11 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
+import { ModelInput, ModelModeToggle, ModelSuggestions, newModelText, useModelField } from "@/components/ModelField";
 import { PartyPicker } from "@/components/PartyPicker";
-import { Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
+import { Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { cashAccounts, modelByCode, stockOf, totals, type Party } from "@/lib/mock";
+import { cashAccounts, stockOf, totals, type Party } from "@/lib/mock";
 
 /**
  * شراء مخزون — بضاعة جاهزة من تاجر تاني، مش من مصنع (الـ spec، قسم 4):
@@ -16,7 +17,8 @@ import { cashAccounts, modelByCode, stockOf, totals, type Party } from "@/lib/mo
  *   الخزنة:  تقل باللي اتدفع بس
  */
 
-type Line = { id: number; code: number; name?: string; isNew: boolean; qty: number; price: number };
+/** الموديل بكوده واسمه زي ما هو — والجديد ممكن يكون كود بس أو اسم بس */
+type Line = { id: number; code?: number; name?: string; isNew: boolean; qty: number; price: number };
 
 export default function BuyStockPage() {
   const [trader, setTrader] = useState<Party | null>(null);
@@ -106,13 +108,10 @@ export default function BuyStockPage() {
               <div key={l.id}>
                 {i > 0 && <div className="ms-4 border-t border-line-soft" />}
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-12 shrink-0">
-                    <div className="num text-[16px] font-bold">{l.code}</div>
-                    {l.isNew && <div className="text-[10px] font-semibold text-brand">جديد</div>}
-                  </div>
+                  <ModelTag code={l.code} name={l.name} isNew={l.isNew} />
                   <span className="min-w-0 flex-1 truncate text-[13px] text-ink-mute">
                     <span className="num">×{l.qty}</span> · <Money value={l.price} decimals /> ج
-                    {l.name && <> · {l.name}</>}
+                    {l.code !== undefined && l.name && <> · {l.name}</>}
                   </span>
                   <Money value={l.qty * l.price} className="text-[15px] font-bold" />
                   <button
@@ -238,59 +237,53 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 /* ====================== إضافة سطر — الكيبورد مبيقفلش ====================== */
 
 function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
-  const [code, setCode] = useState("");
+  const [field, modelRef] = useModelField({ allowNew: true });
+  // اسم الكود الجديد — اختياري
   const [name, setName] = useState("");
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
 
-  const codeRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
 
-  const model = code ? modelByCode(Number(code)) : undefined;
-  const isNew = !!code && !model;
-  const ready = Number(code) > 0 && Number(qty) > 0 && Number(price) > 0;
+  const model = field.model;
+  const newText = newModelText(field);
+  const ready = (!!model || field.isNew) && Number(qty) > 0 && Number(price) > 0;
 
   function submit() {
     if (!ready) return;
     onAdd({
       id: Date.now(),
-      code: Number(code),
-      name: model?.name ?? (name.trim() || undefined),
-      isNew,
+      code: model ? model.code : field.newCode,
+      name: model ? model.name : (field.newName ?? (name.trim() || undefined)),
+      isNew: !model,
       qty: Number(qty),
       price: p(Number(price)),
     });
-    setCode("");
     setName("");
     setQty("");
     setPrice("");
-    codeRef.current?.focus();
+    field.reset();
   }
 
-  const field =
+  const input =
     "num h-11 w-full rounded-xl border border-line bg-page px-2.5 text-center text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-ink-mute/50 focus:border-brand";
 
   return (
     <div className="px-4 py-3">
       <div className="flex items-end gap-2">
-        <label className="block w-20">
-          <span className="mb-1 block text-[11px] text-ink-mute">موديل</span>
-          <input ref={codeRef} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            onKeyDown={(e) => e.key === "Enter" && qtyRef.current?.focus()}
-            inputMode="numeric" enterKeyHint="next" placeholder="240" className={field} />
-        </label>
+        <ModelInput field={field} inputRef={modelRef} onEnter={() => qtyRef.current?.focus()} placeholder="240" />
         <label className="block w-16">
           <span className="mb-1 block text-[11px] text-ink-mute">عدد</span>
           <input ref={qtyRef} value={qty} onChange={(e) => setQty(e.target.value.replace(/\D/g, ""))}
             onKeyDown={(e) => e.key === "Enter" && priceRef.current?.focus()}
-            inputMode="numeric" enterKeyHint="next" placeholder="100" className={field} />
+            inputMode="numeric" enterKeyHint="next" placeholder="100" className={input} />
         </label>
-        <label className="block flex-1">
+        <label className={`block ${field.byName ? "w-20" : "flex-1"}`}>
           <span className="mb-1 block text-[11px] text-ink-mute">سعر القطعة</span>
           <input ref={priceRef} value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            inputMode="decimal" enterKeyHint="done" placeholder="95" className={field} />
+            inputMode="decimal" enterKeyHint="done" placeholder="95" className={input} />
         </label>
         <button type="button" onClick={submit} disabled={!ready} aria-label="إضافة السطر"
           className="press grid size-11 shrink-0 place-items-center rounded-xl bg-brand text-brand-ink disabled:opacity-30">
@@ -298,20 +291,25 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
         </button>
       </div>
 
-      {/* موديل جديد: بيتعمل هنا في نفس الشاشة (الـ spec، قسم 4) */}
-      {isNew && (
+      <ModelSuggestions field={field} onPicked={() => qtyRef.current?.focus()} />
+
+      {/* كود جديد: بيتعمل هنا في نفس الشاشة، واسمه اختياري (الـ spec، قسم 4) */}
+      {field.newCode !== undefined && (
         <input value={name} onChange={(e) => setName(e.target.value)}
           placeholder="موديل جديد — اسمه؟ (اختياري)" aria-label="اسم الموديل الجديد"
           className="mt-2 h-10 w-full rounded-xl border border-brand/40 bg-brand-soft/40 px-3 text-[14px] outline-none placeholder:text-ink-mute focus:border-brand" />
       )}
 
-      <div className="mt-2 min-h-[20px] text-[12px] text-ink-mute">
-        {model && (
-          <>
-            {model.name ? `${model.name} · ` : ""}عندك <Num value={stockOf(model)} /> قطعة
-          </>
-        )}
-        {isNew && <span className="font-semibold text-brand">كود جديد — هيتعمل موديل جديد</span>}
+      <div className="mt-2 flex min-h-[20px] items-center justify-between gap-2 text-[12px] text-ink-mute">
+        <span>
+          {model && (
+            <>
+              {field.other && `${field.other} · `}عندك <Num value={stockOf(model)} /> قطعة
+            </>
+          )}
+          {newText && <span className="font-semibold text-brand">{newText}</span>}
+        </span>
+        <ModelModeToggle field={field} />
       </div>
     </div>
   );

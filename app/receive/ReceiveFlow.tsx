@@ -3,9 +3,10 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { Calculator, Check, Plus, Trash2 } from "lucide-react";
-import { Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
+import { ModelInput, ModelModeToggle, ModelSuggestions, newModelText, useModelField } from "@/components/ModelField";
+import { Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { money2, p } from "@/lib/format";
-import { factoryOf, jobById, jobSummary, jobTitle, modelByCode, openJobs, stockOf, type Job } from "@/lib/mock";
+import { factoryOf, jobById, jobSummary, jobTitle, openJobs, stockOf, type Job } from "@/lib/mock";
 
 /**
  * استلام من المصنع — من أمر تصنيع (الـ spec، قسم 5).
@@ -16,7 +17,8 @@ import { factoryOf, jobById, jobSummary, jobTitle, modelByCode, openJobs, stockO
  * اتسجلت صرف على الأمر خلاص.
  */
 
-type Line = { id: number; code: number; name?: string; isNew: boolean; qty: number; price: number };
+/** الموديل بكوده واسمه زي ما هو — والجديد ممكن يكون كود بس أو اسم بس */
+type Line = { id: number; code?: number; name?: string; isNew: boolean; qty: number; price: number };
 
 export default function ReceiveFlow({ initialJobId }: { initialJobId?: string }) {
   const open = openJobs();
@@ -147,13 +149,10 @@ export default function ReceiveFlow({ initialJobId }: { initialJobId?: string })
               <div key={l.id}>
                 {i > 0 && <div className="ms-4 border-t border-line-soft" />}
                 <div className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-12 shrink-0">
-                    <div className="num text-[16px] font-bold">{l.code}</div>
-                    {l.isNew && <div className="text-[10px] font-semibold text-brand">جديد</div>}
-                  </div>
+                  <ModelTag code={l.code} name={l.name} isNew={l.isNew} />
                   <span className="min-w-0 flex-1 truncate text-[13px] text-ink-mute">
                     <span className="num">×{l.qty}</span> · <Money value={l.price} decimals /> ج
-                    {l.name && <> · {l.name}</>}
+                    {l.code !== undefined && l.name && <> · {l.name}</>}
                   </span>
                   <Money value={l.qty * l.price} className="text-[15px] font-bold" />
                   <button
@@ -236,69 +235,63 @@ function Remaining({ value }: { value: number }) {
 /* ====================== إضافة سطر — الكيبورد مبيقفلش ====================== */
 
 function AddLine({ left, onAdd }: { left: number; onAdd: (l: Line) => void }) {
-  const [code, setCode] = useState("");
+  const [field, modelRef] = useModelField({ allowNew: true });
+  // اسم الكود الجديد — اختياري
   const [name, setName] = useState("");
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
   const [spread, setSpread] = useState(false);
 
-  const codeRef = useRef<HTMLInputElement>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
   const priceRef = useRef<HTMLInputElement>(null);
 
-  const model = code ? modelByCode(Number(code)) : undefined;
-  const isNew = !!code && !model;
+  const model = field.model;
+  const newText = newModelText(field);
   // «وزّع الفاضل على القطع»: الفاضل في الأمر ÷ القطع اللي في السطر ده — مفيد في آخر دفعة
   const spreadPrice = left > 0 && Number(qty) > 0 ? left / 100 / Number(qty) : 0;
   const priceN = spread ? spreadPrice : Number(price);
-  const ready = Number(code) > 0 && Number(qty) > 0 && priceN > 0;
+  const ready = (!!model || field.isNew) && Number(qty) > 0 && priceN > 0;
 
   function submit() {
     if (!ready) return;
     onAdd({
       id: Date.now(),
-      code: Number(code),
-      name: model?.name ?? (name.trim() || undefined),
-      isNew,
+      code: model ? model.code : field.newCode,
+      name: model ? model.name : (field.newName ?? (name.trim() || undefined)),
+      isNew: !model,
       qty: Number(qty),
       price: p(Math.round(priceN * 100) / 100),
     });
-    setCode("");
     setName("");
     setQty("");
     setPrice("");
     setSpread(false);
-    codeRef.current?.focus();
+    field.reset();
   }
 
-  const field =
+  const input =
     "num h-11 w-full rounded-xl border border-line bg-page px-2.5 text-center text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-ink-mute/50 focus:border-brand";
 
   return (
     <div className="px-4 py-3">
       <div className="flex items-end gap-2">
-        <label className="block w-20">
-          <span className="mb-1 block text-[11px] text-ink-mute">موديل</span>
-          <input ref={codeRef} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            onKeyDown={(e) => e.key === "Enter" && qtyRef.current?.focus()}
-            inputMode="numeric" enterKeyHint="next" placeholder="214" className={field} />
-        </label>
+        <ModelInput field={field} inputRef={modelRef} onEnter={() => qtyRef.current?.focus()} />
         <label className="block w-16">
           <span className="mb-1 block text-[11px] text-ink-mute">وصل</span>
           <input ref={qtyRef} value={qty} onChange={(e) => setQty(e.target.value.replace(/\D/g, ""))}
             onKeyDown={(e) => e.key === "Enter" && priceRef.current?.focus()}
-            inputMode="numeric" enterKeyHint="next" placeholder="390" className={field} />
+            inputMode="numeric" enterKeyHint="next" placeholder="390" className={input} />
         </label>
-        <label className="block flex-1">
+        <label className={`block ${field.byName ? "w-20" : "flex-1"}`}>
           <span className="mb-1 block text-[11px] text-ink-mute">سعر القطعة</span>
           {spread ? (
-            <div className={`${field} grid place-items-center bg-sunken`}>
+            <div className={`${input} grid place-items-center bg-sunken`}>
               {spreadPrice > 0 ? money2(p(spreadPrice)) : "—"}
             </div>
           ) : (
             <input ref={priceRef} value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && submit()}
-              inputMode="decimal" enterKeyHint="done" placeholder="82" className={field} />
+              inputMode="decimal" enterKeyHint="done" placeholder="82" className={input} />
           )}
         </label>
         <button type="button" onClick={submit} disabled={!ready} aria-label="إضافة السطر"
@@ -307,32 +300,37 @@ function AddLine({ left, onAdd }: { left: number; onAdd: (l: Line) => void }) {
         </button>
       </div>
 
-      {/* موديل جديد: بيتعمل هنا في نفس الشاشة (الـ spec، قسم 4) */}
-      {isNew && (
+      <ModelSuggestions field={field} onPicked={() => qtyRef.current?.focus()} />
+
+      {/* كود جديد: بيتعمل هنا في نفس الشاشة، واسمه اختياري (الـ spec، قسم 4) */}
+      {field.newCode !== undefined && (
         <input value={name} onChange={(e) => setName(e.target.value)}
           placeholder="موديل جديد — اسمه؟ (اختياري)" aria-label="اسم الموديل الجديد"
           className="mt-2 h-10 w-full rounded-xl border border-brand/40 bg-brand-soft/40 px-3 text-[14px] outline-none placeholder:text-ink-mute focus:border-brand" />
       )}
 
-      <div className="mt-2 flex min-h-[20px] items-center justify-between gap-2 text-[12px]">
+      <div className="mt-2 flex min-h-[20px] flex-wrap items-center justify-between gap-2 text-[12px]">
         <span className="text-ink-mute">
           {model && (
             <>
-              {model.name ? `${model.name} · ` : ""}عندك <Num value={stockOf(model)} /> قطعة
+              {field.other && `${field.other} · `}عندك <Num value={stockOf(model)} /> قطعة
             </>
           )}
-          {isNew && <span className="font-semibold text-brand">كود جديد — هيتعمل موديل جديد</span>}
+          {newText && <span className="font-semibold text-brand">{newText}</span>}
         </span>
-        {left > 0 && (
-          <button
-            type="button"
-            onClick={() => setSpread((v) => !v)}
-            className={`press flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 font-semibold ${spread ? "bg-brand-soft text-brand" : "text-brand"}`}
-          >
-            <Calculator size={14} />
-            {spread ? "هكتب السعر بنفسي" : "وزّع الفاضل على القطع"}
-          </button>
-        )}
+        <span className="flex items-center">
+          {left > 0 && (
+            <button
+              type="button"
+              onClick={() => setSpread((v) => !v)}
+              className={`press flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 font-semibold ${spread ? "bg-brand-soft text-brand" : "text-brand"}`}
+            >
+              <Calculator size={14} />
+              {spread ? "هكتب السعر بنفسي" : "وزّع الفاضل على القطع"}
+            </button>
+          )}
+          <ModelModeToggle field={field} />
+        </span>
       </div>
 
       {spread && spreadPrice > 0 && (
