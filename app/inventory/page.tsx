@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
 import { Hash, Plus, Search, Type, X } from "lucide-react";
-import { Badge, Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
+import { Badge, Card, Empty, InShop, Money, Num, Page, PageHeader } from "@/components/ui";
 import { since } from "@/lib/format";
 import { isStale, models, searchModels, stockOf, TODAY, totals, valueOf } from "@/lib/mock";
 
@@ -15,7 +15,8 @@ export default function InventoryPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const list = useMemo(() => {
-    const inStock = models.filter((m) => stockOf(m) > 0);
+    // اللي بالسالب بيفضل ظاهر — لازم يتسجل استلامه
+    const inStock = models.filter((m) => stockOf(m) !== 0);
     if (!q.trim()) return inStock;
     const found = new Set(searchModels(q));
     return inStock.filter((m) => found.has(m));
@@ -114,7 +115,13 @@ export default function InventoryPage() {
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="text-[14px]">
-                              <Num value={stock} className="font-semibold" /> قطعة
+                              {stock < 0 ? (
+                                <InShop pieces={stock} />
+                              ) : (
+                                <>
+                                  <Num value={stock} className="font-semibold" /> قطعة
+                                </>
+                              )}
                             </div>
                             {m.name && (
                               <div className="mt-0.5 truncate text-[12px] text-ink-mute">
@@ -128,7 +135,13 @@ export default function InventoryPage() {
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[15px] font-bold">{m.name}</div>
                           <div className="mt-0.5 text-[12px] text-ink-mute">
-                            <Num value={stock} className="font-semibold text-ink-soft" /> قطعة
+                            {stock < 0 ? (
+                              <InShop pieces={stock} />
+                            ) : (
+                              <>
+                                <Num value={stock} className="font-semibold text-ink-soft" /> قطعة
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
@@ -139,10 +152,14 @@ export default function InventoryPage() {
                         </Badge>
                       )}
 
-                      <Money
-                        value={valueOf(m)}
-                        className="w-16 shrink-0 text-end text-[13px] text-ink-mute"
-                      />
+                      {stock < 0 ? (
+                        <Badge tone="neg">سجّل الاستلام</Badge>
+                      ) : (
+                        <Money
+                          value={valueOf(m)}
+                          className="w-16 shrink-0 text-end text-[13px] text-ink-mute"
+                        />
+                      )}
                     </div>
                   </Link>
                 </div>

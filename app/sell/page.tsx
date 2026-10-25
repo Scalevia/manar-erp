@@ -19,7 +19,7 @@ import {
   notFoundText,
   useModelField,
 } from "@/components/ModelField";
-import { Badge, Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
+import { Badge, Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { formatPhone, isEgyptMobile, p } from "@/lib/format";
 import {
   cashAccounts,
@@ -288,9 +288,12 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
           {model && (
             <span className="text-ink-mute">
               {field.other && `${field.other} · `}
-              <Num value={stockOf(model)} /> قطعة في المحل
-              {Number(qty) > stockOf(model) && (
-                <span className="text-warn"> — أكتر من اللي عندك</span>
+              <InShop pieces={stockOf(model)} />
+              {/* مسموح — البيع مبيقفش، والسالب بيظهر في الرئيسية لحد ما الاستلام يتسجل */}
+              {Number(qty) > 0 && stockOf(model) - Number(qty) < 0 && (
+                <span className="text-warn">
+                  {" "}— هيبقى بالسالب <Num value={Number(qty) - stockOf(model)} />
+                </span>
               )}
             </span>
           )}

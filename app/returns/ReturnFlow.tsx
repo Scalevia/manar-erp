@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
 import { ModelInput, ModelModeToggle, ModelSuggestions, notFoundText, useModelField } from "@/components/ModelField";
-import { Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
+import { Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
 import { cashAccounts, jobById, jobSummary, jobTitle, modelById, ofKind, stockOf, type Party } from "@/lib/mock";
 
@@ -383,7 +383,7 @@ function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd
           {model && (
             <span className="text-ink-mute">
               {field.other && `${field.other} · `}
-              <Num value={stockOf(model)} /> قطعة في المحل
+              <InShop pieces={stockOf(model)} />
               {work && price === "" && <> · تكلفته <Money value={work} decimals /> ج{batch?.jobId && jobById(batch.jobId) ? <> · {jobTitle(jobById(batch.jobId)!)}</> : null}</>}
               {over && <span className="text-warn"> — أكتر من اللي عندك</span>}
             </span>

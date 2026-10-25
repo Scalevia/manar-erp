@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { dozens, shortDate, since } from "@/lib/format";
@@ -28,43 +29,69 @@ export default async function ModelPage({
 
       <Page>
         {/* -------------------------------- الإجمالي -------------------------------- */}
-        <Card className="mb-4 px-5 py-5 text-center">
-          <div className="flex items-baseline justify-center gap-1.5">
-            <Num value={stock} className="text-[38px] font-bold leading-none" />
-            <span className="text-[15px] font-semibold text-ink-mute">قطعة</span>
-          </div>
-          <div className="mt-1.5 text-[13px] text-ink-mute">{dozens(stock)}</div>
-          <div className="mt-3 border-t border-line-soft pt-3 text-[13px] text-ink-soft">
-            القيمة <Money value={valueOf(m)} className="font-bold text-ink" /> ج ·
-            متوسط التكلفة <Money value={avgCost(m)} decimals className="font-bold text-ink" /> ج
-          </div>
-        </Card>
+        {stock < 0 ? (
+          // بالسالب: اتباع أكتر من المتسجل — البيع مبيقفش، بس لازم الاستلام يتسجل (الـ spec، قسم 4)
+          <Card className="mb-4 px-5 py-5 text-center">
+            <div className="flex items-baseline justify-center gap-1.5 text-neg">
+              <Num value={-stock} sign="−" className="text-[38px] font-bold leading-none" />
+              <span className="text-[15px] font-semibold">قطعة</span>
+            </div>
+            <p className="mt-3 border-t border-line-soft pt-3 text-[13px] leading-relaxed text-ink-soft">
+              اتباع منه <Num value={-stock} className="font-bold" /> قطعة مش متسجلين في المخزن. لما
+              تسجّل الاستلام، السالب بيتقفل الأول.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Link href="/receive" className="press rounded-xl bg-brand py-2.5 text-[13px] font-bold text-brand-ink">
+                استلام من المصنع
+              </Link>
+              <Link href="/inventory/buy" className="press rounded-xl border border-line py-2.5 text-[13px] font-semibold text-ink-soft">
+                شراء مخزون
+              </Link>
+            </div>
+          </Card>
+        ) : (
+          <Card className="mb-4 px-5 py-5 text-center">
+            <div className="flex items-baseline justify-center gap-1.5">
+              <Num value={stock} className="text-[38px] font-bold leading-none" />
+              <span className="text-[15px] font-semibold text-ink-mute">قطعة</span>
+            </div>
+            <div className="mt-1.5 text-[13px] text-ink-mute">{dozens(stock)}</div>
+            <div className="mt-3 border-t border-line-soft pt-3 text-[13px] text-ink-soft">
+              القيمة <Money value={valueOf(m)} className="font-bold text-ink" /> ج ·
+              متوسط التكلفة <Money value={avgCost(m)} decimals className="font-bold text-ink" /> ج
+            </div>
+          </Card>
+        )}
 
         {/* -------------------------------- في المحل -------------------------------- */}
-        <SectionTitle>في المحل</SectionTitle>
-        <Card className="mb-4 overflow-hidden">
-          {m.batches.map((b, i) => (
-            <div key={`${b.receivedAt}-${b.sourceId}`}>
-              {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-              <div className="flex items-center gap-3 px-4 py-3.5">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[15px]">
-                    <Num value={b.pieces} className="font-semibold" /> قطعة
-                  </div>
-                  <div className="mt-0.5 truncate text-[12px] text-ink-mute">
-                    {byId(b.sourceId)?.kind === "trader" ? "شراء" : "استلام"}{" "}
-                    <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.sourceId)?.name}
-                    {b.jobId && jobById(b.jobId) && <> · {jobTitle(jobById(b.jobId)!)}</>}
+        {m.batches.length > 0 && (
+          <>
+            <SectionTitle>في المحل</SectionTitle>
+            <Card className="mb-4 overflow-hidden">
+              {m.batches.map((b, i) => (
+                <div key={`${b.receivedAt}-${b.sourceId}`}>
+                  {i > 0 && <div className="ms-4 border-t border-line-soft" />}
+                  <div className="flex items-center gap-3 px-4 py-3.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[15px]">
+                        <Num value={b.pieces} className="font-semibold" /> قطعة
+                      </div>
+                      <div className="mt-0.5 truncate text-[12px] text-ink-mute">
+                        {byId(b.sourceId)?.kind === "trader" ? "شراء" : "استلام"}{" "}
+                        <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.sourceId)?.name}
+                        {b.jobId && jobById(b.jobId) && <> · {jobTitle(jobById(b.jobId)!)}</>}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-end">
+                      <Money value={b.unitCost} decimals className="text-[15px] font-bold" />
+                      <div className="text-[11px] text-ink-mute">تكلفة القطعة</div>
+                    </div>
                   </div>
                 </div>
-                <div className="shrink-0 text-end">
-                  <Money value={b.unitCost} decimals className="text-[15px] font-bold" />
-                  <div className="text-[11px] text-ink-mute">تكلفة القطعة</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </Card>
+              ))}
+            </Card>
+          </>
+        )}
 
         {/* --------------------------------- الحركة --------------------------------- */}
         <SectionTitle>الحركة</SectionTitle>

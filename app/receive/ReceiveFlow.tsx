@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { Calculator, Check, Plus, Trash2 } from "lucide-react";
 import { ModelInput, ModelModeToggle, ModelSuggestions, newModelText, useModelField } from "@/components/ModelField";
-import { Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
+import { Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { money2, p } from "@/lib/format";
 import { factoryOf, jobById, jobSummary, jobTitle, openJobs, stockOf, type Job } from "@/lib/mock";
 
@@ -313,7 +313,7 @@ function AddLine({ left, onAdd }: { left: number; onAdd: (l: Line) => void }) {
         <span className="text-ink-mute">
           {model && (
             <>
-              {field.other && `${field.other} · `}عندك <Num value={stockOf(model)} /> قطعة
+              {field.other && `${field.other} · `}<InShop pieces={stockOf(model)} />
             </>
           )}
           {newText && <span className="font-semibold text-brand">{newText}</span>}

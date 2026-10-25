@@ -130,6 +130,12 @@ export type Model = {
   code?: number;
   name?: string;
   batches: Batch[];
+  /**
+   * قطع اتباعت ومكانش ليها رصيد — البيع مبيقفش أبداً، والمخزون بيبقى بالسالب
+   * لحد ما الاستلام يتسجل (الـ spec، قسم 4). بيحصل لما البضاعة توصل قبل ما
+   * يسجّل استلامها، أو الجرد كان غلط.
+   */
+  oversold?: number;
   lastSale?: string;
   soldThisMonth: number;
 };
@@ -157,6 +163,8 @@ export const models: Model[] = [
   // من غير كود — بيعرفها باسمها بس
   { id: "mk1", name: "طقم ولادي", batches: [{ receivedAt: "2026-04-20", sourceId: "f3", pieces: 48, unitCost: p(70) }], lastSale: "2026-09-20", soldThisMonth: 12 },
   { id: "mk2", name: "بيجامة حريمي", batches: [{ receivedAt: "2026-03-15", sourceId: "f2", pieces: 36, unitCost: p(95) }], lastSale: "2026-09-10", soldThisMonth: 6 },
+  // بالسالب: خلص من المحل واتباع منه 10 قبل ما يسجّل الدفعة اللي وصلت
+  { id: "m226", code: 226, name: "بنطلون قماش", batches: [], oversold: 10, lastSale: "2026-09-22", soldThisMonth: 70 },
 ];
 
 export const modelById = (id: string) => models.find((m) => m.id === id);
@@ -186,8 +194,11 @@ export function searchModels(q: string): Model[] {
   );
 }
 
-/** إجمالي القطع في المحل */
-export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0);
+/** إجمالي القطع في المحل — ممكن يبقى بالسالب لو اتباع أكتر من المتسجل */
+export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0) - (m.oversold ?? 0);
+
+/** موديلات بالسالب — بتظهر في «محتاج انتباهك» لحد ما الاستلام يتسجل */
+export const oversoldModels = () => models.filter((m) => stockOf(m) < 0);
 
 /** قيمة الموديل بالقروش — متقرّبة لأقرب جنيه (تكلفة القطعة بس اللي بتتعرض بكسور) */
 export const valueOf = (m: Model) =>

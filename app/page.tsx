@@ -5,6 +5,7 @@ import {
   Factory,
   FileText,
   HandCoins,
+  PackageMinus,
   PackagePlus,
   Phone,
   Receipt,
@@ -23,7 +24,9 @@ import {
   jobSummary,
   jobTitle,
   loansDueSoon,
+  oversoldModels,
   staleJobs,
+  stockOf,
   receivables,
   recentActivity,
   todaySummary,
@@ -60,6 +63,7 @@ export default function Dashboard() {
     .slice(0, 3);
   const loans = loansDueSoon();
   const stale = staleJobs();
+  const negative = oversoldModels();
   const capital1m = capitalPeriods.find((x) => x.id === "1m")!;
 
   return (
@@ -107,7 +111,7 @@ export default function Dashboard() {
         </Card>
 
         {/* ---------------------------- محتاج انتباهك ---------------------------- */}
-        {(late.length > 0 || loans.length > 0 || stale.length > 0) && (
+        {(late.length > 0 || loans.length > 0 || stale.length > 0 || negative.length > 0) && (
           <>
             <SectionTitle>محتاج انتباهك</SectionTitle>
             <Card className="mb-5 overflow-hidden">
@@ -185,6 +189,27 @@ export default function Dashboard() {
                   </Link>
                 );
               })}
+
+              {/* موديل بالسالب — اتباع قبل ما استلامه يتسجل (الـ spec، قسم 4) */}
+              {negative.map((m, i) => (
+                <Link
+                  key={m.id}
+                  href={`/inventory/${m.id}`}
+                  className={`press block active:bg-sunken ${late.length + loans.length + stale.length + i > 0 ? "border-t border-line-soft" : ""}`}
+                >
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <PackageMinus size={17} className="shrink-0 text-neg" />
+                    <div className="min-w-0 flex-1 text-[13px]">
+                      <span className="font-semibold">
+                        {m.code !== undefined ? `موديل ${m.code}` : m.name} بالسالب{" "}
+                        <Num value={-stockOf(m)} />
+                      </span>{" "}
+                      <span className="text-ink-mute">— سجّل الاستلام</span>
+                    </div>
+                    <ChevronLeft size={16} className="shrink-0 text-ink-mute" />
+                  </div>
+                </Link>
+              ))}
             </Card>
           </>
         )}

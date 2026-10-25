@@ -6,7 +6,7 @@ import { Check, Plus, Trash2 } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
 import { ModelInput, ModelModeToggle, ModelSuggestions, newModelText, useModelField } from "@/components/ModelField";
 import { PartyPicker } from "@/components/PartyPicker";
-import { Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
+import { Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
 import { cashAccounts, stockOf, totals, type Party } from "@/lib/mock";
 
@@ -304,7 +304,7 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
         <span>
           {model && (
             <>
-              {field.other && `${field.other} · `}عندك <Num value={stockOf(model)} /> قطعة
+              {field.other && `${field.other} · `}<InShop pieces={stockOf(model)} />
             </>
           )}
           {newText && <span className="font-semibold text-brand">{newText}</span>}

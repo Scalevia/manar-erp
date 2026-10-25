@@ -97,6 +97,22 @@ export function ModelTag({ code, name, isNew }: { code?: number; name?: string; 
   );
 }
 
+/** المخزون في سطر التأكيد: «490 قطعة في المحل» · «خلصان من المحل» · «بالسالب 10» */
+export function InShop({ pieces }: { pieces: number }) {
+  if (pieces > 0)
+    return (
+      <>
+        <Num value={pieces} /> قطعة في المحل
+      </>
+    );
+  if (pieces === 0) return <>خلصان من المحل</>;
+  return (
+    <span className="font-semibold text-neg">
+      بالسالب <Num value={-pieces} />
+    </span>
+  );
+}
+
 /* ----------------------------------- الكروت ---------------------------------- */
 
 export function Card({
