@@ -5,6 +5,7 @@ import { Card, Empty, Money, Page, PageHeader } from "@/components/ui";
 import { formatPhone, shortDate, since } from "@/lib/format";
 import {
   byId,
+  isAdvance,
   isCollectFrom,
   jobsOfFactory,
   jobSummary,
@@ -16,9 +17,7 @@ import {
 
 function kindLabel(x: Party) {
   if (x.kind === "customer") return "عميل";
-  if (x.kind === "factory") return "مصنع";
-  if (x.kind === "supplier") return "تاجر قماش";
-  if (x.kind === "trader") return "تاجر بضاعة";
+  if (x.kind === "supplier") return "مورد";
   return x.balance > 0 ? "سلفة · سلّفته" : "سلفة · استلفت منه";
 }
 
@@ -33,8 +32,10 @@ export default async function StatementPage({
 
   const rows = statementOf(id);
   const owesMe = party.balance > 0;
-  // العميل دايماً «عليه»، والسلفة حسب اتجاهها
+  // الزرار: العميل تحصيل، المورد دفع (وفي الشاشة يقدر يقلبه)
   const collect = isCollectFrom(party);
+  // مورد مالوش حاجة عندك (أو عليه مقدّم): الدفعة ليه مقدّم — الاسم بيقولها صريحة
+  const payLabel = collect ? "تحصيل" : isAdvance(party) ? "دفعة تحت الحساب" : "دفع";
   const amount = Math.abs(party.balance);
   const settled = party.balance === 0;
 
@@ -54,7 +55,12 @@ export default async function StatementPage({
           </>
         }
         back={
-          party.kind === "person" ? "/loans" : collect ? "/accounts" : "/accounts?tab=payable"
+          // يرجع للتبّة اللي هو فيها — من الرصيد، مش من النوع
+          party.kind === "person"
+            ? "/loans"
+            : party.balance > 0 || (party.balance === 0 && party.kind === "customer")
+              ? "/accounts"
+              : "/accounts?tab=payable"
         }
       />
 
@@ -98,7 +104,7 @@ export default async function StatementPage({
         <div className="mb-5 grid grid-cols-3 gap-2">
           <Action
             icon={<HandCoins size={18} />}
-            label={collect ? "تحصيل" : "دفع"}
+            label={payLabel}
             href={`/payments?party=${party.id}`}
             primary
           />
@@ -119,7 +125,7 @@ export default async function StatementPage({
 
         {/* ---------------------------- أوامر التصنيع ---------------------------- */}
         {/* الاستلام مبيظهرش في كشف المصنع — بيطلع من الأمر. فالأوامر هنا عشان يلاقيها */}
-        {party.kind === "factory" && jobsOfFactory(party.id).length > 0 && (
+        {jobsOfFactory(party.id).length > 0 && (
           <>
             <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">أوامر التصنيع عنده</h2>
             <Card className="mb-5 overflow-hidden">

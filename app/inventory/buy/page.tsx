@@ -6,14 +6,14 @@ import { Check, Plus, Trash2 } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
 import { ModelInput, ModelModeToggle, ModelSuggestions, newModelText, useModelField } from "@/components/ModelField";
 import { PartyPicker } from "@/components/PartyPicker";
-import { Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
-import { p } from "@/lib/format";
-import { cashAccounts, stockOf, totals, type Party } from "@/lib/mock";
+import { Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader, SupplierBalance } from "@/components/ui";
+import { money, p } from "@/lib/format";
+import { afterPurchase, cashAccounts, stockOf, totals, type Party } from "@/lib/mock";
 
 /**
- * شراء مخزون — بضاعة جاهزة من تاجر تاني، مش من مصنع (الـ spec، قسم 4):
+ * شراء مخزون — بضاعة جاهزة من أي مورد: تاجر، أو مصنع بيبيعلك جاهز (الـ spec، قسم 4):
  *   المخزن:  يزيد بسعر الشراء على طول — مفيش أمر تصنيع
- *   التاجر:  ليه اللي مندفعش، ويدفعه بعدين من كشف حسابه
+ *   المورد:  اللي مندفعش بيتخصم من المقدّم الأول لو دفعله قبل كده، والباقي ليه
  *   الخزنة:  تقل باللي اتدفع بس
  */
 
@@ -21,7 +21,7 @@ import { cashAccounts, stockOf, totals, type Party } from "@/lib/mock";
 type Line = { id: number; code?: number; name?: string; isNew: boolean; qty: number; price: number };
 
 export default function BuyStockPage() {
-  const [trader, setTrader] = useState<Party | null>(null);
+  const [seller, setSeller] = useState<Party | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [paid, setPaid] = useState("");
   const [accountId, setAccountId] = useState(cashAccounts[0].id);
@@ -33,11 +33,12 @@ export default function BuyStockPage() {
   const rest = total - paidP;
   const account = cashAccounts.find((a) => a.id === accountId)!;
   const short = paidP > account.balance;
-  // رصيد التاجر سالب = ليه عندي
-  const owedAfter = -(trader?.balance ?? 0) + rest;
-  const ready = !!trader && lines.length > 0;
+  // اللي مندفعش بيتخصم من المقدّم الأول (لو دفعله قبل كده)، والباقي يبقى ليه
+  const advance = Math.max(0, seller?.balance ?? 0);
+  const { fromAdvance, after } = afterPurchase(seller?.balance ?? 0, rest);
+  const ready = !!seller && lines.length > 0;
 
-  if (saved && trader) {
+  if (saved && seller) {
     return (
       <>
         <PageHeader title="اتحفظ" />
@@ -50,21 +51,21 @@ export default function BuyStockPage() {
               <Num value={pieces} /> قطعة دخلت المخزن
             </div>
             <div className="mt-1 text-[13px] text-ink-mute">
-              من {trader.name} · <Money value={total} /> ج
+              من {seller.name} · <Money value={total} /> ج
             </div>
             <div className="mt-5 space-y-2 border-t border-line-soft pt-4 text-[14px]">
               {paidP > 0 && <Row label={`دفعت من ${account.name}`} value={<Money value={paidP} className="font-semibold" />} />}
-              <Row
-                label="ليه عندك دلوقتي"
-                value={owedAfter > 0 ? <Money value={owedAfter} className="font-bold text-neg" /> : <span className="font-bold text-pos">خالصين</span>}
-              />
+              {fromAdvance > 0 && (
+                <Row label="اتخصم من المقدّم" value={<Money value={fromAdvance} className="font-semibold" />} />
+              )}
+              <Row label="حسابه دلوقتي" value={<span className="font-bold"><SupplierBalance value={after} /></span>} />
             </div>
           </Card>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <Link href="/inventory" className="press rounded-2xl bg-brand py-3.5 text-center text-[15px] font-bold text-brand-ink">
               المخزون
             </Link>
-            {trader.id === "new" ? (
+            {seller.id === "new" ? (
               <button
                 type="button"
                 onClick={() => {
@@ -78,7 +79,7 @@ export default function BuyStockPage() {
               </button>
             ) : (
               <Link
-                href={`/accounts/${trader.id}`}
+                href={`/accounts/${seller.id}`}
                 className="press rounded-2xl border border-line bg-card py-3.5 text-center text-[15px] font-semibold text-ink-soft"
               >
                 كشف حسابه
@@ -92,11 +93,11 @@ export default function BuyStockPage() {
 
   return (
     <>
-      <PageHeader title="شراء مخزون" sub="بضاعة جاهزة من تاجر" back="/inventory" />
+      <PageHeader title="شراء مخزون" sub="بضاعة جاهزة من تاجر أو مصنع" back="/inventory" />
       <Page>
         {/* ------------------------------- من مين ------------------------------- */}
         <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">شاريها من مين؟</div>
-        <PartyPicker kind="trader" value={trader} onChange={setTrader} />
+        <PartyPicker role="goods" value={seller} onChange={setSeller} />
 
         {/* ------------------------------- اشترى إيه ------------------------------- */}
         <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">اشتريت إيه؟</div>
@@ -169,6 +170,12 @@ export default function BuyStockPage() {
                 {account.name} فيه <Money value={account.balance} /> ج بس.
               </p>
             )}
+            {advance > 0 && (
+              <p className="mt-2 text-[12px] leading-relaxed text-brand">
+                عنده مقدّم منك <Money value={advance} className="font-semibold" /> ج — اللي مش هتدفعه دلوقتي
+                بيتخصم منه الأول.
+              </p>
+            )}
           </Card>
         )}
 
@@ -181,10 +188,11 @@ export default function BuyStockPage() {
               <Money value={totals.stockValue + total} className="text-pos" />
             </Effect>
             {rest > 0 && (
-              <Effect label={trader!.name} sub="اللي مندفعش">
-                <span className="text-neg">
-                  هيبقى ليه <Money value={owedAfter} />
-                </span>
+              <Effect
+                label={seller!.name}
+                sub={fromAdvance > 0 ? `اتخصم من المقدّم ${money(fromAdvance)}` : "اللي مندفعش"}
+              >
+                هيبقى <SupplierBalance value={after} />
               </Effect>
             )}
             {paidP > 0 && (
@@ -205,8 +213,8 @@ export default function BuyStockPage() {
         >
           حفظ الشراية
         </button>
-        {!trader && lines.length > 0 && (
-          <p className="mt-2 text-center text-[12px] text-ink-mute">اختار التاجر الأول</p>
+        {!seller && lines.length > 0 && (
+          <p className="mt-2 text-center text-[12px] text-ink-mute">اختار شاريها من مين الأول</p>
         )}
       </Page>
     </>

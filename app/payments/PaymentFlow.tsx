@@ -5,21 +5,23 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { Card, Empty, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { p } from "@/lib/format";
-import { byId, cashAccounts, isCollectFrom, payables, receivables, type Party } from "@/lib/mock";
+import { byId, cashAccounts, isAdvance, isCollectFrom, payables, receivables, type Party } from "@/lib/mock";
 
 /**
- * تحصيل من عميل أو دفع لمصنع / تاجر قماش (العملية 7 في الـ spec).
+ * تحصيل أو دفع لأي حساب (العملية 7 في الـ spec).
  *
  * الرصيد في البيانات: موجب = ليا عنده · سالب = عليا له.
- * تحصيل بيقلل الموجب، ودفع بيقلل السالب. الخزنة بتزيد في التحصيل وتقل في الدفع.
+ * الاتجاه بيتقلب من الشاشة («استلمت منه / دفعتله») — بيفتح على العادي للنوع
+ * (isCollectFrom)، بس مورد عليه مقدّم ممكن تديله دفعة تانية، وعميل ليه عندك
+ * ممكن ترجّعله فلوس. الخزنة بتزيد في التحصيل وتقل في الدفع.
  */
 export default function PaymentFlow({ initialPartyId }: { initialPartyId?: string }) {
   const initial = initialPartyId ? byId(initialPartyId) : undefined;
   const [party, setParty] = useState<Party | null>(initial && !initial.isCash ? initial : null);
-  const [saved, setSaved] = useState<{ amount: number; accountId: string } | null>(null);
+  const [saved, setSaved] = useState<{ amount: number; accountId: string; collect: boolean } | null>(null);
 
   if (party && saved)
-    return <Saved party={party} amount={saved.amount} accountId={saved.accountId} />;
+    return <Saved party={party} amount={saved.amount} accountId={saved.accountId} collect={saved.collect} />;
 
   if (!party) return <PickParty onPick={setParty} />;
 
@@ -27,12 +29,13 @@ export default function PaymentFlow({ initialPartyId }: { initialPartyId?: strin
     <PaymentForm
       party={party}
       onChange={() => setParty(null)}
-      onSave={(amount, accountId) => setSaved({ amount, accountId })}
+      onSave={(amount, accountId, collect) => setSaved({ amount, accountId, collect })}
     />
   );
 }
 
-const isCollect = isCollectFrom;
+/** الرصيد بعد العملية بإشارته: موجب = عليه · سالب = ليه عندك */
+const afterOf = (balance: number, amount: number, collect: boolean) => balance + (collect ? -amount : amount);
 
 /* ============================ اختيار الطرف ============================ */
 
@@ -51,7 +54,7 @@ function PickParty({ onPick }: { onPick: (x: Party) => void }) {
         <span className="flex-1 truncate text-[15px] font-semibold">{x.name}</span>
         <Money
           value={Math.abs(x.balance)}
-          className={`text-[15px] font-bold ${isCollect(x) ? "text-pos" : "text-neg"}`}
+          className={`text-[15px] font-bold ${x.balance > 0 ? "text-pos" : "text-neg"}`}
         />
       </button>
     </div>
@@ -59,7 +62,7 @@ function PickParty({ onPick }: { onPick: (x: Party) => void }) {
 
   return (
     <>
-      <PageHeader title="تحصيل ودفع" sub="اختار العميل أو المصنع" />
+      <PageHeader title="تحصيل ودفع" sub="اختار العميل أو المورد" />
       <Page>
         <SectionTitle>تحصيل — عليهم فلوس</SectionTitle>
         <Card className="mb-5 overflow-hidden">
@@ -85,9 +88,9 @@ function PaymentForm({
 }: {
   party: Party;
   onChange: () => void;
-  onSave: (amount: number, accountId: string) => void;
+  onSave: (amount: number, accountId: string, collect: boolean) => void;
 }) {
-  const collect = isCollect(party);
+  const [collect, setCollect] = useState(isCollectFrom(party));
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState(cashAccounts[0].id);
   const [note, setNote] = useState("");
@@ -95,16 +98,19 @@ function PaymentForm({
   const amountP = p(Number(amount) || 0);
   const account = cashAccounts.find((a) => a.id === accountId)!;
 
-  // اللي عليه (تحصيل) أو اللي ليه (دفع) قبل العملية
-  const owed = collect ? Math.max(0, party.balance) : Math.max(0, -party.balance);
-  const after = owed - amountP;
-  const tooMuch = amountP > owed && owed > 0;
+  const before = party.balance;
+  const after = afterOf(before, amountP, collect);
+  // المبلغ اللي يقفل الحساب في الاتجاه ده — صفر لو الاتجاه ده بيزوّد مش بيقفل
+  const toClose = collect ? Math.max(0, before) : Math.max(0, -before);
+  const tooMuch = toClose > 0 && amountP > toClose;
+  // دفعة لمورد مالوش حاجة عندك (أو عليه أصلاً) = مقدّم بيتخصم من أول شراية
+  const advance = !collect && party.kind === "supplier" && amountP > toClose;
   const accountShort = !collect && amountP > account.balance;
 
   return (
     <>
       <PageHeader
-        title={collect ? "تحصيل" : "دفع"}
+        title={collect ? "تحصيل" : isAdvance(party) ? "دفعة تحت الحساب" : "دفع"}
         sub={party.name}
         action={
           <button
@@ -119,19 +125,41 @@ function PaymentForm({
 
       <Page>
         {/* ------------------------------- قبل ------------------------------- */}
-        <div className="mb-4 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
-          <span className="text-[13px] text-ink-soft">{collect ? "عليه دلوقتي" : "ليه عندك دلوقتي"}</span>
-          <Money value={owed} className={`text-[15px] font-bold ${collect ? "text-pos" : "text-neg"}`} />
+        <div className="mb-3 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
+          <span className="text-[13px] text-ink-soft">حسابه دلوقتي</span>
+          <span className="text-[15px] font-bold">
+            <Balance value={before} />
+          </span>
+        </div>
+
+        {/* ------------------------------ الاتجاه ------------------------------ */}
+        <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-sunken p-1">
+          {(
+            [
+              [true, "استلمت منه"],
+              [false, "دفعتله"],
+            ] as [boolean, string][]
+          ).map(([v, label]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setCollect(v)}
+              aria-pressed={collect === v}
+              className={`press rounded-xl py-2.5 text-[14px] font-bold ${collect === v ? "bg-card text-ink shadow-sm" : "text-ink-mute"}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* ------------------------------ المبلغ ------------------------------ */}
         <Card className="mb-4 px-4 py-4">
           <div className="mb-1.5 flex items-baseline justify-between">
             <span className="text-[13px] font-semibold">{collect ? "استلمت كام؟" : "دفعت كام؟"}</span>
-            {owed > 0 && (
+            {toClose > 0 && (
               <button
                 type="button"
-                onClick={() => setAmount(String(owed / 100))}
+                onClick={() => setAmount(String(toClose / 100))}
                 className="press rounded-lg bg-brand-soft px-2.5 py-1 text-[12px] font-semibold text-brand"
               >
                 الحساب كله
@@ -148,11 +176,14 @@ function PaymentForm({
             aria-label="المبلغ"
             className="num h-16 w-full rounded-xl border border-line bg-page px-3 text-center text-[28px] font-bold outline-none placeholder:font-normal placeholder:text-ink-mute/40 focus:border-brand"
           />
-          {tooMuch && (
+          {tooMuch && !advance && (
             <p className="mt-2 text-[12px] leading-relaxed text-warn">
-              {collect
-                ? "أكتر من اللي عليه — الزيادة هتتسجل ليه عندك."
-                : "أكتر من اللي ليه — الزيادة هتتسجل ليك عنده."}
+              {collect ? "أكتر من اللي عليه — الزيادة هتتسجل ليه عندك." : "أكتر من اللي ليه — الزيادة هتتسجل ليك عنده."}
+            </p>
+          )}
+          {advance && amountP > 0 && (
+            <p className="mt-2 text-[12px] leading-relaxed text-brand">
+              {toClose > 0 ? "الزيادة عن اللي ليه" : "دي"} دفعة مقدّم — هتتخصم من أول شراية منه.
             </p>
           )}
         </Card>
@@ -208,17 +239,11 @@ function PaymentForm({
             <div className="flex items-center justify-between border-t border-line-soft px-4 py-3">
               <span className="text-[14px] text-ink-soft">{party.name}</span>
               <span className="text-[14px] font-bold">
-                {after > 0 ? (
-                  <>
-                    {collect ? "هيبقى عليه " : "هيبقى ليه "}
-                    <Money value={after} />
-                  </>
-                ) : after === 0 ? (
+                {after === 0 ? (
                   <span className="text-pos">الحساب هيتقفل ✓</span>
                 ) : (
                   <>
-                    {collect ? "هيبقى ليه عندك " : "هيبقى ليك عنده "}
-                    <Money value={-after} />
+                    هيبقى <Balance value={after} />
                   </>
                 )}
               </span>
@@ -229,7 +254,7 @@ function PaymentForm({
         <button
           type="button"
           disabled={amountP <= 0}
-          onClick={() => onSave(amountP, accountId)}
+          onClick={() => onSave(amountP, accountId, collect)}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
           {collect ? "حفظ التحصيل" : "حفظ الدفع"}
@@ -239,13 +264,35 @@ function PaymentForm({
   );
 }
 
+/** موجب = عليه (ليك عنده) · سالب = ليه عندك · صفر = خالصين */
+function Balance({ value }: { value: number }) {
+  if (value === 0) return <span className="text-ink-soft">خالصين</span>;
+  return value > 0 ? (
+    <span className="text-pos">
+      عليه <Money value={value} />
+    </span>
+  ) : (
+    <span className="text-neg">
+      ليه عندك <Money value={-value} />
+    </span>
+  );
+}
+
 /* ============================== بعد الحفظ ============================== */
 
-function Saved({ party, amount, accountId }: { party: Party; amount: number; accountId: string }) {
-  const collect = isCollect(party);
+function Saved({
+  party,
+  amount,
+  accountId,
+  collect,
+}: {
+  party: Party;
+  amount: number;
+  accountId: string;
+  collect: boolean;
+}) {
   const account = cashAccounts.find((a) => a.id === accountId)!;
-  const owed = collect ? Math.max(0, party.balance) : Math.max(0, -party.balance);
-  const after = owed - amount;
+  const after = afterOf(party.balance, amount, collect);
 
   return (
     <>
@@ -267,17 +314,11 @@ function Saved({ party, amount, accountId }: { party: Party; amount: number; acc
           </div>
 
           <div className="mt-5 border-t border-line-soft pt-4 text-[14px] font-semibold">
-            {after > 0 ? (
-              <>
-                {collect ? "لسه عليه " : "لسه ليه "}
-                <Money value={after} /> ج
-              </>
-            ) : after === 0 ? (
+            {after === 0 ? (
               <span className="text-pos">الحساب اتقفل ✓</span>
             ) : (
               <>
-                {collect ? "ليه عندك " : "ليك عنده "}
-                <Money value={-after} /> ج
+                حسابه دلوقتي: <Balance value={after} />
               </>
             )}
           </div>

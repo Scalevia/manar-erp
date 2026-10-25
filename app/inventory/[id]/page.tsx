@@ -77,7 +77,8 @@ export default async function ModelPage({
                         <Num value={b.pieces} className="font-semibold" /> قطعة
                       </div>
                       <div className="mt-0.5 truncate text-[12px] text-ink-mute">
-                        {byId(b.sourceId)?.kind === "trader" ? "شراء" : "استلام"}{" "}
+                        {/* من أمر تصنيع = استلام · غير كده = شراء جاهز (المورد نوع واحد) */}
+                        {b.jobId ? "استلام" : "شراء"}{" "}
                         <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.sourceId)?.name}
                         {b.jobId && jobById(b.jobId) && <> · {jobTitle(jobById(b.jobId)!)}</>}
                       </div>

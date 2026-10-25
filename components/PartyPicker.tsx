@@ -6,30 +6,35 @@ import { Card, Money } from "@/components/ui";
 import { isEgyptMobile } from "@/lib/format";
 import { ofKind, TODAY, type Party } from "@/lib/mock";
 
-type Kind = "supplier" | "factory" | "trader";
+/**
+ * الشاشة اللي بتختار منها — الكلام بيتغير، بس القايمة واحدة: كل الموردين
+ * (مصانع وتجار قماش وتجار بضاعة نوع واحد، الـ spec قسم 7). كده المصنع اللي
+ * بيصنّعلك وبيبيعلك جاهز يفضل حساب واحد.
+ */
+type Role = "factory" | "fabric" | "goods";
 
-const LABELS: Record<Kind, { add: string; name: string; one: string }> = {
-  supplier: { add: "تاجر قماش جديد", name: "اسم تاجر القماش", one: "تاجر قماش" },
-  factory: { add: "مصنع جديد", name: "اسم المصنع", one: "مصنع" },
-  trader: { add: "تاجر جديد", name: "اسم التاجر", one: "تاجر" },
+const LABELS: Record<Role, { add: string; name: string }> = {
+  factory: { add: "مصنع جديد", name: "اسم المصنع" },
+  fabric: { add: "تاجر قماش جديد", name: "اسم تاجر القماش" },
+  goods: { add: "تاجر جديد", name: "اسم التاجر" },
 };
 
 /**
- * اختيار تاجر (قماش أو بضاعة) أو مصنع من القايمة، أو إضافة واحد جديد من نفس الشاشة
- * (الاسم، والموبايل اختياري) — مفيش شاشة إدارة لوحدها، زي «عميل جديد» في البيع.
+ * اختيار مورد من القايمة، أو إضافة واحد جديد من نفس الشاشة
+ * (الاسم، والموبايل اختياري) — زي «عميل جديد» في البيع.
  * بيرجّع الطرف لما يبقى جاهز، وnull لحد كده.
  */
 export function PartyPicker({
-  kind,
+  role,
   value,
   onChange,
 }: {
-  kind: Kind;
+  role: Role;
   value: Party | null;
   onChange: (x: Party | null) => void;
 }) {
-  const list = ofKind(kind);
-  const label = LABELS[kind];
+  const list = ofKind("supplier");
+  const label = LABELS[role];
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -41,7 +46,7 @@ export function PartyPicker({
   function report(n: string, ph: string) {
     const c = n.trim().replace(/\s+/g, " ");
     const ok = c.length >= 2 && (ph === "" || isEgyptMobile(ph));
-    onChange(ok ? { id: "new", kind, name: c, phone: ph || undefined, balance: 0, lastActivity: TODAY } : null);
+    onChange(ok ? { id: "new", kind: "supplier", name: c, phone: ph || undefined, balance: 0, lastActivity: TODAY } : null);
   }
 
   const pick = "press flex w-full items-center gap-3 px-4 py-3 text-start";
@@ -63,7 +68,7 @@ export function PartyPicker({
         {existing && (
           <div className="flex items-center justify-between gap-2 rounded-xl bg-warn-soft px-3 py-2 text-[12px] text-warn">
             <span>
-              فيه {label.one} اسمه «{existing.name}» في القايمة
+              فيه مورد اسمه «{existing.name}» في القايمة
             </span>
             <button
               type="button"
@@ -117,9 +122,11 @@ export function PartyPicker({
             className={`${pick} ${value?.id === x.id ? "bg-brand-soft" : "active:bg-sunken"}`}
           >
             <span className="flex-1 truncate text-[15px] font-semibold">{x.name}</span>
-            {x.balance < 0 && (
+            {/* الرصيد بإشارته — المورد ممكن يبقى عليه لو دفعتله قبل البضاعة */}
+            {x.balance !== 0 && (
               <span className="text-[12px] text-ink-mute">
-                ليه <Money value={-x.balance} />
+                {x.balance < 0 ? "ليه " : "عليه "}
+                <Money value={Math.abs(x.balance)} />
               </span>
             )}
             {value?.id === x.id && <Check size={17} className="text-brand" />}

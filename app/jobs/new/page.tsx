@@ -57,7 +57,7 @@ export default function NewJobPage() {
       <PageHeader title={`أمر جديد · ${no}`} back="/jobs" />
       <Page>
         <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">عند أنهي مصنع؟</div>
-        <PartyPicker kind="factory" value={factory} onChange={setFactory} />
+        <PartyPicker role="factory" value={factory} onChange={setFactory} />
 
         <input
           value={name}

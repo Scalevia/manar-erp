@@ -113,6 +113,20 @@ export function InShop({ pieces }: { pieces: number }) {
   );
 }
 
+/** حساب المورد بإشارته: موجب = عليه (مقدّم لسه متخصمش) · سالب = ليه · صفر = خالصين */
+export function SupplierBalance({ value }: { value: number }) {
+  if (value === 0) return <span className="text-pos">خالصين</span>;
+  return value > 0 ? (
+    <span className="text-pos">
+      عليه <Money value={value} />
+    </span>
+  ) : (
+    <span className="text-neg">
+      ليه <Money value={-value} />
+    </span>
+  );
+}
+
 /* ----------------------------------- الكروت ---------------------------------- */
 
 export function Card({

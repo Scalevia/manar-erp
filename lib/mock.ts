@@ -15,10 +15,14 @@ export const TODAY = "2026-09-23";
 /* ============================ الأطراف ============================ */
 
 /**
- * person = شخص بينه وبين المحل سلفة (هو سلّف المحل، أو المحل سلّفه)
- * trader = تاجر بيشتري منه بضاعة جاهزة («شراء مخزون»)
+ * تلات أنواع بس (الـ spec، قسم 7):
+ *   customer = عميل — بيشتري منك
+ *   supplier = مورد — مصنع أو تاجر قماش أو تاجر بضاعة: أي حد بتشتري منه أو بيشتغلك.
+ *              نوع واحد عشان أي مورد يظهر في أي شاشة شراء أو استلام أو تصنيع،
+ *              والمصنع اللي بيصنّعلك وبيبيعلك جاهز يبقى له حساب واحد
+ *   person   = سلفة — شخص بينه وبين المحل سلفة (هو سلّف المحل، أو المحل سلّفه)
  */
-export type PartyKind = "customer" | "factory" | "supplier" | "person" | "trader";
+export type PartyKind = "customer" | "supplier" | "person";
 
 export type Party = {
   id: string;
@@ -49,17 +53,20 @@ export const parties: Party[] = [
   { id: "c9", kind: "customer", name: "ياسر الدمرداش", phone: "01266778899", balance: p(3000), oldestDue: "2026-09-17", lastActivity: "2026-09-17" },
   { id: "c10", kind: "customer", name: "نقدي", balance: 0, lastActivity: TODAY, isCash: true },
 
-  // المصانع — عليا ليهم (مصنعية)
-  { id: "f1", kind: "factory", name: "مصنع النور", phone: "01020304050", balance: -p(18000), lastActivity: "2026-09-23" },
-  { id: "f2", kind: "factory", name: "مصنع الأمانة", phone: "01060708090", balance: -p(14500), lastActivity: "2026-09-16" },
-  { id: "f3", kind: "factory", name: "مصنع الشروق", phone: "01099887766", balance: -p(9000), lastActivity: "2026-09-12" },
+  // الموردين — نوع واحد. الأسماء بس اللي بتفرق مصنع من تاجر
+  // مصانع — عليا ليهم (مصنعية)
+  { id: "f1", kind: "supplier", name: "مصنع النور", phone: "01020304050", balance: -p(18000), lastActivity: "2026-09-23" },
+  { id: "f2", kind: "supplier", name: "مصنع الأمانة", phone: "01060708090", balance: -p(14500), lastActivity: "2026-09-16" },
+  { id: "f3", kind: "supplier", name: "مصنع الشروق", phone: "01099887766", balance: -p(9000), lastActivity: "2026-09-12" },
+  // مقدّم: دفعتله 3,000 وبعدين 10,000 ولسه مستلمتش منه حاجة — عليه 13,000، فهو في «ليا»
+  { id: "f4", kind: "supplier", name: "مصنع الفجر", phone: "01066554433", balance: p(13000), lastActivity: "2026-09-20" },
 
   // تجار القماش — عليا ليهم
   { id: "s1", kind: "supplier", name: "حسن الأقمشة", phone: "01011223344", balance: -p(20000), lastActivity: "2026-09-23" },
   { id: "s2", kind: "supplier", name: "مورد الدلتا", phone: "01233445566", balance: -p(6500), lastActivity: "2026-08-25" },
 
   // تجار بضاعة جاهزة — عليا ليهم
-  { id: "t1", kind: "trader", name: "الحاج محمود للجملة", phone: "01098765432", balance: -p(4500), lastActivity: "2026-09-19" },
+  { id: "t1", kind: "supplier", name: "الحاج محمود للجملة", phone: "01098765432", balance: -p(4500), lastActivity: "2026-09-19" },
 
   // السلف — سالب: استلفت منه (عليا له) · موجب: سلّفته (ليا عنده)
   { id: "p1", kind: "person", name: "حاج سيد العطار", phone: "01019876543", balance: -p(30000), lastActivity: "2026-09-10", dueDate: "2026-09-30" },
@@ -70,21 +77,46 @@ export const byId = (id: string) => parties.find((x) => x.id === id);
 export const cashParty = parties.find((x) => x.isCash)!;
 export const ofKind = (k: PartyKind) => parties.filter((x) => x.kind === k);
 
-/** «ليا»: عملاء عليهم فلوس + ناس سلّفتهم — الأقدم الأول، ده ترتيب «مين متأخر» */
+/*
+ * الاتجاه من **الرصيد**، مش من نوع الطرف: العميل عادةً عليه والمصنع عادةً ليه،
+ * بس ده بيتقلب — عميل رجّع بضاعة أكتر من اللي عليه، أو مصنع اتقفل عليه أمر
+ * («المصنع عليه الباقي»). لو الاتجاه من النوع، الطرف ده يختفي من «ليا» و«عليا»
+ * الاتنين ومش بيتحسب في رأس المال.
+ */
+
+/** «ليا»: أي حد عليه فلوس — الأقدم الأول، ده ترتيب «مين متأخر» */
 export const receivables = () =>
   parties
-    .filter((x) => (x.kind === "customer" || x.kind === "person") && x.balance > 0)
+    .filter((x) => x.balance > 0)
     .sort((a, b) => daysSince(b.oldestDue ?? TODAY) - daysSince(a.oldestDue ?? TODAY));
 
-/** «عليا»: مصانع وتجار (قماش أو بضاعة) ليهم فلوس + ناس استلفت منهم */
+/** «عليا»: أي حد ليه فلوس — مصانع وتجار وناس استلفت منهم، وعميل ليه عندي */
 export const payables = () =>
   parties
-    .filter((x) => x.kind !== "customer" && x.balance < 0)
+    .filter((x) => x.balance < 0)
     .sort((a, b) => a.balance - b.balance);
 
-/** تحصيل ولا دفع؟ — العميل دايماً تحصيل، والسلفة حسب اتجاهها */
+/**
+ * شاشة الدفع بتفتح على أنهي اتجاه — وتقدر تقلبه («استلمت منه / دفعتله»):
+ *   العميل: استلمت منه · المورد: دفعتله، حتى لو عليه فلوس — المقدّم عادي مع
+ *   الموردين، ودفعة تانية لمورد عليه مقدّم لازم تبقى «دفع» مش «تحصيل»
+ *   السلفة: حسب اتجاهها
+ * القوايم («ليا» و«عليا») من الرصيد، مش من هنا.
+ */
 export const isCollectFrom = (x: Party) =>
   x.kind === "customer" || (x.kind === "person" && x.balance > 0);
+
+/** الدفعة للمورد ده هتبقى مقدّم — مالوش حاجة عندك، أو عليه مقدّم أصلاً */
+export const isAdvance = (x: Party) => x.kind === "supplier" && x.balance >= 0;
+
+/**
+ * حساب المورد بعد شراية (شراء مخزون · قماش · صرف على أمر): اللي مندفعش بيتخصم
+ * من المقدّم الأول لو دفعله قبل كده، والباقي يبقى ليه. الرصيد بإشارته.
+ *   عليه مقدّم 13,000 · شراية 10,000 من غير دفع → اتخصم 10,000 · لسه عليه 3,000
+ */
+export function afterPurchase(balance: number, unpaid: number) {
+  return { fromAdvance: Math.min(unpaid, Math.max(0, balance)), after: balance - unpaid };
+}
 
 /** السلف اللي ميعادها فات أو جاي خلال أسبوع */
 export const loansDueSoon = () =>
@@ -418,6 +450,11 @@ const statements: Record<string, LedgerRow[]> = {
   f3: [
     { id: "l23", date: "2026-09-08", label: "مصنعية · أمر 8", amount: p(9000), balance: -p(9000) },
   ],
+  // المقدّم بيقلل «اللي ليه» تحت الصفر — فالرصيد بيبقى «عليه»
+  f4: [
+    { id: "l35", date: "2026-08-20", label: "دفعتله مقدّم ← من الدرج", amount: -p(3000), balance: p(3000) },
+    { id: "l36", date: "2026-09-20", label: "دفعتله مقدّم ← من انستاباي", amount: -p(10000), balance: p(13000) },
+  ],
   p1: [
     { id: "l14", date: "2026-09-10", label: "استلفت ← دخلت انستاباي", amount: p(30000), balance: -p(30000) },
   ],
@@ -492,16 +529,17 @@ function generatedStatement(x: Party): LedgerRow[] {
     ];
   }
 
-  // المصانع وتجار القماش — الرصيد سالب (عليا له)
+  // الموردين — الرصيد سالب (عليا له)
   const first = r100(owed * 0.6);
   const paid = r100(owed * 0.3);
   const last = owed - first + paid;
   const units = (amount: number, per: number) => Math.max(1, Math.round(amount / p(per)));
 
-  const [inLabel, outLabel, lastLabel] =
-    x.kind === "factory"
-      ? [`استلام ${units(first, 30)} قطعة · مصنعية`, "دفعتله ← من الدرج", `استلام ${units(last, 30)} قطعة · مصنعية`]
-      : [`شراء قماش ${units(first, 100)} م`, "دفعتله ← من انستاباي", `شراء قماش ${units(last, 100)} م`];
+  const [inLabel, outLabel, lastLabel] = [
+    `شراء ${units(first, 100)} قطعة`,
+    "دفعتله ← من الدرج",
+    `شراء ${units(last, 100)} قطعة`,
+  ];
 
   return [
     { id: `${x.id}-1`, date: start, label: inLabel, amount: first, balance: -first },
@@ -836,15 +874,12 @@ export const totals = {
     return cashAccounts.reduce((s, a) => s + a.balance, 0);
   },
   get receivable() {
-    // عملاء + ناس سلّفتهم — الاتنين فلوس ليا هترجع
-    return parties
-      .filter((x) => x.kind === "customer" || x.kind === "person")
-      .reduce((s, x) => s + Math.max(0, x.balance), 0);
+    // أي حد عليه فلوس — عميل أو سلفة أو مصنع اتقفل عليه أمر
+    return parties.reduce((s, x) => s + Math.max(0, x.balance), 0);
   },
   get payable() {
-    return parties
-      .filter((x) => x.kind !== "customer")
-      .reduce((s, x) => s + Math.max(0, -x.balance), 0);
+    // أي حد ليه فلوس — مصنع أو تاجر أو سلفة أو عميل دفع زيادة
+    return parties.reduce((s, x) => s + Math.max(0, -x.balance), 0);
   },
   /** صافي موقفي = السيولة + ليا − عليا (فلوس بس، من غير بضاعة) */
   get net() {

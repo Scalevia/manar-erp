@@ -1,10 +1,16 @@
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import { Badge, Card, Empty, Money, Page, PageHeader } from "@/components/ui";
 import { daysSince, since } from "@/lib/format";
 import { payables, receivables, totals, TODAY, type Party } from "@/lib/mock";
 
 const LATE_DAYS = 90;
+
+const KIND_BADGE: Record<Party["kind"], string> = {
+  customer: "عميل",
+  supplier: "مورد",
+  person: "سلفة",
+};
 
 export default async function AccountsPage({
   searchParams,
@@ -18,7 +24,18 @@ export default async function AccountsPage({
 
   return (
     <>
-      <PageHeader title="الحسابات" />
+      <PageHeader
+        title="الحسابات"
+        action={
+          <Link
+            href={showPayable ? "/accounts/new?kind=supplier" : "/accounts/new"}
+            className="press flex items-center gap-1 rounded-xl bg-brand px-3 py-1.5 text-[13px] font-bold text-brand-ink"
+          >
+            <Plus size={16} strokeWidth={2.6} />
+            فتح حساب
+          </Link>
+        }
+      />
       <Page>
         {/* --------------------------------- التبّين -------------------------------- */}
         <div className="mb-4 grid grid-cols-2 gap-2">
@@ -126,14 +143,12 @@ function PartyRow({ party, payable }: { party: Party; payable: boolean }) {
           )}
         </div>
 
-        {party.kind === "person" && <Badge tone="brand">سلفة</Badge>}
-        {payable && party.kind === "factory" && (
-          <Badge tone="neutral">مصنع</Badge>
+        {party.kind === "person" ? (
+          <Badge tone="brand">سلفة</Badge>
+        ) : (
+          // العميل في «ليا» والمورد في «عليا» هو العادي — الشارة بتبان بس لما يكون في التبّة التانية
+          (party.kind === "customer") === payable && <Badge tone="neutral">{KIND_BADGE[party.kind]}</Badge>
         )}
-        {payable && party.kind === "supplier" && (
-          <Badge tone="neutral">قماش</Badge>
-        )}
-        {payable && party.kind === "trader" && <Badge tone="neutral">تاجر</Badge>}
 
         <Money
           value={amount}

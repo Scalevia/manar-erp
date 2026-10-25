@@ -5,9 +5,9 @@ import Link from "next/link";
 import { Check, ChevronLeft } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
 import { PartyPicker } from "@/components/PartyPicker";
-import { Card, Money, Page, PageHeader } from "@/components/ui";
-import { p } from "@/lib/format";
-import { cashAccounts, fabricOnHand, type Party } from "@/lib/mock";
+import { Card, Money, Page, PageHeader, SupplierBalance } from "@/components/ui";
+import { money, p } from "@/lib/format";
+import { afterPurchase, cashAccounts, fabricOnHand, type Party } from "@/lib/mock";
 
 /**
  * شراء قماش للمحل — هيشيله عنده ويبعته بعدين (الـ spec، قسم 5):
@@ -30,7 +30,9 @@ export default function BuyFabricPage() {
   const rest = amountP - paidP;
   const account = cashAccounts.find((a) => a.id === accountId)!;
   const short = paidP > account.balance;
-  const owedAfter = -(supplier?.balance ?? 0) + rest;
+  // اللي مندفعش بيتخصم من المقدّم الأول (لو دفعله قبل كده)، والباقي يبقى ليه
+  const advance = Math.max(0, supplier?.balance ?? 0);
+  const { fromAdvance, after } = afterPurchase(supplier?.balance ?? 0, rest);
   const ready = !!supplier && amountP > 0;
 
   if (saved && supplier) {
@@ -50,7 +52,12 @@ export default function BuyFabricPage() {
             <div className="mt-5 space-y-2 border-t border-line-soft pt-4 text-[14px]">
               <Row label="قماش عندك في المحل" value={<Money value={onHand + amountP} className="font-semibold" />} />
               {paidP > 0 && <Row label={`دفعت من ${account.name}`} value={<Money value={paidP} className="font-semibold" />} />}
-              {rest > 0 && <Row label={`عليك لـ ${supplier.name}`} value={<Money value={owedAfter} className="font-bold text-neg" />} />}
+              {fromAdvance > 0 && (
+                <Row label="اتخصم من المقدّم" value={<Money value={fromAdvance} className="font-semibold" />} />
+              )}
+              {rest > 0 && (
+                <Row label={`حساب ${supplier.name}`} value={<span className="font-bold"><SupplierBalance value={after} /></span>} />
+              )}
             </div>
           </Card>
           <Link
@@ -80,7 +87,7 @@ export default function BuyFabricPage() {
         </Link>
 
         <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">اشتريت من مين؟</div>
-        <PartyPicker kind="supplier" value={supplier} onChange={setSupplier} />
+        <PartyPicker role="fabric" value={supplier} onChange={setSupplier} />
 
         <Card className="mb-4 px-4 py-4">
           <span className="mb-1.5 block text-[13px] font-semibold">اشتريت بكام؟</span>
@@ -123,6 +130,12 @@ export default function BuyFabricPage() {
               {account.name} فيه <Money value={account.balance} /> ج بس.
             </p>
           )}
+          {advance > 0 && (
+            <p className="mt-2 text-[12px] leading-relaxed text-brand">
+              عنده مقدّم منك <Money value={advance} className="font-semibold" /> ج — اللي مش هتدفعه دلوقتي
+              بيتخصم منه الأول.
+            </p>
+          )}
         </Card>
 
         <input
@@ -142,10 +155,11 @@ export default function BuyFabricPage() {
               <Money value={onHand + amountP} className="text-pos" />
             </Effect>
             {rest > 0 && (
-              <Effect label={supplier!.name} sub="اللي مندفعش">
-                <span className="text-neg">
-                  هيبقى ليه <Money value={owedAfter} />
-                </span>
+              <Effect
+                label={supplier!.name}
+                sub={fromAdvance > 0 ? `اتخصم من المقدّم ${money(fromAdvance)}` : "اللي مندفعش"}
+              >
+                هيبقى <SupplierBalance value={after} />
               </Effect>
             )}
             {paidP > 0 && (

@@ -12,19 +12,19 @@ import { cashAccounts, jobById, jobSummary, jobTitle, modelById, ofKind, stockOf
 /**
  * المرتجعات (الـ spec، قسم 6 — العمليتين 5 و6):
  *   من عميل: البضاعة ترجع المخزن، والمبلغ ينزل من حسابه — أو يرجعله فلوس من خزنة
- *   للمصنع:  البضاعة تطلع من المخزن، والمبلغ ينزل من اللي عليا له بسعر شراها منه
+ *   لمورد:   البضاعة تطلع من المخزن، والمبلغ ينزل من اللي عليا له بسعر شراها منه (مصنع أو تاجر)
  */
 
-type Dir = "customer" | "factory";
+type Dir = "customer" | "supplier";
 type Line = { id: number; modelId: string; qty: number; price: number; jobId?: string };
 
 const REASONS: Record<Dir, string[]> = {
   customer: ["مش ماشية معاه", "عيب", "سبب تاني"],
-  factory: ["عيب في الخياطة", "عيب في القماش", "سبب تاني"],
+  supplier: ["عيب في الخياطة", "عيب في القماش", "سبب تاني"],
 };
 
 export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir: Dir; initialPartyId?: string }) {
-  const kindOf = (d: Dir) => (d === "customer" ? "customer" : "factory");
+  const kindOf = (d: Dir) => (d === "customer" ? "customer" : "supplier");
   const list = (d: Dir) => ofKind(kindOf(d)).filter((x) => !x.isCash);
   const initial = list(initialDir).find((x) => x.id === initialPartyId) ?? null;
 
@@ -41,9 +41,9 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
   const pieces = lines.reduce((s, l) => s + l.qty, 0);
   const account = cashAccounts.find((a) => a.id === accountId)!;
 
-  // الرصيد بعد: العميل موجب (عليه) والمصنع سالب (ليه)
-  const owedBefore = party ? Math.abs(party.balance) : 0;
-  // للمصنع: اللي من أمر مفتوح بيرجع للأمر، والباقي (أمر مقفول) بينزل من حساب المصنع
+  // الرصيد بإشارته: موجب = عليه · سالب = ليه عندك — العميل ممكن يبقى ليه، والمورد ممكن يبقى عليه
+  const before = party?.balance ?? 0;
+  // للمورد: اللي من أمر مفتوح بيرجع للأمر، والباقي (أمر مقفول أو شراء) بينزل من حسابه
   const toJobs = new Map<string, number>();
   let toFactory = 0;
   for (const l of isCustomer ? [] : lines) {
@@ -51,7 +51,8 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
     if (j && !j.closedAt) toJobs.set(j.id, (toJobs.get(j.id) ?? 0) + l.qty * l.price);
     else toFactory += l.qty * l.price;
   }
-  const owedAfter = isCustomer ? (refund ? owedBefore : owedBefore - total) : owedBefore - toFactory;
+  // مرتجع العميل بيقلل اللي عليه · مرتجع المورد بيقلل اللي ليه (يعني بيزوّد رصيده)
+  const after = isCustomer ? (refund ? before : before - total) : before + toFactory;
 
   function switchDir(d: Dir) {
     setDir(d);
@@ -82,7 +83,7 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                   رجعتله <Money value={total} /> من {account.name}
                 </>
               ) : (
-                <Balance value={owedAfter} customer={isCustomer} />
+                <Balance value={after} />
               )}
             </div>
           </Card>
@@ -106,7 +107,7 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
           {(
             [
               ["customer", "من عميل"],
-              ["factory", "للمصنع"],
+              ["supplier", "لمورد"],
             ] as [Dir, string][]
           ).map(([d, label]) => (
             <button
@@ -125,7 +126,7 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
         {!party ? (
           <>
             <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">
-              {isCustomer ? "رجّع من مين؟" : "هترجّع لأنهي مصنع؟"}
+              {isCustomer ? "رجّع من مين؟" : "هترجّع لمين؟"}
             </div>
             <Card className="overflow-hidden">
               {list(dir).map((x, i) => (
@@ -152,10 +153,12 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
           <>
             <div className="mb-4 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
               <span className="text-[13px] text-ink-soft">
-                {party.name} · {isCustomer ? "عليه" : "ليه عندك"}
+                {party.name} · {before > 0 ? "عليه" : before < 0 ? "ليه عندك" : "خالصين"}
               </span>
               <span className="flex items-center gap-3">
-                <Money value={owedBefore} className={`text-[15px] font-bold ${isCustomer ? "text-pos" : "text-neg"}`} />
+                {before !== 0 && (
+                  <Money value={Math.abs(before)} className={`text-[15px] font-bold ${before > 0 ? "text-pos" : "text-neg"}`} />
+                )}
                 <button type="button" onClick={() => setParty(null)} className="text-[12px] font-semibold text-brand">
                   تغيير
                 </button>
@@ -165,7 +168,7 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
             {/* -------------------------------- السطور -------------------------------- */}
             <Card className="mb-4 overflow-hidden">
               {lines.length === 0 ? (
-                <Empty>{isCustomer ? "ضيف الموديلات اللي رجعت" : "ضيف الموديلات اللي هترجع للمصنع"}</Empty>
+                <Empty>{isCustomer ? "ضيف الموديلات اللي رجعت" : "ضيف الموديلات اللي هترجّعها"}</Empty>
               ) : (
                 lines.map((l, i) => (
                   <div key={l.id}>
@@ -189,7 +192,7 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                 ))
               )}
               <div className="border-t border-line">
-                <AddLine dir={dir} factoryId={party.id} onAdd={(l) => setLines((v) => [...v, l])} />
+                <AddLine dir={dir} supplierId={party.id} onAdd={(l) => setLines((v) => [...v, l])} />
               </div>
             </Card>
 
@@ -283,7 +286,7 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                       <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
                         <span className="text-ink-soft">{party.name}</span>
                         <span className="font-bold">
-                          <Balance value={owedAfter} customer={isCustomer} />
+                          <Balance value={after} />
                         </span>
                       </div>
                     )}
@@ -307,27 +310,25 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
   );
 }
 
-/** owed موجب = لسه في دين بنفس الاتجاه · سالب = الاتجاه اتقلب */
-function Balance({ value, customer }: { value: number; customer: boolean }) {
+/** الرصيد بعد المرتجع: موجب = عليه · سالب = ليه عندك — أياً كان نوع الطرف */
+function Balance({ value }: { value: number }) {
   if (value === 0) return <span className="text-pos">الحساب هيتقفل ✓</span>;
   if (value > 0)
     return (
       <>
-        {customer ? "هيبقى عليه " : "هيبقى ليه "}
-        <Money value={value} />
+        هيبقى عليه <Money value={value} />
       </>
     );
   return (
     <>
-      {customer ? "هيبقى ليه عندك " : "هيبقى عليه "}
-      <Money value={-value} />
+      هيبقى ليه عندك <Money value={-value} />
     </>
   );
 }
 
 /* ====================== إضافة سطر — الكيبورد مبيقفلش ====================== */
 
-function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd: (l: Line) => void }) {
+function AddLine({ dir, supplierId, onAdd }: { dir: Dir; supplierId: string; onAdd: (l: Line) => void }) {
   const [field, modelRef] = useModelField({ allowNew: false });
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
@@ -338,9 +339,9 @@ function AddLine({ dir, factoryId, onAdd }: { dir: Dir; factoryId: string; onAdd
   const model = field.model;
   const notFound = notFoundText(field);
   const isCustomer = dir === "customer";
-  // للمصنع: تكلفة القطعة من آخر استلام للموديل ده من المصنع ده — ومنه بنعرف الأمر
+  // للمورد: تكلفة القطعة من آخر دفعة للموديل ده منه — ومنها بنعرف الأمر لو جاية من تصنيع
   const batch =
-    !isCustomer && model ? [...model.batches].reverse().find((b) => b.sourceId === factoryId) : undefined;
+    !isCustomer && model ? [...model.batches].reverse().find((b) => b.sourceId === supplierId) : undefined;
   const work = batch?.unitCost;
   const priceN = price === "" && work ? work / 100 : Number(price);
   const over = !isCustomer && model && Number(qty) > stockOf(model);
