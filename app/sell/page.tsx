@@ -45,7 +45,7 @@ export default function SellPage() {
 
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
   const paidP = walkIn ? total : paid.trim() === "" ? 0 : p(Number(paid) || 0);
-  const remaining = Math.max(0, total - paidP);
+  const { remaining, fromOld, after } = splitPaid(customer?.balance ?? 0, total, paidP);
 
   if (done && customer) {
     return (
@@ -87,8 +87,8 @@ export default function SellPage() {
         {/* ------------------------ عليه قبل الفاتورة ------------------------ */}
         {!walkIn && (
           <div className="mb-4 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
-            <span className="text-[13px] text-ink-soft">عليه قبل الفاتورة</span>
-            <Money value={customer.balance} className="text-[15px] font-bold text-pos" />
+            <span className="text-[13px] text-ink-soft">حسابه قبل الفاتورة</span>
+            <Balance value={customer.balance} className="text-[15px]" />
           </div>
         )}
 
@@ -176,7 +176,8 @@ export default function SellPage() {
 
             {!walkIn && (
               <p className="mt-2.5 text-[11px] leading-relaxed text-ink-mute">
-                سيبها فاضية = آجل بالكامل · اكتب الإجمالي = نقدي بالكامل
+                سيبها فاضية = آجل بالكامل · اكتب الإجمالي = نقدي بالكامل · أكتر من
+                الإجمالي = الزيادة تنزل من حسابه القديم
               </p>
             )}
           </div>
@@ -185,22 +186,31 @@ export default function SellPage() {
             <>
               <div className="ms-4 border-t border-line-soft" />
 
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-[14px] font-semibold">باقي على الفاتورة</span>
-                <Money
-                  value={remaining}
-                  className={`text-[18px] font-bold ${remaining > 0 ? "text-neg" : "text-pos"}`}
-                />
-              </div>
+              {fromOld > 0 ? (
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-[14px] font-semibold">اتخصم من القديم</span>
+                  <Money value={fromOld} className="text-[18px] font-bold text-pos" />
+                </div>
+              ) : (
+                <div className="flex items-center justify-between px-4 py-3">
+                  <span className="text-[14px] font-semibold">باقي على الفاتورة</span>
+                  <Money
+                    value={remaining}
+                    className={`text-[18px] font-bold ${remaining > 0 ? "text-neg" : "text-pos"}`}
+                  />
+                </div>
+              )}
 
               <div className="bg-sunken px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] text-ink-soft">حسابه دلوقتي</span>
-                  <Money
-                    value={customer.balance + remaining}
-                    className="text-[15px] font-bold text-pos"
-                  />
+                  <Balance value={after} className="text-[15px]" />
                 </div>
+                {after < 0 && (
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-warn">
+                    دفع أكتر من الفاتورة واللي عليه — الزيادة هتتسجل ليه عندك.
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -604,6 +614,30 @@ function NewCustomer({
   );
 }
 
+/**
+ * المدفوع وقت البيع بيروح فين (الـ spec، قسم 6): الفاتورة الأول، والزيادة تنزل
+ * من القديم، ولو عدّت القديم كمان تبقى ليه عندك.
+ *   عليه 3,000 · فاتورة 7,200 · دفع 11,200 → اتخصم من القديم 3,000 · ليه عندك 1,000
+ */
+function splitPaid(balance: number, total: number, paid: number) {
+  const extra = Math.max(0, paid - total);
+  return {
+    remaining: Math.max(0, total - paid),
+    fromOld: Math.min(extra, Math.max(0, balance)),
+    after: balance + total - paid,
+  };
+}
+
+/** رصيد العميل: موجب = عليه · سالب = ليه عندك (دفع أكتر من اللي عليه) */
+function Balance({ value, className = "" }: { value: number; className?: string }) {
+  if (value >= 0) return <Money value={value} className={`font-bold text-pos ${className}`} />;
+  return (
+    <span className={`font-bold text-neg ${className}`}>
+      ليه عندك <Money value={-value} />
+    </span>
+  );
+}
+
 /* ============================ بعد الحفظ ============================ */
 
 function Saved({
@@ -619,7 +653,7 @@ function Saved({
   accountName: string;
   onNew: () => void;
 }) {
-  const remaining = Math.max(0, total - paid);
+  const { remaining, fromOld, after } = splitPaid(customer.balance, total, paid);
 
   if (customer.isCash) {
     return (
@@ -668,13 +702,20 @@ function Saved({
               <span className="text-ink-soft">دفع</span>
               <Money value={paid} className="font-semibold" />
             </div>
-            <div className="flex justify-between">
-              <span className="text-ink-soft">باقي على الفاتورة</span>
-              <Money value={remaining} className="font-semibold text-neg" />
-            </div>
+            {fromOld > 0 ? (
+              <div className="flex justify-between">
+                <span className="text-ink-soft">اتخصم من القديم</span>
+                <Money value={fromOld} className="font-semibold text-pos" />
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="text-ink-soft">باقي على الفاتورة</span>
+                <Money value={remaining} className="font-semibold text-neg" />
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-ink-soft">حسابه دلوقتي</span>
-              <Money value={customer.balance + remaining} className="font-bold text-pos" />
+              <Balance value={after} />
             </div>
           </div>
         </Card>

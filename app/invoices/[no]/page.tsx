@@ -111,15 +111,22 @@ export default async function InvoicePage({ params }: { params: Promise<{ no: st
             </span>
             <Money value={inv.paid} className="text-[15px] font-semibold text-pos" />
           </div>
-          {!walkIn && (
-            <div className="flex items-center justify-between border-t border-line-soft px-4 py-3">
-              <span className="text-[14px] text-ink-soft">اتكتب عليه</span>
-              <Money
-                value={remaining}
-                className={`text-[15px] font-bold ${remaining > 0 ? "text-neg" : "text-ink"}`}
-              />
-            </div>
-          )}
+          {!walkIn &&
+            (inv.paid > total ? (
+              // دفع أكتر من الفاتورة: الزيادة نزلت من حسابه — من القديم، أو بقت ليه عندك (الـ spec، قسم 6)
+              <div className="flex items-center justify-between border-t border-line-soft px-4 py-3">
+                <span className="text-[14px] text-ink-soft">الزيادة نزلت من حسابه</span>
+                <Money value={inv.paid - total} className="text-[15px] font-bold text-pos" />
+              </div>
+            ) : (
+              <div className="flex items-center justify-between border-t border-line-soft px-4 py-3">
+                <span className="text-[14px] text-ink-soft">اتكتب عليه</span>
+                <Money
+                  value={remaining}
+                  className={`text-[15px] font-bold ${remaining > 0 ? "text-neg" : "text-ink"}`}
+                />
+              </div>
+            ))}
         </Card>
 
         {!walkIn && remaining > 0 && (
