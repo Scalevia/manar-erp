@@ -7,34 +7,18 @@ import { isEgyptMobile } from "@/lib/format";
 import { ofKind, TODAY, type Party } from "@/lib/mock";
 
 /**
- * الشاشة اللي بتختار منها — الكلام بيتغير، بس القايمة واحدة: كل الموردين
- * (مصانع وتجار قماش وتجار بضاعة نوع واحد، الـ spec قسم 7). كده المصنع اللي
- * بيصنّعلك وبيبيعلك جاهز يفضل حساب واحد.
- */
-type Role = "factory" | "fabric" | "goods";
-
-const LABELS: Record<Role, { add: string; name: string }> = {
-  factory: { add: "مصنع جديد", name: "اسم المصنع" },
-  fabric: { add: "تاجر قماش جديد", name: "اسم تاجر القماش" },
-  goods: { add: "تاجر جديد", name: "اسم التاجر" },
-};
-
-/**
- * اختيار مورد من القايمة، أو إضافة واحد جديد من نفس الشاشة
+ * اختيار مورد (مصنع أو تاجر — نوع واحد، الـ spec قسم 7) من القايمة، أو إضافة واحد جديد من نفس الشاشة
  * (الاسم، والموبايل اختياري) — زي «عميل جديد» في البيع.
  * بيرجّع الطرف لما يبقى جاهز، وnull لحد كده.
  */
 export function PartyPicker({
-  role,
   value,
   onChange,
 }: {
-  role: Role;
   value: Party | null;
   onChange: (x: Party | null) => void;
 }) {
   const list = ofKind("supplier");
-  const label = LABELS[role];
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -61,8 +45,8 @@ export function PartyPicker({
             setName(e.target.value);
             report(e.target.value, phone);
           }}
-          placeholder={label.name}
-          aria-label={label.name}
+          placeholder="اسم المصنع أو التاجر"
+          aria-label="اسم المورد"
           className="h-12 w-full rounded-xl border border-line bg-page px-3 text-[16px] outline-none placeholder:text-ink-mute/60 focus:border-brand"
         />
         {existing && (
@@ -143,7 +127,7 @@ export function PartyPicker({
           className="press flex w-full items-center gap-2 px-4 py-3 text-[14px] font-semibold text-brand active:bg-sunken"
         >
           <UserPlus size={17} />
-          {label.add}
+          مورد جديد
         </button>
       </div>
     </Card>

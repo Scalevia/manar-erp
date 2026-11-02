@@ -1,3 +1,6 @@
+"use client";
+
+import { use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HandCoins, HeartHandshake, Phone } from "lucide-react";
@@ -7,9 +10,6 @@ import {
   byId,
   isAdvance,
   isCollectFrom,
-  jobsOfFactory,
-  jobSummary,
-  jobTitle,
   statementOf,
   TODAY,
   type Party,
@@ -21,12 +21,12 @@ function kindLabel(x: Party) {
   return x.balance > 0 ? "سلفة · سلّفته" : "سلفة · استلفت منه";
 }
 
-export default async function StatementPage({
+export default function StatementPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id } = use(params);
   const party = byId(id);
   if (!party) notFound();
 
@@ -55,12 +55,8 @@ export default async function StatementPage({
           </>
         }
         back={
-          // يرجع للتبّة اللي هو فيها — من الرصيد، مش من النوع
-          party.kind === "person"
-            ? "/loans"
-            : party.balance > 0 || (party.balance === 0 && party.kind === "customer")
-              ? "/accounts"
-              : "/accounts?tab=payable"
+          // يرجع لتبويبه في الحسابات — التبويبات بالنوع
+          party.kind === "customer" ? "/accounts" : party.kind === "supplier" ? "/accounts?tab=suppliers" : "/accounts?tab=loans"
         }
       />
 
@@ -122,37 +118,6 @@ export default async function StatementPage({
             disabled={!party.phone}
           />
         </div>
-
-        {/* ---------------------------- أوامر التصنيع ---------------------------- */}
-        {/* الاستلام مبيظهرش في كشف المصنع — بيطلع من الأمر. فالأوامر هنا عشان يلاقيها */}
-        {jobsOfFactory(party.id).length > 0 && (
-          <>
-            <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">أوامر التصنيع عنده</h2>
-            <Card className="mb-5 overflow-hidden">
-              {jobsOfFactory(party.id).map((j, i) => {
-                const s = jobSummary(j);
-                return (
-                  <Link
-                    key={j.id}
-                    href={`/jobs/${j.id}`}
-                    className={`press flex items-center gap-3 px-4 py-3 active:bg-sunken ${i > 0 ? "border-t border-line-soft" : ""}`}
-                  >
-                    <span className="text-[14px] font-semibold">{jobTitle(j)}</span>
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-ink-mute">
-                      {j.name}
-                      {j.closedAt ? " · اتقفل" : ""}
-                    </span>
-                    {!j.closedAt && (
-                      <span className="text-[12px] text-ink-mute">
-                        فاضل <Money value={s.remaining} className="font-semibold text-ink-soft" />
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </Card>
-          </>
-        )}
 
         {/* ------------------------------- كشف الحساب ------------------------------- */}
         <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">كشف الحساب</h2>

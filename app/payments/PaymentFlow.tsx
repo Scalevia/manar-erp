@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { Card, Empty, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { p } from "@/lib/format";
-import { byId, cashAccounts, isAdvance, isCollectFrom, payables, receivables, type Party } from "@/lib/mock";
+import { actions, byId, cashAccounts, isAdvance, isCollectFrom, payables, receivables, type Party } from "@/lib/mock";
 
 /**
  * تحصيل أو دفع لأي حساب (العملية 7 في الـ spec).
@@ -29,7 +29,10 @@ export default function PaymentFlow({ initialPartyId }: { initialPartyId?: strin
     <PaymentForm
       party={party}
       onChange={() => setParty(null)}
-      onSave={(amount, accountId, collect) => setSaved({ amount, accountId, collect })}
+      onSave={(amount, accountId, collect) => {
+        actions.pay({ partyId: party.id, collect, amount, accountId });
+        setSaved({ amount, accountId, collect });
+      }}
     />
   );
 }

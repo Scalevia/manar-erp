@@ -6,6 +6,7 @@ import { Check, Undo2 } from "lucide-react";
 import { ModelInput, ModelModeToggle, ModelSuggestions, newModelText, useModelField } from "@/components/ModelField";
 import { Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
+import { actions } from "@/lib/mock";
 
 /** الموديل بكوده أو باسمه — فيه بضاعة من غير كود */
 type Entry = { id: number; code?: number; name?: string; pieces: number; cost: number };
@@ -19,12 +20,7 @@ type Entry = { id: number; code?: number; name?: string; pieces: number; cost: n
  * تكرار الكود **مسموح ومتوقع** — نفس الموديل ممكن يكون بتكلفتين من أمرين تصنيع.
  */
 export default function StockEntryPage() {
-  const [rows, setRows] = useState<Entry[]>([
-    { id: 4, name: "طقم ولادي", pieces: 48, cost: p(70) },
-    { id: 3, code: 190, pieces: 45, cost: p(120) },
-    { id: 2, code: 208, pieces: 180, cost: p(92) },
-    { id: 1, code: 214, pieces: 340, cost: p(85) },
-  ]);
+  const [rows, setRows] = useState<Entry[]>([]);
 
   const [field, modelRef] = useModelField({ allowNew: true });
   const [pieces, setPieces] = useState("");
@@ -150,7 +146,12 @@ export default function StockEntryPage() {
         </Card>
 
         {/* -------------------------------- الاعتماد -------------------------------- */}
-        <Link href="/setup" className="press mt-4 block">
+        {/* الاعتماد بيقيّد السطور كلها مرة واحدة — دفعة لكل سطر بتكلفته */}
+        <Link
+          href="/inventory"
+          onClick={() => actions.openingStock(rows.map((r) => ({ code: r.code, name: r.name, qty: r.pieces, unitCost: r.cost })))}
+          className={`press mt-4 block ${rows.length === 0 ? "pointer-events-none opacity-40" : ""}`}
+        >
           <div className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-card py-3.5 text-[15px] font-bold text-ink-soft">
             <Check size={18} />
             خلصت — اعتماد الجرد

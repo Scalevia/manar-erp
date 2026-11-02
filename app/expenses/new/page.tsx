@@ -5,23 +5,19 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { Card, Money, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { cashAccounts, expenseCategories, factoryOf, jobSummary, jobTitle, openJobs } from "@/lib/mock";
+import { actions, cashAccounts, expenseCategories } from "@/lib/mock";
 
 export default function NewExpensePage() {
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [accountId, setAccountId] = useState(cashAccounts[0].id);
   const [note, setNote] = useState("");
-  // «المصروف ده تبع أمر تصنيع؟» — لو أيوه، الفلوس تدخل الأمر مش الربح (الـ spec، قسم 7)
-  const [jobId, setJobId] = useState("");
   const [saved, setSaved] = useState(false);
 
   const amountP = p(Number(amount) || 0);
   const account = cashAccounts.find((a) => a.id === accountId)!;
   const category = expenseCategories.find((c) => c.id === categoryId);
   const personal = !!category?.personal;
-  const jobs = openJobs();
-  const job = personal ? undefined : jobs.find((j) => j.id === jobId);
   const short = amountP > account.balance;
   const ready = amountP > 0 && !!category;
 
@@ -30,7 +26,6 @@ export default function NewExpensePage() {
     setCategoryId("");
     setAccountId(cashAccounts[0].id);
     setNote("");
-    setJobId("");
     setSaved(false);
   }
 
@@ -49,13 +44,8 @@ export default function NewExpensePage() {
               <span className="text-[14px] text-ink-mute">ج</span>
             </div>
             <div className="mt-2 text-[13px] text-ink-mute">
-              من {account.name} · فاضل فيه <Money value={account.balance - amountP} /> ج
+              من {account.name} · فاضل فيه <Money value={account.balance} /> ج
             </div>
-            {job && (
-              <div className="mt-4 border-t border-line-soft pt-4 text-[13px] text-ink-soft">
-                دخل <span className="font-semibold">{jobTitle(job)}</span> — مش هيتحسب من مصاريف المحل
-              </div>
-            )}
           </Card>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -101,7 +91,7 @@ export default function NewExpensePage() {
         {/* -------------------------------- في إيه -------------------------------- */}
         <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">في إيه؟</div>
         <div className="mb-4 grid grid-cols-2 gap-2">
-          {expenseCategories.map((c) => (
+          {expenseCategories.filter((c) => !c.auto).map((c) => (
             <button
               key={c.id}
               type="button"
@@ -122,49 +112,6 @@ export default function NewExpensePage() {
             دي فلوس خارجة ليك، <span className="font-semibold">مش على المحل</span> — مش هتتحسب من
             مصاريف المحل.
           </div>
-        )}
-
-        {/* ------------------------------ تبع أمر؟ ------------------------------ */}
-        {category && !personal && jobs.length > 0 && (
-          <>
-            <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">المصروف ده تبع أمر تصنيع؟</div>
-            <div className="mb-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setJobId("")}
-                aria-pressed={jobId === ""}
-                className={`press rounded-xl border px-3 py-2 text-[13px] font-semibold ${
-                  jobId === "" ? "border-brand bg-brand-soft text-brand" : "border-line bg-card text-ink-soft"
-                }`}
-              >
-                لا — على المحل
-              </button>
-              {jobs.map((j) => (
-                <button
-                  key={j.id}
-                  type="button"
-                  onClick={() => setJobId(j.id)}
-                  aria-pressed={jobId === j.id}
-                  className={`press rounded-xl border px-3 py-2 text-start text-[13px] font-semibold ${
-                    jobId === j.id ? "border-brand bg-brand-soft text-brand" : "border-line bg-card text-ink-soft"
-                  }`}
-                >
-                  {jobTitle(j)}
-                  <span className="ms-1 text-[11px] font-normal opacity-80">· {factoryOf(j).name}</span>
-                </button>
-              ))}
-            </div>
-            <p className="mb-4 px-1 text-[12px] text-ink-mute">
-              {job ? (
-                <>
-                  هيدخل {jobTitle(job)} (فاضل فيه <Money value={jobSummary(job).remaining + amountP} /> بعدها) ويبقى جزء من
-                  تكلفة القطعة — مش من الربح.
-                </>
-              ) : (
-                "زي شحن للمصنع أو تحميل قماش — لو تبع شغلانة، اختار أمرها."
-              )}
-            </p>
-          </>
         )}
 
         {/* --------------------------------- منين --------------------------------- */}
@@ -202,7 +149,10 @@ export default function NewExpensePage() {
         <button
           type="button"
           disabled={!ready}
-          onClick={() => setSaved(true)}
+          onClick={() => {
+            actions.expense({ categoryId, amount: amountP, accountId, note: note.trim() || undefined });
+            setSaved(true);
+          }}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
           حفظ المصروف

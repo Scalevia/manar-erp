@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, Info, UserPlus } from "lucide-react";
 import { Card, Money, Page, PageHeader } from "@/components/ui";
 import { formatPhone, isEgyptMobile, p, shortDate } from "@/lib/format";
-import { cashAccounts, ofKind, TODAY, type Party } from "@/lib/mock";
+import { actions, cashAccounts, ofKind, TODAY, type Party } from "@/lib/mock";
 
 type Dir = "in" | "out";
 
@@ -289,7 +289,10 @@ export default function LoanForm({ initialDir }: { initialDir: Dir }) {
         <button
           type="button"
           disabled={!ready}
-          onClick={() => setSaved(true)}
+          onClick={() => {
+            actions.loan({ person: target!, dir, amount: amountP, accountId, dueDate: due });
+            setSaved(true);
+          }}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
           حفظ

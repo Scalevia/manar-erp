@@ -1,26 +1,46 @@
 /**
- * بيانات عرض تجريبية.
+ * بيانات العرض — بتتحفظ في المتصفح عشان العميل يجرّب البرنامج بجد.
  *
- * الأنواع هنا مرآة لجداول Supabase الجاية (الـ spec، قسم 8)، عشان الربط
- * بعدين يبقى تبديل مصدر البيانات مش إعادة كتابة للشاشات.
+ * زي الداتابيز الجاية بالظبط (الـ spec، قسم 8): مفيش رصيد متخزن. اللي بيتخزن
+ * **العمليات** بس (بيع، شراء، دفع، مرتجع ...)، وكل حاجة تانية — أرصدة الناس
+ * وكشوف الحسابات والخزن والمخزون بالدفعات (FIFO) ورأس المال — بتتحسب منها.
+ * عشان كده الحسابات دايماً راكبة على بعض، مهما سجّل.
  *
- * كل المبالغ **بالقروش**. الإجماليات **محسوبة** مش مكتوبة بالإيد — نفس قاعدة
- * الـ spec: مفيش رصيد متخزن.
+ * البداية بيانات تجريبية (seed) تواريخها نسبة للنهاردة عشان العرض يفضل جديد،
+ * وزرار «رجّع البيانات التجريبية» في «المزيد» بيمسح اللي اتسجل ويبدأ من الأول.
+ *
+ * كل المبالغ **بالقروش**.
  */
 
-import { p, daysSince, normalizeArabic } from "./format";
+import { useSyncExternalStore } from "react";
+import { daysSince, normalizeArabic, p } from "./format";
 
-export const TODAY = "2026-09-23";
+/* ============================ التاريخ ============================ */
 
-/* ============================ الأطراف ============================ */
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+export const TODAY = iso(new Date());
+
+/** النهاردة ± أيام — للبيانات التجريبية */
+const day = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return iso(d);
+};
+
+const nowTime = () => {
+  const d = new Date();
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
+/* ============================ الأنواع ============================ */
 
 /**
  * تلات أنواع بس (الـ spec، قسم 7):
  *   customer = عميل — بيشتري منك
- *   supplier = مورد — مصنع أو تاجر قماش أو تاجر بضاعة: أي حد بتشتري منه أو بيشتغلك.
- *              نوع واحد عشان أي مورد يظهر في أي شاشة شراء أو استلام أو تصنيع،
- *              والمصنع اللي بيصنّعلك وبيبيعلك جاهز يبقى له حساب واحد
- *   person   = سلفة — شخص بينه وبين المحل سلفة (هو سلّف المحل، أو المحل سلّفه)
+ *   supplier = مورد — مصنع أو تاجر: أي حد بتشتري منه
+ *   person   = سلفة — شخص بينه وبين المحل سلفة
  */
 export type PartyKind = "customer" | "supplier" | "person";
 
@@ -29,91 +49,863 @@ export type Party = {
   kind: PartyKind;
   name: string;
   phone?: string;
-  /** موجب = ليا عنده · سالب = عليا له */
+  /** موجب = ليا عنده · سالب = عليا له — محسوب من العمليات */
   balance: number;
   /** أقدم مبلغ لسه مستحق — منه بييجي «من إمتى» */
   oldestDue?: string;
   lastActivity: string;
-  /** طرف «نقدي» للبيع لزبون طياري — مالوش حساب ومبيظهرش في قايمة العملاء */
+  /** طرف «نقدي» للبيع لزبون طياري — مالوش حساب ومبيظهرش في القوايم */
   isCash?: boolean;
-  /** ميعاد رجوع السلفة — اختياري، ولو قرّب بيظهر تنبيه في الرئيسية */
+  /** ميعاد رجوع السلفة */
   dueDate?: string;
 };
 
-export const parties: Party[] = [
-  // العملاء — ليا عندهم
-  { id: "c1", kind: "customer", name: "أحمد الشوا", phone: "01001234567", balance: p(45000), oldestDue: "2026-05-20", lastActivity: "2026-09-23" },
-  { id: "c2", kind: "customer", name: "محمود سعيد", phone: "01112223344", balance: p(38000), oldestDue: "2026-07-21", lastActivity: "2026-09-19" },
-  { id: "c3", kind: "customer", name: "عصام الجمل", phone: "01225556677", balance: p(32000), oldestDue: "2026-09-11", lastActivity: "2026-09-21" },
-  { id: "c4", kind: "customer", name: "رمضان أبو العلا", phone: "01008889900", balance: p(28500), oldestDue: "2026-09-15", lastActivity: "2026-09-22" },
-  { id: "c5", kind: "customer", name: "سيد النجار", phone: "01144556677", balance: p(24000), oldestDue: "2026-06-18", lastActivity: "2026-09-10" },
-  { id: "c6", kind: "customer", name: "خالد عبد ربه", phone: "01277889900", balance: p(18500), oldestDue: "2026-09-05", lastActivity: "2026-09-20" },
-  { id: "c7", kind: "customer", name: "مصطفى الليثي", phone: "01033445566", balance: p(12300), oldestDue: "2026-08-28", lastActivity: "2026-09-18" },
-  { id: "c8", kind: "customer", name: "جمال شحاتة", phone: "01155667788", balance: p(8700), oldestDue: "2026-09-14", lastActivity: "2026-09-22" },
-  { id: "c9", kind: "customer", name: "ياسر الدمرداش", phone: "01266778899", balance: p(3000), oldestDue: "2026-09-17", lastActivity: "2026-09-17" },
-  { id: "c10", kind: "customer", name: "نقدي", balance: 0, lastActivity: TODAY, isCash: true },
+export type CashAccount = { id: string; name: string; short: string; balance: number };
 
-  // الموردين — نوع واحد. الأسماء بس اللي بتفرق مصنع من تاجر
-  // مصانع — عليا ليهم (مصنعية)
-  { id: "f1", kind: "supplier", name: "مصنع النور", phone: "01020304050", balance: -p(18000), lastActivity: "2026-09-23" },
-  { id: "f2", kind: "supplier", name: "مصنع الأمانة", phone: "01060708090", balance: -p(14500), lastActivity: "2026-09-16" },
-  { id: "f3", kind: "supplier", name: "مصنع الشروق", phone: "01099887766", balance: -p(9000), lastActivity: "2026-09-12" },
-  // مقدّم: دفعتله 3,000 وبعدين 10,000 ولسه مستلمتش منه حاجة — عليه 13,000، فهو في «ليا»
-  { id: "f4", kind: "supplier", name: "مصنع الفجر", phone: "01066554433", balance: p(13000), lastActivity: "2026-09-20" },
+/** دفعة بضاعة في المحل — pieces = اللي لسه موجود منها، والبيع بياخد من الأقدم */
+export type Batch = {
+  receivedAt: string;
+  /** المورد اللي اشترى منه — أو العميل لو مرتجع، أو فاضي لو رصيد أول المدة */
+  sourceId: string;
+  pieces: number;
+  unitCost: number;
+};
 
-  // تجار القماش — عليا ليهم
-  { id: "s1", kind: "supplier", name: "حسن الأقمشة", phone: "01011223344", balance: -p(20000), lastActivity: "2026-09-23" },
-  { id: "s2", kind: "supplier", name: "مورد الدلتا", phone: "01233445566", balance: -p(6500), lastActivity: "2026-08-25" },
+/** الموديل بالكود أو بالاسم أو الاتنين (الـ spec، قسم 4) */
+export type Model = {
+  id: string;
+  code?: number;
+  name?: string;
+  batches: Batch[];
+  /** قطع اتباعت ومكانش ليها رصيد — المخزون بالسالب لحد ما الشراية تتسجل */
+  oversold?: number;
+  lastSale?: string;
+  soldThisMonth: number;
+};
 
-  // تجار بضاعة جاهزة — عليا ليهم
-  { id: "t1", kind: "supplier", name: "الحاج محمود للجملة", phone: "01098765432", balance: -p(4500), lastActivity: "2026-09-19" },
+export type LedgerRow = {
+  id: string;
+  date: string;
+  label: string;
+  /** موجب = زاد اللي عليه (في اتجاه الحساب العادي) · سالب = قلّ */
+  amount: number;
+  balance: number;
+};
 
-  // السلف — سالب: استلفت منه (عليا له) · موجب: سلّفته (ليا عنده)
-  { id: "p1", kind: "person", name: "حاج سيد العطار", phone: "01019876543", balance: -p(30000), lastActivity: "2026-09-10", dueDate: "2026-09-30" },
-  { id: "p2", kind: "person", name: "محمد الصبي", phone: "01147654321", balance: p(1500), oldestDue: "2026-09-20", lastActivity: "2026-09-20" },
+export type InvoiceLine = { modelId: string; qty: number; price: number };
+
+export type Invoice = {
+  no: number;
+  date: string;
+  time: string;
+  partyId: string;
+  lines: InvoiceLine[];
+  /** اتدفع كام وقت البيع */
+  paid: number;
+  accountId?: string;
+};
+
+export type StockBuy = {
+  id: string;
+  date: string;
+  supplierId: string;
+  lines: { modelId: string; qty: number; unitCost: number }[];
+  paid: number;
+  accountId?: string;
+};
+
+export type ExpenseCategory = { id: string; label: string; personal?: boolean; auto?: boolean };
+
+export type Expense = {
+  id: string;
+  date: string;
+  categoryId: string;
+  amount: number;
+  accountId: string;
+  note?: string;
+};
+
+export type CapitalIn = { id: string; date: string; amount: number; accountId: string; note?: string };
+
+export type ModelStat = { modelId: string; sold: number; revenue: number; cost: number };
+
+export type CapitalPeriod = {
+  id: "1m" | "3m" | "1y";
+  label: string;
+  days: number;
+  sales: number;
+  cogs: number;
+  expenses: number;
+  settlements: number;
+  added: number;
+  withdrawn: number;
+  topExpenses: { label: string; amount: number }[];
+};
+
+export type Activity = {
+  key: string;
+  date: string;
+  time?: string;
+  kind: "invoice" | "payment" | "expense" | "purchase" | "receive";
+  title: string;
+  sub: string;
+  amount: number;
+  href: string;
+};
+
+/* ============================ الثوابت ============================ */
+
+const CASH_ACCOUNTS = [
+  { id: "drawer", name: "الدرج", short: "الدرج" },
+  { id: "instapay", name: "انستاباي", short: "انستاباي" },
+  { id: "vcash", name: "فودافون كاش", short: "فودافون" },
 ];
 
+/** «سحب شخصي» مش مصروف: بيقلل الخزنة بس **مبيقللش الربح** */
+export const expenseCategories: ExpenseCategory[] = [
+  { id: "food", label: "أكل وشرب" },
+  { id: "transport", label: "مواصلات" },
+  { id: "shipping", label: "شحن وتحميل" },
+  { id: "wages", label: "يوميات" },
+  { id: "bills", label: "كهربا ومياه" },
+  { id: "rent", label: "إيجار" },
+  { id: "other", label: "حاجات تانية" },
+  { id: "personal", label: "سحب شخصي", personal: true },
+  // بيتسجل لوحده من التحويل بين الخزن — مش اختيار في «مصروف جديد»
+  { id: "fees", label: "مصاريف تحويل", auto: true },
+];
+
+export const categoryById = (id: string) => expenseCategories.find((c) => c.id === id);
+
+/** الزبون الطياري — حساب ثابت */
+export const cashParty: Party = { id: "cash", kind: "customer", name: "نقدي", balance: 0, lastActivity: TODAY, isCash: true };
+
+/* ============================ العمليات المتخزنة ============================ */
+
+type PartyRec = { id: string; kind: PartyKind; name: string; phone?: string; isCash?: boolean; createdAt: string };
+type ModelRec = { id: string; code?: number; name?: string };
+type SaleLine = { modelId: string; qty: number; price: number };
+type CostLine = { modelId: string; qty: number; unitCost: number };
+
+type TxBody =
+  | { t: "sale"; no: number; partyId: string; lines: SaleLine[]; paid: number; accountId?: string }
+  | { t: "buy"; supplierId: string; lines: CostLine[]; paid: number; accountId?: string }
+  | { t: "pay"; partyId: string; collect: boolean; amount: number; accountId: string; note?: string }
+  | { t: "settle"; partyId: string; amount: number; reason?: string }
+  | { t: "creturn"; partyId: string; lines: SaleLine[]; refund: boolean; accountId?: string }
+  | { t: "sreturn"; partyId: string; lines: CostLine[] }
+  | { t: "expense"; categoryId: string; amount: number; accountId: string; note?: string }
+  | { t: "transfer"; from: string; to: string; out: number; in: number }
+  | { t: "capital"; amount: number; accountId: string; note?: string }
+  | { t: "loan"; partyId: string; dir: "in" | "out"; amount: number; accountId: string; dueDate?: string }
+  | { t: "opening"; partyId: string; amount: number; since?: string }
+  | { t: "openCash"; accountId: string; amount: number }
+  | { t: "openStock"; modelId: string; qty: number; unitCost: number };
+
+type Tx = TxBody & { id: string; date: string; time: string };
+
+type Db = { v: 1; seq: number; invoiceNo: number; parties: PartyRec[]; models: ModelRec[]; txs: Tx[] };
+
+/* ============================ البيانات التجريبية ============================ */
+
+function seed(): Db {
+  const parties: PartyRec[] = [
+    { id: "cash", kind: "customer", name: "نقدي", isCash: true, createdAt: day(-200) },
+    { id: "c1", kind: "customer", name: "أحمد الشوا", phone: "01001234567", createdAt: day(-130) },
+    { id: "c2", kind: "customer", name: "محمود سعيد", phone: "01112223344", createdAt: day(-60) },
+    { id: "c3", kind: "customer", name: "عصام الجمل", phone: "01225556677", createdAt: day(-60) },
+    { id: "c4", kind: "customer", name: "رمضان أبو العلا", phone: "01008889900", createdAt: day(-30) },
+    { id: "c5", kind: "customer", name: "سيد النجار", phone: "01144556677", createdAt: day(-110) },
+    { id: "c6", kind: "customer", name: "خالد عبد ربه", phone: "01277889900", createdAt: day(-30) },
+    { id: "c7", kind: "customer", name: "مصطفى الليثي", phone: "01033445566", createdAt: day(-30) },
+    { id: "c8", kind: "customer", name: "جمال شحاتة", phone: "01155667788", createdAt: day(-20) },
+    { id: "c9", kind: "customer", name: "ياسر الدمرداش", phone: "01266778899", createdAt: day(-10) },
+    { id: "f1", kind: "supplier", name: "مصنع النور", phone: "01020304050", createdAt: day(-40) },
+    { id: "f2", kind: "supplier", name: "مصنع الأمانة", phone: "01060708090", createdAt: day(-40) },
+    { id: "f3", kind: "supplier", name: "مصنع الشروق", phone: "01099887766", createdAt: day(-40) },
+    { id: "f4", kind: "supplier", name: "مصنع الفجر", phone: "01066554433", createdAt: day(-40) },
+    { id: "t1", kind: "supplier", name: "الحاج محمود للجملة", phone: "01098765432", createdAt: day(-10) },
+    { id: "p1", kind: "person", name: "حاج سيد العطار", phone: "01019876543", createdAt: day(-20) },
+    { id: "p2", kind: "person", name: "محمد الصبي", phone: "01147654321", createdAt: day(-5) },
+  ];
+  const models: ModelRec[] = [
+    { id: "m214", code: 214, name: "قميص كاروهات" },
+    { id: "m208", code: 208, name: "بنطلون جينز" },
+    { id: "m221", code: 221, name: "تيشيرت قطن" },
+    { id: "m199", code: 199, name: "قميص سادة" },
+    { id: "m235", code: 235, name: "جاكيت خفيف" },
+    { id: "m190", code: 190, name: "جاكيت شتوي" },
+    { id: "m176", code: 176, name: "بلوزة صيفي" },
+    { id: "m183", code: 183, name: "شورت" },
+    { id: "m240", code: 240, name: "بلوزة شتوي" },
+    { id: "m168", code: 168 },
+    { id: "mk1", name: "طقم ولادي" },
+    { id: "mk2", name: "بيجامة حريمي" },
+    { id: "m226", code: 226, name: "بنطلون قماش" },
+  ];
+
+  const txs: Tx[] = [];
+  let n = 0;
+  const add = (date: string, body: TxBody, time = "12:00") => txs.push({ ...body, id: `s${++n}`, date, time } as Tx);
+  const sale = (date: string, partyId: string, lines: [string, number, number][], paid = 0, accountId?: string, time?: string) =>
+    add(date, { t: "sale", no: 0, partyId, lines: lines.map(([modelId, qty, price]) => ({ modelId, qty, price: p(price) })), paid: p(paid), accountId }, time);
+  const buy = (date: string, supplierId: string, lines: [string, number, number][], paid = 0, accountId?: string) =>
+    add(date, { t: "buy", supplierId, lines: lines.map(([modelId, qty, c]) => ({ modelId, qty, unitCost: p(c) })), paid: p(paid), accountId });
+  const pay = (date: string, partyId: string, collect: boolean, amount: number, accountId: string) =>
+    add(date, { t: "pay", partyId, collect, amount: p(amount), accountId });
+  const stock = (date: string, modelId: string, qty: number, cost: number) =>
+    add(date, { t: "openStock", modelId, qty, unitCost: p(cost) });
+  const expense = (date: string, categoryId: string, amount: number, accountId: string, note?: string) =>
+    add(date, { t: "expense", categoryId, amount: p(amount), accountId, note });
+
+  // ---- تهيئة المحل: الخزن والبضاعة اللي كانت موجودة ----
+  add(day(-200), { t: "openCash", accountId: "drawer", amount: p(40000) });
+  add(day(-200), { t: "openCash", accountId: "instapay", amount: p(80000) });
+  add(day(-200), { t: "openCash", accountId: "vcash", amount: p(5000) });
+  stock(day(-200), "m190", 45, 120);
+  stock(day(-200), "m176", 125, 86.67);
+  stock(day(-200), "m183", 62, 85);
+  stock(day(-60), "m168", 100, 88);
+  stock(day(-60), "m199", 180, 88);
+  stock(day(-60), "m208", 300, 78);
+  stock(day(-60), "mk1", 60, 70);
+  stock(day(-60), "mk2", 42, 95);
+  stock(day(-50), "m226", 60, 80);
+  // آخر بيعة من الراكد — من شهور
+  sale(day(-150), "cash", [["m176", 5, 120]], 600, "drawer");
+  sale(day(-110), "cash", [["m183", 2, 120]], 240, "drawer");
+  sale(day(-95), "cash", [["m190", 1, 160]], 160, "drawer");
+  // حسابات قديمة من الدفتر
+  add(day(-125), { t: "opening", partyId: "c1", amount: p(40000), since: day(-125) });
+  add(day(-100), { t: "opening", partyId: "c5", amount: p(20400), since: day(-100) });
+
+  // ---- مصنع النور: دفعات تحت الحساب، وبعدين البضاعة بالسعر اللي كتبه ----
+  pay(day(-34), "f1", false, 21000, "drawer");
+  pay(day(-31), "f1", false, 20000, "instapay");
+  pay(day(-29), "f1", false, 3000, "drawer");
+  buy(day(-19), "f1", [["m214", 300, 82]]);
+  buy(day(-2), "f1", [["m214", 390, 82]]);
+  pay(day(0), "f1", false, 2580, "drawer");
+  // مصنع الأمانة
+  pay(day(-29), "f2", false, 6500, "drawer");
+  buy(day(-15), "f2", [["m235", 120, 100]]);
+  buy(day(-7), "f2", [["m235", 90, 100]]);
+  // مصنع الشروق
+  pay(day(-17), "f3", false, 16200, "instapay");
+  buy(day(-13), "f3", [["m221", 256, 75]]);
+  buy(day(-11), "f3", [["m221", 80, 75]]);
+  // مصنع الفجر — مقدّم ولسه مسلّمش
+  pay(day(-34), "f4", false, 3000, "drawer");
+  pay(day(-3), "f4", false, 10000, "instapay");
+  // تاجر جاهز
+  buy(day(-4), "t1", [["m240", 100, 95]], 5000, "drawer");
+
+  // ---- المبيعات ----
+  sale(day(-56), "c2", [["m208", 70, 130], ["m199", 50, 130]]);
+  sale(day(-50), "c3", [["m208", 100, 120]]);
+  sale(day(-40), "c5", [["m168", 30, 120]]);
+  sale(day(-26), "c7", [["m199", 60, 120]], 2000, "drawer");
+  sale(day(-20), "c6", [["m226", 40, 115]]);
+  sale(day(-12), "c3", [["m221", 100, 120]]);
+  sale(day(-11), "c1", [["m214", 60, 120]]);
+  sale(day(-10), "c6", [["m221", 80, 120]]);
+  sale(day(-9), "c8", [["m235", 50, 130]]);
+  sale(day(-8), "c4", [["m214", 120, 120]], 4000, "instapay");
+  sale(day(-5), "c6", [["m214", 80, 120]]);
+  sale(day(-2), "c9", [["m240", 12, 130]]);
+  sale(day(-1), "c4", [["m221", 60, 120]]);
+  // بيع نقدي — زبون طياري
+  sale(day(-9), "cash", [["m221", 36, 105]], 3780, "drawer", "11:20");
+  sale(day(-8), "cash", [["m235", 6, 160]], 960, "instapay", "13:05");
+  sale(day(-5), "cash", [["m199", 24, 120]], 2880, "drawer", "10:40");
+  sale(day(-3), "cash", [["m208", 12, 130], ["m199", 12, 125], ["mk1", 12, 85]], 4080, "vcash", "16:15");
+  sale(day(-1), "cash", [["m221", 24, 110]], 2640, "drawer", "18:06");
+  sale(day(-1), "cash", [["m226", 30, 115]], 3450, "drawer", "12:57");
+  sale(day(0), "cash", [["m199", 12, 125], ["m208", 12, 130]], 3060, "vcash", "14:34");
+  sale(day(0), "cash", [["m221", 24, 110]], 2640, "drawer", "15:10");
+  sale(day(0), "cash", [["m214", 12, 125]], 1500, "drawer", "16:11");
+
+  // ---- التحصيل والمرتجعات والمسامحة ----
+  pay(day(-9), "c2", true, 10000, "instapay");
+  add(day(-4), { t: "creturn", partyId: "c2", lines: [{ modelId: "m208", qty: 5, price: p(130) }], refund: false });
+  pay(day(-3), "c1", true, 5000, "vcash");
+  add(day(-1), { t: "creturn", partyId: "c1", lines: [{ modelId: "m214", qty: 10, price: p(120) }], refund: false });
+  add(day(0), { t: "settle", partyId: "c1", amount: p(1000), reason: "تقريب" });
+
+  // ---- السلف وزيادة رأس المال والتحويل ----
+  add(day(-13), { t: "loan", partyId: "p1", dir: "in", amount: p(30000), accountId: "instapay", dueDate: day(7) });
+  add(day(-3), { t: "loan", partyId: "p2", dir: "out", amount: p(1500), accountId: "drawer" });
+  add(day(-18), { t: "capital", amount: p(20000), accountId: "instapay", note: "من بيع أرض" });
+  add(day(-6), { t: "transfer", from: "vcash", to: "drawer", out: p(3000), in: p(2950) });
+
+  // ---- المصاريف ----
+  expense(day(-82), "rent", 6000, "instapay", "إيجار");
+  expense(day(-52), "rent", 6000, "instapay", "إيجار");
+  expense(day(-40), "personal", 3000, "drawer", "للبيت");
+  expense(day(-22), "rent", 6000, "instapay", "إيجار الشهر");
+  expense(day(-8), "bills", 850, "instapay", "كهربا المحل");
+  expense(day(-2), "wages", 600, "drawer", "يومية شيّال");
+  expense(day(-1), "transport", 120, "drawer");
+  expense(day(-1), "other", 350, "drawer", "أكياس تغليف");
+  expense(day(0), "food", 150, "drawer", "فطار");
+  expense(day(0), "shipping", 400, "drawer", "تحميل بضاعة لأحمد الشوا");
+  expense(day(0), "personal", 2000, "drawer", "للبيت");
+
+  // أرقام الفواتير بالترتيب الزمني
+  const ordered = sortTxs(txs);
+  let no = 1000;
+  for (const t of ordered) if (t.t === "sale") t.no = ++no;
+  return { v: 1, seq: n, invoiceNo: no, parties, models, txs: ordered };
+}
+
+/** بالتاريخ وبعدين الساعة وبعدين ترتيب التسجيل */
+function sortTxs(txs: Tx[]) {
+  return txs
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => a.t.date.localeCompare(b.t.date) || timeKey(a.t.time) - timeKey(b.t.time) || a.i - b.i)
+    .map((x) => x.t);
+}
+const timeKey = (t: string) => {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/* ============================ الحالة والحفظ ============================ */
+
+const KEY = "manar-erp-demo-v1";
+let db: Db = seed();
+let version = 0;
+let loaded = false;
+const listeners = new Set<() => void>();
+
+function persist() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(db));
+  } catch {
+    // مساحة المتصفح أو وضع التصفح الخفي — البيانات تفضل في الذاكرة بس
+  }
+}
+
+function changed() {
+  rebuild();
+  version++;
+  listeners.forEach((fn) => fn());
+}
+
+/** بيتنادى مرة من StoreGate لما الصفحة تفتح في المتصفح */
+export function loadStore() {
+  if (loaded) return;
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) db = JSON.parse(raw) as Db;
+  } catch {
+    db = seed();
+  }
+  loaded = true;
+  changed();
+}
+
+/** اتحمّلت من المتصفح ولا لسه — على السيرفر دايماً لأ */
+export const useLoaded = () => useSyncExternalStore(subscribe, () => loaded, () => false);
+
+/** «رجّع البيانات التجريبية» — يمسح كل اللي اتسجل */
+export function resetStore() {
+  db = seed();
+  persist();
+  changed();
+}
+
+export function subscribe(fn: () => void) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+/** أي شاشة بتقرا البيانات بتناديه — بتترسم تاني لما حاجة تتسجل */
+export function useData() {
+  return useSyncExternalStore(subscribe, () => version, () => version);
+}
+
+/* ============================ المحسوب ============================ */
+/* مصفوفات ثابتة بتتملا من جديد بعد كل عملية — الشاشات بتقرا منها على طول */
+
+export const parties: Party[] = [];
+export const cashAccounts: CashAccount[] = [];
+export const models: Model[] = [];
+export const invoices: Invoice[] = [];
+export const stockBuys: StockBuy[] = [];
+export const expenses: Expense[] = [];
+export const capitalIns: CapitalIn[] = [];
+export const modelStats: ModelStat[] = [];
+export const capitalPeriods: CapitalPeriod[] = [];
+const statements = new Map<string, LedgerRow[]>();
+let started = TODAY;
+let recent: Activity[] = [];
+
+const fill = <T>(arr: T[], items: T[]) => {
+  arr.length = 0;
+  arr.push(...items);
+};
+
+/** اسم الموديل القصير في كشوف الحساب: الكود لو موجود، وإلا الاسم */
+const shortModel = (id: string) => {
+  const m = db.models.find((x) => x.id === id);
+  return m?.code !== undefined ? String(m.code) : (m?.name ?? "");
+};
+const accName = (id?: string) => CASH_ACCOUNTS.find((a) => a.id === id)?.name ?? "";
+const pieces = (lines: { qty: number }[]) => lines.reduce((s, l) => s + l.qty, 0);
+
+/** «قطعة» · «قطعتين» · «5 قطع» · «20 قطعة» */
+const qtyText = (n: number) => (n === 1 ? "قطعة" : n === 2 ? "قطعتين" : n <= 10 ? `${n} قطع` : `${n} قطعة`);
+
+function rebuild() {
+  const txs = sortTxs(db.txs);
+  const recs = new Map(db.parties.map((r) => [r.id, r]));
+
+  /* ---- الخزن ---- */
+  const cash = new Map(CASH_ACCOUNTS.map((a) => [a.id, 0]));
+  const addCash = (id: string | undefined, v: number) => {
+    if (id) cash.set(id, (cash.get(id) ?? 0) + v);
+  };
+
+  /* ---- الناس: الرصيد والكشف و«من إمتى» ---- */
+  // اتجاه الحساب العادي: العميل عليه · المورد ليه · السلفة حسب أول سلفة
+  const natural = new Map<string, boolean>();
+  for (const t of txs) if (t.t === "loan" && !natural.has(t.partyId)) natural.set(t.partyId, t.dir === "out");
+  type PS = { bal: number; rows: LedgerRow[]; last?: string; debits: { date: string; amt: number }[]; credit: number; dueDate?: string };
+  const ps = new Map<string, PS>(db.parties.map((r) => [r.id, { bal: 0, rows: [], debits: [], credit: 0 }]));
+  let rowN = 0;
+  const post = (partyId: string, date: string, label: string, delta: number, dueFrom?: string) => {
+    const r = recs.get(partyId);
+    const s = ps.get(partyId);
+    if (!r || !s || r.isCash) return;
+    s.bal += delta;
+    const nat = r.kind === "customer" ? true : r.kind === "supplier" ? false : (natural.get(partyId) ?? true);
+    s.rows.push({ id: `r${++rowN}`, date, label, amount: nat ? delta : -delta, balance: s.bal });
+    s.last = date;
+    // «من إمتى»: الفلوس اللي عليه بتتسدّ من الأقدم
+    if (delta > 0) {
+      let amt = delta;
+      const used = Math.min(amt, s.credit);
+      s.credit -= used;
+      amt -= used;
+      if (amt > 0) s.debits.push({ date: dueFrom ?? date, amt });
+    } else {
+      let c = -delta;
+      while (c > 0 && s.debits.length) {
+        const d = s.debits[0];
+        const take = Math.min(c, d.amt);
+        d.amt -= take;
+        c -= take;
+        if (d.amt === 0) s.debits.shift();
+      }
+      s.credit += c;
+    }
+  };
+  const balOf = (id: string) => ps.get(id)?.bal ?? 0;
+
+  /* ---- المخزون: دفعات بالأقدم ---- */
+  type MS = { batches: Batch[]; oversold: number; lastCost: number; lastSale?: string; events: { date: string; qty: number; revenue: number; cost: number }[] };
+  const ms = new Map<string, MS>(db.models.map((m) => [m.id, { batches: [], oversold: 0, lastCost: 0, events: [] }]));
+  const addStock = (modelId: string, date: string, sourceId: string, qty: number, unitCost: number) => {
+    const m = ms.get(modelId);
+    if (!m) return;
+    if (unitCost > 0) m.lastCost = unitCost;
+    // اللي اتباع بالسالب بيتقفل الأول (الـ spec، قسم 4)
+    const cover = Math.min(m.oversold, qty);
+    m.oversold -= cover;
+    if (qty - cover > 0) m.batches.push({ receivedAt: date, sourceId, pieces: qty - cover, unitCost });
+  };
+  /** بيطلّع قطع من الأقدم ويرجّع تكلفتها — اللي مش موجود بيبقى سالب بآخر سعر */
+  const takeStock = (modelId: string, qty: number, preferSource?: string) => {
+    const m = ms.get(modelId);
+    if (!m) return 0;
+    let left = qty;
+    let cost = 0;
+    const order = preferSource
+      ? [...m.batches.filter((b) => b.sourceId === preferSource).reverse(), ...m.batches.filter((b) => b.sourceId !== preferSource)]
+      : [...m.batches];
+    for (const b of order) {
+      if (left === 0) break;
+      const take = Math.min(left, b.pieces);
+      b.pieces -= take;
+      cost += take * b.unitCost;
+      left -= take;
+    }
+    m.batches = m.batches.filter((b) => b.pieces > 0);
+    if (left > 0) {
+      m.oversold += left;
+      cost += left * m.lastCost;
+    }
+    return cost;
+  };
+
+  const invs: Invoice[] = [];
+  const buys: StockBuy[] = [];
+  const exps: Expense[] = [];
+  const caps: CapitalIn[] = [];
+  const settleEvents: { date: string; cost: number }[] = [];
+  const acts: Activity[] = [];
+
+  for (const t of txs) {
+    switch (t.t) {
+      case "openCash":
+        addCash(t.accountId, t.amount);
+        break;
+      case "openStock":
+        addStock(t.modelId, t.date, "", t.qty, t.unitCost);
+        break;
+      case "opening":
+        post(t.partyId, t.date, "رصيد قديم من قبل البرنامج", t.amount, t.since);
+        break;
+      case "sale": {
+        const total = t.lines.reduce((s, l) => s + l.qty * l.price, 0);
+        post(t.partyId, t.date, `بيع ${qtyText(pieces(t.lines))}`, total);
+        if (t.paid > 0) {
+          addCash(t.accountId, t.paid);
+          post(t.partyId, t.date, `دفع ← ${accName(t.accountId)}`, -t.paid);
+        }
+        for (const l of t.lines) {
+          const cost = takeStock(l.modelId, l.qty);
+          const m = ms.get(l.modelId);
+          if (m) {
+            m.lastSale = t.date;
+            m.events.push({ date: t.date, qty: l.qty, revenue: l.qty * l.price, cost });
+          }
+        }
+        invs.push({ no: t.no, date: t.date, time: t.time, partyId: t.partyId, lines: t.lines, paid: t.paid, accountId: t.accountId });
+        const x = recs.get(t.partyId);
+        acts.push({
+          key: t.id, date: t.date, time: t.time, kind: "invoice",
+          title: x?.isCash ? "بيع نقدي" : `فاتورة · ${x?.name}`, sub: `#${t.no}`, amount: total, href: `/invoices/${t.no}`,
+        });
+        break;
+      }
+      case "buy": {
+        const total = t.lines.reduce((s, l) => s + l.qty * l.unitCost, 0);
+        const one = t.lines.length === 1 ? ` · موديل ${shortModel(t.lines[0].modelId)} × ${t.lines[0].unitCost / 100}` : "";
+        post(t.supplierId, t.date, `شراء ${qtyText(pieces(t.lines))}${one}`, -total);
+        if (t.paid > 0) {
+          addCash(t.accountId, -t.paid);
+          post(t.supplierId, t.date, `دفعتله ← من ${accName(t.accountId)}`, t.paid);
+        }
+        for (const l of t.lines) addStock(l.modelId, t.date, t.supplierId, l.qty, l.unitCost);
+        buys.push({ id: t.id, date: t.date, supplierId: t.supplierId, lines: t.lines, paid: t.paid, accountId: t.accountId });
+        acts.push({
+          key: t.id, date: t.date, time: t.time, kind: "receive",
+          title: `شراء مخزون · ${recs.get(t.supplierId)?.name}`, sub: qtyText(pieces(t.lines)), amount: total, href: `/accounts/${t.supplierId}`,
+        });
+        break;
+      }
+      case "pay": {
+        const r = recs.get(t.partyId);
+        const before = balOf(t.partyId);
+        let label: string;
+        if (t.collect) {
+          addCash(t.accountId, t.amount);
+          label = r?.kind === "supplier" ? `رجّعلي ← ${accName(t.accountId)}` : `دفع ← ${accName(t.accountId)}`;
+          post(t.partyId, t.date, label, -t.amount);
+        } else {
+          addCash(t.accountId, -t.amount);
+          label =
+            r?.kind === "supplier" && before >= 0
+              ? `دفعة تحت الحساب ← من ${accName(t.accountId)}`
+              : r?.kind === "customer"
+                ? `رجعتله فلوس ← من ${accName(t.accountId)}`
+                : `دفعتله ← من ${accName(t.accountId)}`;
+          post(t.partyId, t.date, label, t.amount);
+        }
+        acts.push({
+          key: t.id, date: t.date, time: t.time, kind: t.collect ? "payment" : "purchase",
+          title: `${t.collect ? "تحصيل" : "دفع"} · ${r?.name}`, sub: accName(t.accountId), amount: t.amount, href: `/accounts/${t.partyId}`,
+        });
+        break;
+      }
+      case "settle": {
+        const before = balOf(t.partyId);
+        // نحو الصفر: عليه فلوس ← سامحته (خسارة) · ليه فلوس ← سامحني (مكسب)
+        post(t.partyId, t.date, t.reason ? `مسامحة · ${t.reason}` : "مسامحة", before > 0 ? -t.amount : t.amount);
+        settleEvents.push({ date: t.date, cost: before > 0 ? t.amount : -t.amount });
+        break;
+      }
+      case "creturn": {
+        const total = t.lines.reduce((s, l) => s + l.qty * l.price, 0);
+        post(t.partyId, t.date, `مرتجع ${qtyText(pieces(t.lines))}`, -total);
+        if (t.refund) {
+          addCash(t.accountId, -total);
+          post(t.partyId, t.date, `رجعتله فلوس ← من ${accName(t.accountId)}`, total);
+        }
+        for (const l of t.lines) {
+          const m = ms.get(l.modelId);
+          const unit = m?.lastCost ?? 0;
+          addStock(l.modelId, t.date, t.partyId, l.qty, unit);
+          m?.events.push({ date: t.date, qty: -l.qty, revenue: -l.qty * l.price, cost: -l.qty * unit });
+        }
+        break;
+      }
+      case "sreturn": {
+        const total = t.lines.reduce((s, l) => s + l.qty * l.unitCost, 0);
+        post(t.partyId, t.date, `مرتجع ${qtyText(pieces(t.lines))} للمورد`, total);
+        for (const l of t.lines) takeStock(l.modelId, l.qty, t.partyId);
+        break;
+      }
+      case "expense": {
+        addCash(t.accountId, -t.amount);
+        exps.push({ id: t.id, date: t.date, categoryId: t.categoryId, amount: t.amount, accountId: t.accountId, note: t.note });
+        const c = categoryById(t.categoryId);
+        acts.push({
+          key: t.id, date: t.date, time: t.time, kind: "expense",
+          title: c?.personal ? "خدته لنفسك" : `مصروف · ${c?.label}`, sub: t.note ?? "", amount: t.amount, href: "/expenses",
+        });
+        break;
+      }
+      case "transfer": {
+        addCash(t.from, -t.out);
+        addCash(t.to, t.in);
+        // اتسحب 3,000 ودخل 2,950 ← الـ 50 مصروف لوحده (الـ spec، قسم 7)
+        if (t.out > t.in)
+          exps.push({ id: t.id, date: t.date, categoryId: "fees", amount: t.out - t.in, accountId: t.from, note: `تحويل ${accName(t.from)} ← ${accName(t.to)}` });
+        break;
+      }
+      case "capital":
+        addCash(t.accountId, t.amount);
+        caps.push({ id: t.id, date: t.date, amount: t.amount, accountId: t.accountId, note: t.note });
+        acts.push({
+          key: t.id, date: t.date, time: t.time, kind: "payment",
+          title: "زيادة رأس المال", sub: t.note ?? accName(t.accountId), amount: t.amount, href: "/capital",
+        });
+        break;
+      case "loan": {
+        if (t.dir === "in") {
+          addCash(t.accountId, t.amount);
+          post(t.partyId, t.date, `استلفت ← دخلت ${accName(t.accountId)}`, -t.amount);
+        } else {
+          addCash(t.accountId, -t.amount);
+          post(t.partyId, t.date, `سلّفته ← من ${accName(t.accountId)}`, t.amount);
+        }
+        const s = ps.get(t.partyId);
+        if (s) s.dueDate = t.dueDate;
+        break;
+      }
+    }
+  }
+
+  /* ---- النتايج ---- */
+  fill(
+    cashAccounts,
+    CASH_ACCOUNTS.map((a) => ({ ...a, balance: cash.get(a.id) ?? 0 })),
+  );
+
+  statements.clear();
+  fill(
+    parties,
+    db.parties.map((r) => {
+      const s = ps.get(r.id)!;
+      statements.set(r.id, s.rows);
+      return {
+        id: r.id,
+        kind: r.kind,
+        name: r.name,
+        phone: r.phone,
+        balance: r.isCash ? 0 : s.bal,
+        oldestDue: s.bal > 0 && s.debits.length ? s.debits[0].date : undefined,
+        lastActivity: s.last ?? r.createdAt,
+        isCash: r.isCash,
+        dueDate: s.bal !== 0 ? s.dueDate : undefined,
+      };
+    }),
+  );
+
+  const month = TODAY.slice(0, 7);
+  fill(
+    models,
+    db.models.map((r) => {
+      const m = ms.get(r.id)!;
+      return {
+        ...r,
+        batches: m.batches,
+        oversold: m.oversold || undefined,
+        lastSale: m.lastSale,
+        soldThisMonth: m.events.filter((e) => e.date.startsWith(month)).reduce((s, e) => s + e.qty, 0),
+      };
+    }),
+  );
+
+  fill(invoices, invs.sort((a, b) => a.no - b.no));
+  fill(stockBuys, buys);
+  fill(expenses, exps);
+  fill(capitalIns, caps);
+  recent = acts.reverse();
+
+  // أنهي موديل بيكسب — آخر 3 شهور
+  const since90 = day(-91);
+  fill(
+    modelStats,
+    db.models
+      .map((r) => {
+        const ev = ms.get(r.id)!.events.filter((e) => e.date > since90);
+        return {
+          modelId: r.id,
+          sold: ev.reduce((s, e) => s + e.qty, 0),
+          revenue: ev.reduce((s, e) => s + e.revenue, 0),
+          cost: ev.reduce((s, e) => s + e.cost, 0),
+        };
+      })
+      .filter((x) => x.sold > 0),
+  );
+
+  // رأس المال: ليه زاد ولا نقص في كل فترة
+  started = txs[0]?.date ?? TODAY;
+  const allEvents = [...ms.values()].flatMap((m) => m.events);
+  fill(
+    capitalPeriods,
+    (
+      [
+        ["1m", "آخر شهر", 30],
+        ["3m", "آخر 3 شهور", 91],
+        ["1y", "آخر سنة", 365],
+      ] as const
+    ).map(([id, label, days]) => {
+      const from = day(-days);
+      const inWin = (d: string) => d > from;
+      const ev = allEvents.filter((e) => inWin(e.date));
+      const shop = exps.filter((e) => inWin(e.date) && !categoryById(e.categoryId)?.personal);
+      const byCat = new Map<string, number>();
+      for (const e of shop) byCat.set(e.categoryId, (byCat.get(e.categoryId) ?? 0) + e.amount);
+      return {
+        id,
+        label,
+        days,
+        sales: ev.reduce((s, e) => s + e.revenue, 0),
+        cogs: ev.reduce((s, e) => s + e.cost, 0),
+        expenses: shop.reduce((s, e) => s + e.amount, 0),
+        settlements: settleEvents.filter((e) => inWin(e.date)).reduce((s, e) => s + e.cost, 0),
+        added: caps.filter((c) => inWin(c.date)).reduce((s, c) => s + c.amount, 0),
+        withdrawn: exps.filter((e) => inWin(e.date) && categoryById(e.categoryId)?.personal).reduce((s, e) => s + e.amount, 0),
+        topExpenses: [...byCat]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([c, amount]) => ({ label: categoryById(c)?.label ?? "", amount })),
+      };
+    }),
+  );
+}
+
+rebuild();
+
+/* ============================ التسجيل ============================ */
+
+const newId = () => `n${++db.seq}`;
+
+function commit(body: TxBody, date = TODAY) {
+  db.txs.push({ ...body, id: newId(), date, time: nowTime() } as Tx);
+  persist();
+  changed();
+}
+
+/** طرف جديد اتعمل من نفس الشاشة (id = "new") بيتسجل هنا الأول */
+function ensureParty(x: Party): string {
+  if (x.id !== "new" && !x.id.startsWith("new-") && db.parties.some((r) => r.id === x.id)) return x.id;
+  const id = newId();
+  db.parties.push({ id, kind: x.kind, name: x.name, phone: x.phone, createdAt: TODAY });
+  return id;
+}
+
+/** موديل جديد اتكتب كوده أو اسمه في السطر */
+type LineModel = { modelId?: string; code?: number; name?: string };
+function ensureModel(l: LineModel): string {
+  if (l.modelId && db.models.some((m) => m.id === l.modelId)) return l.modelId;
+  const found = db.models.find((m) => (l.code !== undefined && m.code === l.code) || (l.code === undefined && l.name && m.name === l.name));
+  if (found) return found.id;
+  const id = newId();
+  db.models.push({ id, code: l.code, name: l.name });
+  return id;
+}
+
+export const actions = {
+  /** بيع — ويرجّع رقم الفاتورة ورقم العميل (لو اتفتحله حساب جديد) */
+  sale(a: { party: Party; lines: SaleLine[]; paid: number; accountId?: string }) {
+    const partyId = ensureParty(a.party);
+    const no = ++db.invoiceNo;
+    commit({ t: "sale", no, partyId, lines: a.lines, paid: a.paid, accountId: a.paid > 0 ? a.accountId : undefined });
+    return { no, partyId };
+  },
+  buy(a: { supplier: Party; lines: (LineModel & { qty: number; unitCost: number })[]; paid: number; accountId?: string }) {
+    const supplierId = ensureParty(a.supplier);
+    const lines = a.lines.map((l) => ({ modelId: ensureModel(l), qty: l.qty, unitCost: l.unitCost }));
+    commit({ t: "buy", supplierId, lines, paid: a.paid, accountId: a.paid > 0 ? a.accountId : undefined });
+    return { supplierId };
+  },
+  pay(a: { partyId: string; collect: boolean; amount: number; accountId: string; note?: string }) {
+    commit({ t: "pay", ...a });
+  },
+  settle(a: { partyId: string; amount: number; reason?: string }) {
+    commit({ t: "settle", ...a });
+  },
+  customerReturn(a: { partyId: string; lines: SaleLine[]; refund: boolean; accountId?: string }) {
+    commit({ t: "creturn", ...a });
+  },
+  supplierReturn(a: { partyId: string; lines: CostLine[] }) {
+    commit({ t: "sreturn", ...a });
+  },
+  expense(a: { categoryId: string; amount: number; accountId: string; note?: string }) {
+    commit({ t: "expense", ...a });
+  },
+  transfer(a: { from: string; to: string; out: number; in: number }) {
+    commit({ t: "transfer", ...a });
+  },
+  capital(a: { amount: number; accountId: string; note?: string }) {
+    commit({ t: "capital", ...a });
+  },
+  loan(a: { person: Party; dir: "in" | "out"; amount: number; accountId: string; dueDate?: string }) {
+    const partyId = ensureParty(a.person);
+    commit({ t: "loan", partyId, dir: a.dir, amount: a.amount, accountId: a.accountId, dueDate: a.dueDate || undefined });
+    return { partyId };
+  },
+  /** فتح حساب — ولو له حساب قديم بيتسجل رصيد افتتاحي */
+  openAccount(a: { kind: PartyKind; name: string; phone?: string; opening: number; since?: string }) {
+    const id = ensureParty({ id: "new", kind: a.kind, name: a.name, phone: a.phone, balance: 0, lastActivity: TODAY });
+    if (a.opening !== 0) commit({ t: "opening", partyId: id, amount: a.opening, since: a.since || undefined });
+    else {
+      persist();
+      changed();
+    }
+    return { id };
+  },
+  /** جرد التهيئة — كل سطر دفعة بضاعة بتكلفتها */
+  openingStock(rows: (LineModel & { qty: number; unitCost: number })[]) {
+    for (const r of rows) {
+      const modelId = ensureModel(r);
+      db.txs.push({ t: "openStock", modelId, qty: r.qty, unitCost: r.unitCost, id: newId(), date: TODAY, time: nowTime() });
+    }
+    persist();
+    changed();
+  },
+};
+
+/* ============================ الأطراف ============================ */
+
 export const byId = (id: string) => parties.find((x) => x.id === id);
-export const cashParty = parties.find((x) => x.isCash)!;
 export const ofKind = (k: PartyKind) => parties.filter((x) => x.kind === k);
 
-/*
- * الاتجاه من **الرصيد**، مش من نوع الطرف: العميل عادةً عليه والمصنع عادةً ليه،
- * بس ده بيتقلب — عميل رجّع بضاعة أكتر من اللي عليه، أو مصنع اتقفل عليه أمر
- * («المصنع عليه الباقي»). لو الاتجاه من النوع، الطرف ده يختفي من «ليا» و«عليا»
- * الاتنين ومش بيتحسب في رأس المال.
- */
-
-/** «ليا»: أي حد عليه فلوس — الأقدم الأول، ده ترتيب «مين متأخر» */
+/** «ليا»: أي حد عليه فلوس — الأقدم الأول */
 export const receivables = () =>
   parties
     .filter((x) => x.balance > 0)
     .sort((a, b) => daysSince(b.oldestDue ?? TODAY) - daysSince(a.oldestDue ?? TODAY));
 
-/** «عليا»: أي حد ليه فلوس — مصانع وتجار وناس استلفت منهم، وعميل ليه عندي */
-export const payables = () =>
-  parties
-    .filter((x) => x.balance < 0)
-    .sort((a, b) => a.balance - b.balance);
+/** «عليا»: أي حد ليه فلوس */
+export const payables = () => parties.filter((x) => x.balance < 0).sort((a, b) => a.balance - b.balance);
 
 /**
  * شاشة الدفع بتفتح على أنهي اتجاه — وتقدر تقلبه («استلمت منه / دفعتله»):
- *   العميل: استلمت منه · المورد: دفعتله، حتى لو عليه فلوس — المقدّم عادي مع
- *   الموردين، ودفعة تانية لمورد عليه مقدّم لازم تبقى «دفع» مش «تحصيل»
- *   السلفة: حسب اتجاهها
- * القوايم («ليا» و«عليا») من الرصيد، مش من هنا.
+ * العميل استلمت منه · المورد دفعتله حتى لو عليه مقدّم · السلفة حسب اتجاهها.
  */
-export const isCollectFrom = (x: Party) =>
-  x.kind === "customer" || (x.kind === "person" && x.balance > 0);
+export const isCollectFrom = (x: Party) => x.kind === "customer" || (x.kind === "person" && x.balance > 0);
 
 /** الدفعة للمورد ده هتبقى مقدّم — مالوش حاجة عندك، أو عليه مقدّم أصلاً */
 export const isAdvance = (x: Party) => x.kind === "supplier" && x.balance >= 0;
 
-/**
- * حساب المورد بعد شراية (شراء مخزون · قماش · صرف على أمر): اللي مندفعش بيتخصم
- * من المقدّم الأول لو دفعله قبل كده، والباقي يبقى ليه. الرصيد بإشارته.
- *   عليه مقدّم 13,000 · شراية 10,000 من غير دفع → اتخصم 10,000 · لسه عليه 3,000
- */
+/** حساب المورد بعد شراية: اللي مندفعش بيتخصم من المقدّم الأول، والباقي يبقى ليه */
 export function afterPurchase(balance: number, unpaid: number) {
   return { fromAdvance: Math.min(unpaid, Math.max(0, balance)), after: balance - unpaid };
 }
@@ -124,92 +916,18 @@ export const loansDueSoon = () =>
     .filter((x) => x.balance !== 0 && x.dueDate && daysSince(TODAY, new Date(x.dueDate)) <= 7)
     .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
 
-/* ============================ الخزن ============================ */
-
-export type CashAccount = { id: string; name: string; short: string; balance: number };
-
-export const cashAccounts: CashAccount[] = [
-  { id: "drawer", name: "الدرج", short: "الدرج", balance: p(15000) },
-  { id: "instapay", name: "انستاباي", short: "انستاباي", balance: p(40000) },
-  { id: "vcash", name: "فودافون كاش", short: "فودافون", balance: p(3200) },
-];
+export const statementOf = (partyId: string): LedgerRow[] => statements.get(partyId) ?? [];
 
 /* ============================ الموديلات ============================ */
-
-/**
- * دفعة بضاعة دخلت المخزن — من مصنع (استلام) أو من تاجر (شراء مخزون).
- * نفس الكود ممكن يتكرر بسعرين (الـ spec، قسم 4). من المصنع: سعر القطعة بيكتبه
- * هو وقت الاستلام، وقيمتها بتطلع من فلوس أمر التصنيع (قسم 5). من التاجر: السعر
- * اللي اشترى بيه.
- */
-export type Batch = {
-  receivedAt: string;
-  /** المصنع (استلام) أو التاجر (شراء مخزون) */
-  sourceId: string;
-  pieces: number;
-  unitCost: number;
-  /** أمر التصنيع اللي طلعت منه — فاضي للبضاعة اللي كانت موجودة قبل البرنامج */
-  jobId?: string;
-};
-
-/**
- * الموديل بالكود أو بالاسم أو الاتنين — لازم واحد منهم على الأقل (الـ spec،
- * قسم 4). فيه هدوم من غير كود بيعرفها باسمها بس. كل حاجة بتتربط بالـ id، مش
- * بالكود.
- */
-export type Model = {
-  id: string;
-  code?: number;
-  name?: string;
-  batches: Batch[];
-  /**
-   * قطع اتباعت ومكانش ليها رصيد — البيع مبيقفش أبداً، والمخزون بيبقى بالسالب
-   * لحد ما الاستلام يتسجل (الـ spec، قسم 4). بيحصل لما البضاعة توصل قبل ما
-   * يسجّل استلامها، أو الجرد كان غلط.
-   */
-  oversold?: number;
-  lastSale?: string;
-  soldThisMonth: number;
-};
-
-export const models: Model[] = [
-  {
-    id: "m214", code: 214, name: "قميص كاروهات",
-    // أمر 7: وصل 300 ثم 390 — اتباع 200 من الدفعة الأولى
-    batches: [
-      { receivedAt: "2026-09-04", sourceId: "f1", pieces: 100, unitCost: p(82), jobId: "j7" },
-      { receivedAt: "2026-09-21", sourceId: "f1", pieces: 390, unitCost: p(82), jobId: "j7" },
-    ],
-    lastSale: "2026-09-20", soldThisMonth: 200,
-  },
-  { id: "m208", code: 208, name: "بنطلون جينز", batches: [{ receivedAt: "2026-08-20", sourceId: "f2", pieces: 180, unitCost: p(78) }], lastSale: "2026-09-22", soldThisMonth: 140 },
-  { id: "m221", code: 221, name: "تيشيرت قطن", batches: [{ receivedAt: "2026-09-12", sourceId: "f3", pieces: 260, unitCost: p(75), jobId: "j8" }], lastSale: "2026-09-21", soldThisMonth: 210 },
-  { id: "m199", code: 199, name: "قميص سادة", batches: [{ receivedAt: "2026-07-25", sourceId: "f1", pieces: 150, unitCost: p(88) }], lastSale: "2026-09-18", soldThisMonth: 60 },
-  { id: "m235", code: 235, name: "جاكيت خفيف", batches: [{ receivedAt: "2026-09-16", sourceId: "f2", pieces: 95, unitCost: p(100), jobId: "j6" }], lastSale: "2026-09-19", soldThisMonth: 25 },
-  { id: "m190", code: 190, name: "جاكيت شتوي", batches: [{ receivedAt: "2026-02-20", sourceId: "f2", pieces: 45, unitCost: p(120) }], lastSale: "2026-06-02", soldThisMonth: 0 },
-  { id: "m176", code: 176, name: "بلوزة صيفي", batches: [{ receivedAt: "2026-04-15", sourceId: "f3", pieces: 120, unitCost: p(86.67) }], lastSale: "2026-04-25", soldThisMonth: 0 },
-  { id: "m183", code: 183, name: "شورت", batches: [{ receivedAt: "2026-05-10", sourceId: "f3", pieces: 60, unitCost: p(85) }], lastSale: "2026-05-30", soldThisMonth: 0 },
-  // شراء مخزون: 100 قطعة جاهزة من الحاج محمود — اتباع منهم 12
-  { id: "m240", code: 240, name: "بلوزة شتوي", batches: [{ receivedAt: "2026-09-19", sourceId: "t1", pieces: 88, unitCost: p(95) }], lastSale: "2026-09-22", soldThisMonth: 12 },
-  { id: "m168", code: 168, batches: [{ receivedAt: "2026-06-12", sourceId: "f1", pieces: 70, unitCost: p(88) }], lastSale: "2026-09-14", soldThisMonth: 18 },
-  // من غير كود — بيعرفها باسمها بس
-  { id: "mk1", name: "طقم ولادي", batches: [{ receivedAt: "2026-04-20", sourceId: "f3", pieces: 48, unitCost: p(70) }], lastSale: "2026-09-20", soldThisMonth: 12 },
-  { id: "mk2", name: "بيجامة حريمي", batches: [{ receivedAt: "2026-03-15", sourceId: "f2", pieces: 36, unitCost: p(95) }], lastSale: "2026-09-10", soldThisMonth: 6 },
-  // بالسالب: خلص من المحل واتباع منه 10 قبل ما يسجّل الدفعة اللي وصلت
-  { id: "m226", code: 226, name: "بنطلون قماش", batches: [], oversold: 10, lastSale: "2026-09-22", soldThisMonth: 70 },
-];
 
 export const modelById = (id: string) => models.find((m) => m.id === id);
 export const modelByCode = (code: number) => models.find((m) => m.code === code);
 
 /** «214 · قميص كاروهات» · «168» · «طقم ولادي» */
 export const modelLabel = (m: Pick<Model, "code" | "name">) =>
-  m.code !== undefined && m.name ? `${m.code} · ${m.name}` : m.code !== undefined ? String(m.code) : m.name ?? "";
+  m.code !== undefined && m.name ? `${m.code} · ${m.name}` : m.code !== undefined ? String(m.code) : (m.name ?? "");
 
-/**
- * الموديل اللي اتكتب بالظبط: أرقام = كود · حروف = اسم بعد التوحيد
- * («بلوزه» تلاقي «بلوزة»). مفيش = موديل جديد أو غلطة.
- */
+/** الموديل اللي اتكتب بالظبط: أرقام = كود · حروف = اسم بعد التوحيد */
 export function findModel(q: string): Model | undefined {
   const t = normalizeArabic(q);
   if (!t) return undefined;
@@ -226,356 +944,31 @@ export function searchModels(q: string): Model[] {
   );
 }
 
-/** إجمالي القطع في المحل — ممكن يبقى بالسالب لو اتباع أكتر من المتسجل */
+/** القطع في المحل — ممكن يبقى بالسالب لو اتباع أكتر من المتسجل */
 export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0) - (m.oversold ?? 0);
 
-/** موديلات بالسالب — بتظهر في «محتاج انتباهك» لحد ما الاستلام يتسجل */
 export const oversoldModels = () => models.filter((m) => stockOf(m) < 0);
 
-/** قيمة الموديل بالقروش — متقرّبة لأقرب جنيه (تكلفة القطعة بس اللي بتتعرض بكسور) */
-export const valueOf = (m: Model) =>
-  Math.round(m.batches.reduce((s, b) => s + b.pieces * b.unitCost, 0) / 100) * 100;
+/** قيمة الموديل بالقروش — متقرّبة لأقرب جنيه */
+export const valueOf = (m: Model) => Math.round(m.batches.reduce((s, b) => s + b.pieces * b.unitCost, 0) / 100) * 100;
 
-/** راكد = آخر بيعة بقالها أكتر من 90 يوم وفيه مخزون */
+/** راكد = فيه مخزون وآخر بيعة بقالها أكتر من 90 يوم */
 export const isStale = (m: Model) =>
-  stockOf(m) > 0 && (!m.lastSale || daysSince(m.lastSale) > 90);
+  stockOf(m) > 0 && (!m.lastSale || daysSince(m.lastSale, new Date(TODAY)) > 90);
 
-/** متوسط تكلفة القطعة — للعرض في تفاصيل الموديل */
 export const avgCost = (m: Model) => {
   const n = stockOf(m);
-  return n === 0 ? 0 : Math.round(valueOf(m) / n);
+  return n <= 0 ? 0 : Math.round(valueOf(m) / n);
 };
 
-/* ===================== أوامر التصنيع — شنطة فلوس للشغلانة ===================== */
+export const buyTotal = (b: StockBuy) => b.lines.reduce((s, l) => s + l.qty * l.unitCost, 0);
+export const buyPieces = (b: StockBuy) => b.lines.reduce((s, l) => s + l.qty, 0);
 
-/**
- * الـ spec، قسم 5: كل جنيه بيتصرف على الشغلانة (قماش، مصنعية، سوست، شحن) بيدخل
- * الأمر، وكل استلام بيطلع منه بالعدد × السعر اللي هو كتبه.
- *   الفاضل = اللي اتصرف − قيمة اللي اتستلم — محسوب، مش خانة متخزنة.
- * الاستلام **مبيلمسش حساب المصنع**: المصنعية اتسجلت صرف على الأمر خلاص.
- */
-export type CloseMode = "spread" | "factory" | "loss";
+/* ============================ الفواتير ============================ */
 
-export type Job = {
-  id: string;
-  /** رقم الأمر — من sequence في الداتابيز */
-  no: number;
-  /**
-   * إجباري: الأمر بيتفتح عند مصنع. قماش اتشرى قبل ما يقرر المصنع بيتشال في
-   * المحل («القماش اللي عندي»)، ويتبعت للأمر «من عندي» لما يتفتح.
-   */
-  factoryId: string;
-  name?: string;
-  openedAt: string;
-  closedAt?: string;
-  /** الفاضل راح فين عند القفل — فاضي لو الأمر اتقفل على صفر */
-  closeMode?: CloseMode;
-};
-
-export const jobs: Job[] = [
-  { id: "j6", no: 6, factoryId: "f2", name: "235 جاكيت خفيف", openedAt: "2026-08-25", closedAt: "2026-09-17" },
-  { id: "j7", no: 7, factoryId: "f1", name: "214 صيف", openedAt: "2026-08-20" },
-  { id: "j8", no: 8, factoryId: "f3", name: "221 تيشيرت", openedAt: "2026-09-06", closedAt: "2026-09-13" },
-  { id: "j9", no: 9, factoryId: "f1", name: "199 شتوي", openedAt: "2026-09-05" },
-];
-
-/** بنود الصرف — صفوف في جدول زي أنواع المصاريف */
-export type JobCostItem = { id: string; label: string };
-
-export const jobCostItems: JobCostItem[] = [
-  { id: "fabric", label: "قماش" },
-  { id: "labor", label: "مصنعية" },
-  { id: "trims", label: "سوست وإكسسوار" },
-  { id: "shipping", label: "شحن" },
-  { id: "other", label: "تاني" },
-];
-
-export const costItemById = (id: string) => jobCostItems.find((x) => x.id === id);
-
-/** صرف على أمر — الأمر بيزيد بالمبلغ كله، والطرف ليه اللي مندفعش */
-export type JobCost = {
-  id: string;
-  jobId: string;
-  date: string;
-  itemId: string;
-  /** لمين — اختياري لو مدفوع كله (شحن، يومية تحميل) */
-  partyId?: string;
-  amount: number;
-  paid: number;
-  accountId?: string;
-  note?: string;
-  /** قماش «من عندي» — طالع من القماش اللي في المحل، مش شراية جديدة: الخزنة متتلمسش */
-  fromStock?: boolean;
-};
-
-export const jobCosts: JobCost[] = [
-  // أمر 7 · مصنع النور — نفس المثال اللي في الـ spec
-  { id: "jc1", jobId: "j7", date: "2026-08-20", itemId: "fabric", partyId: "s1", amount: p(21000), paid: p(21000), accountId: "drawer", note: "قطن" },
-  { id: "jc2", jobId: "j7", date: "2026-08-23", itemId: "fabric", partyId: "s1", amount: p(20000), paid: 0, note: "قطن أبيض" },
-  { id: "jc3", jobId: "j7", date: "2026-08-25", itemId: "trims", amount: p(3000), paid: p(3000), accountId: "drawer", note: "سوست وزراير" },
-  { id: "jc4", jobId: "j7", date: "2026-09-01", itemId: "labor", partyId: "f1", amount: p(14000), paid: 0 },
-  // أمر 6 · مصنع الأمانة — اتقفل على صفر
-  { id: "jc5", jobId: "j6", date: "2026-08-25", itemId: "fabric", partyId: "s2", amount: p(6500), paid: 0, note: "كتان" },
-  { id: "jc6", jobId: "j6", date: "2026-09-02", itemId: "labor", partyId: "f2", amount: p(14500), paid: 0 },
-  // أمر 9 · مصنع النور — لسه موصلش منه حاجة
-  { id: "jc7", jobId: "j9", date: "2026-09-05", itemId: "fabric", partyId: "s1", amount: p(15000), paid: p(15000), accountId: "instapay", note: "مولتون" },
-  { id: "jc8", jobId: "j9", date: "2026-09-09", itemId: "trims", amount: p(1200), paid: p(1200), accountId: "drawer", note: "زراير" },
-  { id: "jc9", jobId: "j9", date: "2026-09-18", itemId: "labor", partyId: "f1", amount: p(8000), paid: 0 },
-  { id: "jc12", jobId: "j9", date: "2026-09-22", itemId: "fabric", amount: p(12000), paid: 0, fromStock: true, note: "قطن مصري" },
-  // أمر 8 · مصنع الشروق — اتقفل على صفر
-  { id: "jc10", jobId: "j8", date: "2026-09-06", itemId: "fabric", partyId: "s1", amount: p(16200), paid: 0, note: "قطن ليكرا" },
-  { id: "jc11", jobId: "j8", date: "2026-09-08", itemId: "labor", partyId: "f3", amount: p(9000), paid: 0 },
-];
-
-/** استلام من المصنع — كل دفعة لوحدها، والقيمة بتطلع من الأمر */
-export type JobReceipt = {
-  id: string;
-  jobId: string;
-  date: string;
-  lines: { modelId: string; qty: number; unitCost: number }[];
-};
-
-export const jobReceipts: JobReceipt[] = [
-  { id: "jr1", jobId: "j7", date: "2026-09-04", lines: [{ modelId: "m214", qty: 300, unitCost: p(82) }] },
-  { id: "jr2", jobId: "j7", date: "2026-09-21", lines: [{ modelId: "m214", qty: 390, unitCost: p(82) }] },
-  { id: "jr3", jobId: "j6", date: "2026-09-08", lines: [{ modelId: "m235", qty: 120, unitCost: p(100) }] },
-  { id: "jr4", jobId: "j6", date: "2026-09-16", lines: [{ modelId: "m235", qty: 90, unitCost: p(100) }] },
-  { id: "jr5", jobId: "j8", date: "2026-09-10", lines: [{ modelId: "m221", qty: 256, unitCost: p(75) }] },
-  { id: "jr6", jobId: "j8", date: "2026-09-12", lines: [{ modelId: "m221", qty: 80, unitCost: p(75) }] },
-];
-
-/* ---------------------- القماش اللي في المحل — بالفلوس بس ---------------------- */
-
-/**
- * قماش اشتراه وشاله عنده (الـ spec، قسم 5): مفيش متر ولا كيلو ولا أنواع —
- * «قماش عندي» رقم واحد بالفلوس. بيزيد بالشراية، وبيقل لما يبعت منه لأمر
- * («صرفت · قماش · من عندي»). القماش اللي بيتشرى للأمر على طول مبيعديش هنا.
- */
-export type FabricBuy = {
-  id: string;
-  date: string;
-  supplierId: string;
-  amount: number;
-  paid: number;
-  accountId?: string;
-  note?: string;
-};
-
-export const fabricBuys: FabricBuy[] = [
-  { id: "fb1", date: "2026-09-20", supplierId: "s1", amount: p(30000), paid: p(30000), accountId: "instapay", note: "قطن مصري" },
-];
-
-/** القماش اللي طلع من المحل لأوامر */
-export const fabricSends = () => jobCosts.filter((c) => c.fromStock);
-
-export const fabricOnHand = () =>
-  fabricBuys.reduce((s, b) => s + b.amount, 0) - fabricSends().reduce((s, c) => s + c.amount, 0);
-
-export const jobById = (id: string) => jobs.find((j) => j.id === id);
-export const jobTitle = (j: Job) => `أمر ${j.no}`;
-export const factoryOf = (j: Job) => byId(j.factoryId)!;
-export const isOpen = (j: Job) => !j.closedAt;
-export const openJobs = () => jobs.filter(isOpen).sort((a, b) => b.no - a.no);
-export const closedJobs = () => jobs.filter((j) => !isOpen(j)).sort((a, b) => b.no - a.no);
-export const jobsOfFactory = (factoryId: string) =>
-  jobs.filter((j) => j.factoryId === factoryId).sort((a, b) => b.no - a.no);
-export const nextJobNo = () => Math.max(...jobs.map((j) => j.no)) + 1;
-
-export const receiptValue = (r: JobReceipt) => r.lines.reduce((s, l) => s + l.qty * l.unitCost, 0);
-export const receiptPieces = (r: JobReceipt) => r.lines.reduce((s, l) => s + l.qty, 0);
-
-/** أرقام الأمر كلها محسوبة من الصرف والاستلام */
-export function jobSummary(j: Job) {
-  const costs = jobCosts.filter((c) => c.jobId === j.id);
-  const receipts = jobReceipts.filter((r) => r.jobId === j.id);
-  const spent = costs.reduce((s, c) => s + c.amount, 0);
-  const receivedValue = receipts.reduce((s, r) => s + receiptValue(r), 0);
-  const receivedPieces = receipts.reduce((s, r) => s + receiptPieces(r), 0);
-  // القطع اللي لسه في المخزن من الأمر ده — عليها بس بيتوزع الفاضل عند القفل
-  const inStock = models
-    .flatMap((m) => m.batches)
-    .filter((b) => b.jobId === j.id)
-    .reduce((s, b) => s + b.pieces, 0);
-  const lastReceipt = receipts.map((r) => r.date).sort().pop();
-  // البنود متجمعة — «اتصرف عليه إيه»
-  const byItem = jobCostItems
-    .map((it) => ({ ...it, amount: costs.filter((c) => c.itemId === it.id).reduce((s, c) => s + c.amount, 0) }))
-    .filter((x) => x.amount > 0);
-  return {
-    costs, receipts, spent, receivedValue, receivedPieces, inStock, lastReceipt, byItem,
-    remaining: spent - receivedValue,
-  };
-}
-
-/** أمر مفتوح ومفيش استلام فيه من أكتر من 14 يوم — يمكن نسي يقفله */
-export const STALE_JOB_DAYS = 14;
-export const staleJobs = () =>
-  openJobs().filter((j) => {
-    const last = jobSummary(j).lastReceipt ?? j.openedAt;
-    return daysSince(last, new Date(TODAY)) > STALE_JOB_DAYS;
-  });
-
-/* ============================ كشوف الحسابات ============================ */
-
-export type LedgerRow = {
-  id: string;
-  date: string;
-  label: string;
-  /** موجب = زاد اللي عليه · سالب = قلّ */
-  amount: number;
-  balance: number;
-};
-
-const statements: Record<string, LedgerRow[]> = {
-  c1: [
-    { id: "l1", date: "2026-09-12", label: "بيع 60 قطعة", amount: p(7200), balance: p(52200) },
-    { id: "l2", date: "2026-09-20", label: "دفع ← فودافون كاش", amount: -p(5000), balance: p(47200) },
-    { id: "l3", date: "2026-09-22", label: "مرتجع 10 قطع", amount: -p(1200), balance: p(46000) },
-    { id: "l4", date: "2026-09-23", label: "مسامحة", amount: -p(1000), balance: p(45000) },
-  ],
-  c2: [
-    { id: "l5", date: "2026-09-03", label: "بيع 120 قطعة", amount: p(15600), balance: p(48600) },
-    { id: "l6", date: "2026-09-14", label: "دفع ← انستاباي", amount: -p(10000), balance: p(38600) },
-    { id: "l7", date: "2026-09-19", label: "مرتجع 5 قطع", amount: -p(600), balance: p(38000) },
-  ],
-  // المصانع: المصنعية بس — الاستلام مبيلمسش حسابهم (الـ spec، قسم 5)
-  f1: [
-    { id: "l8", date: "2026-09-01", label: "مصنعية · أمر 7", amount: p(14000), balance: -p(14000) },
-    { id: "l10", date: "2026-09-15", label: "دفعتله ← من الدرج", amount: -p(4000), balance: -p(10000) },
-    { id: "l18", date: "2026-09-18", label: "مصنعية · أمر 9", amount: p(8000), balance: -p(18000) },
-  ],
-  f2: [
-    { id: "l20", date: "2026-09-02", label: "مصنعية · أمر 6", amount: p(14500), balance: -p(14500) },
-  ],
-  f3: [
-    { id: "l23", date: "2026-09-08", label: "مصنعية · أمر 8", amount: p(9000), balance: -p(9000) },
-  ],
-  // المقدّم بيقلل «اللي ليه» تحت الصفر — فالرصيد بيبقى «عليه»
-  f4: [
-    { id: "l35", date: "2026-08-20", label: "دفعتله مقدّم ← من الدرج", amount: -p(3000), balance: p(3000) },
-    { id: "l36", date: "2026-09-20", label: "دفعتله مقدّم ← من انستاباي", amount: -p(10000), balance: p(13000) },
-  ],
-  p1: [
-    { id: "l14", date: "2026-09-10", label: "استلفت ← دخلت انستاباي", amount: p(30000), balance: -p(30000) },
-  ],
-  p2: [
-    { id: "l15", date: "2026-09-20", label: "سلّفته ← من الدرج", amount: p(1500), balance: p(1500) },
-  ],
-  s1: [
-    { id: "l26", date: "2026-08-20", label: "قماش · أمر 7 · قطن", amount: p(21000), balance: -p(21000) },
-    { id: "l27", date: "2026-08-20", label: "دفعتله ← من الدرج", amount: -p(21000), balance: 0 },
-    { id: "l13", date: "2026-08-23", label: "قماش · أمر 7 · قطن أبيض", amount: p(20000), balance: -p(20000) },
-    { id: "l29", date: "2026-09-05", label: "قماش · أمر 9 · مولتون", amount: p(15000), balance: -p(35000) },
-    { id: "l30", date: "2026-09-05", label: "دفعتله ← من انستاباي", amount: -p(15000), balance: -p(20000) },
-    { id: "l11", date: "2026-09-06", label: "قماش · أمر 8 · قطن ليكرا", amount: p(16200), balance: -p(36200) },
-    { id: "l12", date: "2026-09-16", label: "دفعتله ← من انستاباي", amount: -p(16200), balance: -p(20000) },
-    { id: "l31", date: "2026-09-20", label: "قماش · للمحل · قطن مصري", amount: p(30000), balance: -p(50000) },
-    { id: "l32", date: "2026-09-20", label: "دفعتله ← من انستاباي", amount: -p(30000), balance: -p(20000) },
-  ],
-  s2: [
-    { id: "l28", date: "2026-08-25", label: "قماش · أمر 6 · كتان", amount: p(6500), balance: -p(6500) },
-  ],
-  t1: [
-    { id: "l33", date: "2026-09-19", label: "شراء 100 قطعة · موديل 240 × 95", amount: p(9500), balance: -p(9500) },
-    { id: "l34", date: "2026-09-19", label: "دفعتله ← من الدرج", amount: -p(5000), balance: -p(4500) },
-  ],
-};
-
-/* باقي الأطراف: حركات بتتولّد وبتنتهي عند الرصيد بالظبط، عشان مفيش كشف حساب
-   فاضي ورصيده مش صفر. بتتشال لما الداتا الحقيقية تيجي من Supabase. */
-
-const addDays = (iso: string, n: number) =>
-  new Date(new Date(iso).getTime() + n * 86_400_000).toISOString().slice(0, 10);
-
-/** تقريب لأقرب 100 جنيه — الأرقام تبان طبيعية */
-const r100 = (piastres: number) => Math.round(piastres / p(100)) * p(100);
-
-const PRICE = p(120);
-
-/** تواريخ الحركات التلاتة: أول مبلغ مستحق · النص · آخر حركة */
-function historyDates(x: Party) {
-  const end = x.lastActivity;
-  const start = x.oldestDue ?? addDays(end, -24);
-  // في النص بين الأول والآخر — ولو نفس اليوم، يبقى نفس اليوم
-  const mid = addDays(start, Math.floor((+new Date(end) - +new Date(start)) / 86_400_000 / 2));
-  return { start, mid, end };
-}
-
-/**
- * العملاء: بيعتين بعدد قطع صحيح × 120 ج، والدفع اللي في النص هو اللي بيظبط
- * الفرق — كده كل بيعة في الكشف ليها فاتورة بسعر نضيف.
- */
-function customerSales(x: Party) {
-  const owed = x.balance;
-  const pieces1 = Math.max(1, Math.round((owed * 0.6) / PRICE));
-  const pieces2 = Math.max(1, Math.round((owed * 0.7) / PRICE));
-  const first = pieces1 * PRICE;
-  const last = pieces2 * PRICE;
-  const paid = first + last - owed;
-  return { pieces1, pieces2, first, last, paid };
-}
-
-function generatedStatement(x: Party): LedgerRow[] {
-  const owed = Math.abs(x.balance);
-  if (owed === 0) return [];
-  const { start, mid, end } = historyDates(x);
-
-  if (x.kind === "customer") {
-    const s = customerSales(x);
-    return [
-      { id: `${x.id}-1`, date: start, label: `بيع ${s.pieces1} قطعة`, amount: s.first, balance: s.first },
-      { id: `${x.id}-2`, date: mid, label: "دفع كاش ← الدرج", amount: -s.paid, balance: s.first - s.paid },
-      { id: `${x.id}-3`, date: end, label: `بيع ${s.pieces2} قطعة`, amount: s.last, balance: owed },
-    ];
-  }
-
-  // الموردين — الرصيد سالب (عليا له)
-  const first = r100(owed * 0.6);
-  const paid = r100(owed * 0.3);
-  const last = owed - first + paid;
-  const units = (amount: number, per: number) => Math.max(1, Math.round(amount / p(per)));
-
-  const [inLabel, outLabel, lastLabel] = [
-    `شراء ${units(first, 100)} قطعة`,
-    "دفعتله ← من الدرج",
-    `شراء ${units(last, 100)} قطعة`,
-  ];
-
-  return [
-    { id: `${x.id}-1`, date: start, label: inLabel, amount: first, balance: -first },
-    { id: `${x.id}-2`, date: mid, label: outLabel, amount: -paid, balance: -(first - paid) },
-    { id: `${x.id}-3`, date: end, label: lastLabel, amount: last, balance: -owed },
-  ];
-}
-
-export const statementOf = (partyId: string): LedgerRow[] => {
-  if (statements[partyId]) return statements[partyId];
-  const x = byId(partyId);
-  return x ? generatedStatement(x) : [];
-};
-
-/* ============================== الفواتير ============================== */
-
-export type InvoiceLine = { modelId: string; qty: number; price: number };
-
-export type Invoice = {
-  no: number;
-  date: string;
-  /** "10:35" — بتفرق لما يدوّر على فاتورة بعينها في يوم زحمة */
-  time: string;
-  partyId: string;
-  lines: InvoiceLine[];
-  /** اتدفع كام وقت البيع — مش اللي اتحصّل بعدين (ده في كشف الحساب) */
-  paid: number;
-  accountId?: string;
-};
-
-export const invoiceTotal = (inv: Invoice) =>
-  inv.lines.reduce((s, l) => s + l.qty * l.price, 0);
-
+export const invoiceTotal = (inv: Invoice) => inv.lines.reduce((s, l) => s + l.qty * l.price, 0);
 export const invoicePieces = (inv: Invoice) => inv.lines.reduce((s, l) => s + l.qty, 0);
 
-/** نوع الفاتورة وقت البيع: نقدي · جزئي · آجل */
 export function invoiceKind(inv: Invoice): "cash" | "partial" | "credit" {
   const total = invoiceTotal(inv);
   if (inv.paid >= total) return "cash";
@@ -583,77 +976,10 @@ export function invoiceKind(inv: Invoice): "cash" | "partial" | "credit" {
   return "credit";
 }
 
-const MODEL_IDS = ["m214", "m208", "m221", "m199", "m235", "m168"];
-
-/** بيعة واحدة مقسومة على موديلين، بنفس إجمالي القطع والسعر */
-function splitLines(pieces: number, seed: number): InvoiceLine[] {
-  const a = MODEL_IDS[seed % MODEL_IDS.length];
-  const b = MODEL_IDS[(seed + 2) % MODEL_IDS.length];
-  const qa = Math.ceil(pieces * 0.6);
-  const qb = pieces - qa;
-  return qb > 0
-    ? [{ modelId: a, qty: qa, price: PRICE }, { modelId: b, qty: qb, price: PRICE }]
-    : [{ modelId: a, qty: qa, price: PRICE }];
-}
-
-function buildInvoices(): Invoice[] {
-  type Draft = Omit<Invoice, "no" | "time">;
-  const drafts: Draft[] = [
-    // مطابقة لكشوف الحساب المكتوبة بالإيد
-    {
-      date: "2026-09-12", partyId: "c1", paid: 0,
-      lines: [{ modelId: "m214", qty: 40, price: p(120) }, { modelId: "m208", qty: 20, price: p(120) }],
-    },
-    {
-      date: "2026-09-03", partyId: "c2", paid: 0,
-      lines: [{ modelId: "m221", qty: 70, price: p(130) }, { modelId: "m199", qty: 50, price: p(130) }],
-    },
-  ];
-
-  // باقي العملاء — نفس البيعتين اللي في كشف حسابهم
-  parties
-    .filter((x) => x.kind === "customer" && !x.isCash && x.balance > 0 && !statements[x.id])
-    .forEach((x, i) => {
-      const { start, end } = historyDates(x);
-      const s = customerSales(x);
-      drafts.push({ date: start, partyId: x.id, paid: 0, lines: splitLines(s.pieces1, i) });
-      drafts.push({ date: end, partyId: x.id, paid: 0, lines: splitLines(s.pieces2, i + 1) });
-    });
-
-  // بيع نقدي — زبون جملة من غير حساب
-  const cash = cashParty.id;
-  const walkIns: [string, InvoiceLine[], string][] = [
-    ["2026-09-23", [{ modelId: "m214", qty: 12, price: p(125) }], "drawer"],
-    ["2026-09-23", [{ modelId: "m221", qty: 24, price: p(110) }], "drawer"],
-    ["2026-09-23", [{ modelId: "m199", qty: 12, price: p(125) }, { modelId: "m208", qty: 12, price: p(130) }], "vcash"],
-    ["2026-09-22", [{ modelId: "m221", qty: 24, price: p(110) }], "drawer"],
-    ["2026-09-20", [{ modelId: "m208", qty: 12, price: p(130) }, { modelId: "m199", qty: 12, price: p(125) }, { modelId: "mk1", qty: 12, price: p(85) }], "vcash"],
-    ["2026-09-18", [{ modelId: "m199", qty: 24, price: p(120) }], "drawer"],
-    ["2026-09-15", [{ modelId: "m235", qty: 6, price: p(160) }], "instapay"],
-    ["2026-09-09", [{ modelId: "m221", qty: 36, price: p(105) }], "drawer"],
-  ];
-  for (const [date, lines, accountId] of walkIns) {
-    const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
-    drafts.push({ date, partyId: cash, lines, paid: total, accountId });
-  }
-
-  // ترقيم بالترتيب الزمني، وساعة ثابتة لكل فاتورة
-  return drafts
-    .sort((a, b) => a.date.localeCompare(b.date) || a.partyId.localeCompare(b.partyId))
-    .map((d, i) => {
-      const minutes = 9 * 60 + ((i * 97) % (10 * 60));
-      const time = `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}`;
-      return { ...d, no: 1001 + i, time };
-    });
-}
-
-export const invoices: Invoice[] = buildInvoices();
-
 export const invoiceByNo = (no: number) => invoices.find((x) => x.no === no);
 
-/* ============================== النهاردة ============================== */
+/* ============================ النهاردة ============================ */
 
-/** ملخص اليوم للرئيسية: بعت كام · مصاريف المحل */
 export function todaySummary() {
   const sales = invoices.filter((i) => i.date === TODAY);
   const shopExpenses = expenses
@@ -666,206 +992,26 @@ export function todaySummary() {
   };
 }
 
-export type Activity = {
-  key: string;
-  date: string;
-  time?: string;
-  kind: "invoice" | "payment" | "expense" | "purchase" | "receive";
-  title: string;
-  sub: string;
-  amount: number;
-  href: string;
-};
-
-/** آخر الحركات — بتطمّنه إن اللي سجّله اتحفظ، ولما ييجي بياعين: مين عمل إيه */
-export function recentActivity(limit = 6): Activity[] {
-  const items: Activity[] = [
-    ...invoices.map((i): Activity => {
-      const x = byId(i.partyId);
-      return {
-        key: `i${i.no}`, date: i.date, time: i.time, kind: "invoice",
-        title: x?.isCash ? "بيع نقدي" : `فاتورة · ${x?.name}`,
-        sub: `#${i.no}`, amount: invoiceTotal(i), href: `/invoices/${i.no}`,
-      };
-    }),
-    ...parties
-      .filter((x) => x.kind === "customer")
-      .flatMap((x) =>
-        statementOf(x.id)
-          .filter((r) => r.label.startsWith("دفع"))
-          .map((r): Activity => ({
-            key: `p${r.id}`, date: r.date, kind: "payment",
-            title: `تحصيل · ${x.name}`, sub: r.label.replace(/^دفع\s*/, "").replace("← ", ""),
-            amount: -r.amount, href: `/accounts/${x.id}`,
-          })),
-      ),
-    ...expenses.map((e): Activity => ({
-      key: `e${e.id}`, date: e.date, kind: "expense",
-      title: categoryById(e.categoryId)?.personal ? "خدته لنفسك" : `مصروف · ${categoryById(e.categoryId)?.label}`,
-      sub: e.note ?? "", amount: e.amount, href: "/expenses",
-    })),
-    ...jobCosts.map((c): Activity => {
-      const j = jobById(c.jobId)!;
-      return {
-        key: `b${c.id}`, date: c.date, kind: "purchase",
-        title: `${costItemById(c.itemId)?.label}${c.fromStock ? " من عندي" : ""} · ${jobTitle(j)}`,
-        sub: c.partyId ? byId(c.partyId)?.name ?? "" : c.note ?? "",
-        amount: c.amount, href: `/jobs/${j.id}`,
-      };
-    }),
-    ...fabricBuys.map((b): Activity => ({
-      key: `f${b.id}`, date: b.date, kind: "purchase",
-      title: `شراء قماش للمحل · ${byId(b.supplierId)?.name}`, sub: b.note ?? "",
-      amount: b.amount, href: "/fabric",
-    })),
-    ...jobReceipts.map((r): Activity => {
-      const j = jobById(r.jobId)!;
-      return {
-        key: `r${r.id}`, date: r.date, kind: "receive",
-        title: `استلام · ${jobTitle(j)}`, sub: `${receiptPieces(r)} قطعة · ${factoryOf(j).name}`,
-        amount: receiptValue(r), href: `/jobs/${j.id}`,
-      };
-    }),
-  ];
-  return items
-    .sort((a, b) => b.date.localeCompare(a.date) || (b.time ?? "").localeCompare(a.time ?? "", undefined, { numeric: true }))
-    .slice(0, limit);
-}
+/** آخر الحركات — بتطمّنه إن اللي سجّله اتحفظ */
+export const recentActivity = (limit = 6) => recent.slice(0, limit);
 
 /* ========================== أرقام البيع والربح ========================== */
 
-/** مبيعات آخر 3 شهور لكل موديل — منها بييجي تقرير «أنهي موديل بيكسب» */
-export type ModelStat = { modelId: string; sold: number; revenue: number; cost: number };
-
-export const modelStats: ModelStat[] = [
-  { modelId: "m214", sold: 340, revenue: p(40800), cost: p(29920) },
-  { modelId: "m208", sold: 180, revenue: p(21600), cost: p(14040) },
-  { modelId: "m221", sold: 210, revenue: p(21000), cost: p(15540) },
-  { modelId: "m199", sold: 60, revenue: p(7800), cost: p(5280) },
-  { modelId: "m235", sold: 25, revenue: p(3750), cost: p(2400) },
-  { modelId: "m190", sold: 45, revenue: p(6750), cost: p(5400) },
-  { modelId: "m168", sold: 18, revenue: p(1980), cost: p(1584) },
-];
-
 export const profitOf = (s: ModelStat) => s.revenue - s.cost;
-export const marginOf = (s: ModelStat) =>
-  s.revenue === 0 ? 0 : (profitOf(s) / s.revenue) * 100;
+export const marginOf = (s: ModelStat) => (s.revenue === 0 ? 0 : (profitOf(s) / s.revenue) * 100);
 
-/** الراكد — فيه مخزون وآخر بيعة بقالها فترة */
-export const staleModels = () =>
-  models.filter(isStale).sort((a, b) => valueOf(b) - valueOf(a));
-
-/* ============================ المصاريف ============================ */
-
-/**
- * «سحب شخصي» مش مصروف: بيقلل الخزنة بس **مبيقللش الربح**.
- */
-export type ExpenseCategory = { id: string; label: string; personal?: boolean };
-
-export const expenseCategories: ExpenseCategory[] = [
-  { id: "food", label: "أكل وشرب" },
-  { id: "transport", label: "مواصلات" },
-  { id: "shipping", label: "شحن وتحميل" },
-  { id: "wages", label: "يوميات" },
-  { id: "bills", label: "كهربا ومياه" },
-  { id: "rent", label: "إيجار" },
-  { id: "other", label: "حاجات تانية" },
-  { id: "personal", label: "سحب شخصي", personal: true },
-];
-
-export const categoryById = (id: string) => expenseCategories.find((c) => c.id === id);
-
-export type Expense = {
-  id: string;
-  date: string;
-  categoryId: string;
-  amount: number;
-  accountId: string;
-  note?: string;
-};
-
-export const expenses: Expense[] = [
-  { id: "e1", date: "2026-09-23", categoryId: "food", amount: p(150), accountId: "drawer", note: "فطار" },
-  { id: "e2", date: "2026-09-23", categoryId: "shipping", amount: p(400), accountId: "drawer", note: "تحميل بضاعة لأحمد الشوا" },
-  { id: "e3", date: "2026-09-23", categoryId: "personal", amount: p(2000), accountId: "drawer", note: "للبيت" },
-  { id: "e4", date: "2026-09-22", categoryId: "transport", amount: p(120), accountId: "drawer" },
-  { id: "e5", date: "2026-09-22", categoryId: "other", amount: p(350), accountId: "drawer", note: "أكياس تغليف" },
-  { id: "e6", date: "2026-09-21", categoryId: "wages", amount: p(600), accountId: "drawer", note: "يومية شيّال" },
-  { id: "e7", date: "2026-09-15", categoryId: "bills", amount: p(850), accountId: "instapay", note: "كهربا المحل" },
-  { id: "e8", date: "2026-09-01", categoryId: "rent", amount: p(6000), accountId: "instapay", note: "إيجار سبتمبر" },
-];
-
-/* ========================= زيادة رأس المال ========================= */
-
-/** فلوس جاية من بره المحل — مش ربح، ومش سلفة (السلفة فلوس عليه) */
-export type CapitalIn = { id: string; date: string; amount: number; accountId: string; note?: string };
-
-export const capitalIns: CapitalIn[] = [
-  { id: "k1", date: "2026-09-05", amount: p(20000), accountId: "instapay", note: "من بيع أرض" },
-];
-
-/** البرنامج اشتغل من يوم التهيئة — قبله مفيش أرقام نقارن بيها */
-export const STARTED = "2026-05-10";
+export const staleModels = () => models.filter(isStale).sort((a, b) => valueOf(b) - valueOf(a));
 
 /* ============================ رأس المال ============================ */
 
-/**
- * ليه رأس المال اتغير في فترة:
- *   التغيير = ربح المحل + زيادة رأس المال − اللي خدته لنفسك
- *   ربح المحل = المبيعات − تكلفة البضاعة − مصاريف المحل − المسامحات
- * «آخر شهر» متسق مع شاشة المصاريف (خدته لنفسك 2,000 · زيادة 20,000).
- */
-export type CapitalPeriod = {
-  id: "1m" | "3m" | "1y";
-  label: string;
-  days: number;
-  sales: number;
-  cogs: number;
-  expenses: number;
-  settlements: number;
-  added: number;
-  withdrawn: number;
-  /** أكبر بنود المصاريف — للتفسير */
-  topExpenses: { label: string; amount: number }[];
-};
-
-export const capitalPeriods: CapitalPeriod[] = [
-  {
-    id: "1m", label: "آخر شهر", days: 30,
-    sales: p(120000), cogs: p(88000), expenses: p(8120), settlements: p(1000),
-    added: p(20000), withdrawn: p(2000),
-    topExpenses: [
-      { label: "إيجار", amount: p(6000) },
-      { label: "كهربا ومياه", amount: p(850) },
-      { label: "يوميات", amount: p(600) },
-    ],
-  },
-  {
-    id: "3m", label: "آخر 3 شهور", days: 91,
-    sales: p(360000), cogs: p(263000), expenses: p(24600), settlements: p(3200),
-    added: p(20000), withdrawn: p(18000),
-    topExpenses: [
-      { label: "إيجار", amount: p(18000) },
-      { label: "يوميات", amount: p(3100) },
-      { label: "كهربا ومياه", amount: p(2400) },
-    ],
-  },
-  {
-    id: "1y", label: "آخر سنة", days: 365,
-    sales: 0, cogs: 0, expenses: 0, settlements: 0, added: 0, withdrawn: 0,
-    topExpenses: [],
-  },
-];
+/** البرنامج اشتغل من أول عملية — قبلها مفيش أرقام نقارن بيها */
+export const startedAt = () => started;
 
 export const shopProfit = (x: CapitalPeriod) => x.sales - x.cogs - x.expenses - x.settlements;
 export const capitalChange = (x: CapitalPeriod) => shopProfit(x) + x.added - x.withdrawn;
+export const periodAvailable = (x: CapitalPeriod) => daysSince(started, new Date(TODAY)) >= x.days;
 
-/** الفترة متاحة لو البرنامج شغال من قبل بدايتها */
-export const periodAvailable = (x: CapitalPeriod) => daysSince(STARTED, new Date(TODAY)) >= x.days;
-
-/* ============================ الإجماليات ============================ */
 /* محسوبة من البيانات — مفيش رقم مكتوب بالإيد (الـ spec، قسم 8) */
-
 export const totals = {
   get stockValue() {
     return models.reduce((s, m) => s + valueOf(m), 0);
@@ -874,41 +1020,20 @@ export const totals = {
     return cashAccounts.reduce((s, a) => s + a.balance, 0);
   },
   get receivable() {
-    // أي حد عليه فلوس — عميل أو سلفة أو مصنع اتقفل عليه أمر
     return parties.reduce((s, x) => s + Math.max(0, x.balance), 0);
   },
   get payable() {
-    // أي حد ليه فلوس — مصنع أو تاجر أو سلفة أو عميل دفع زيادة
     return parties.reduce((s, x) => s + Math.max(0, -x.balance), 0);
   },
   /** صافي موقفي = السيولة + ليا − عليا (فلوس بس، من غير بضاعة) */
   get net() {
     return totals.liquidity + totals.receivable - totals.payable;
   },
-  /** الفاضل في الأوامر المفتوحة — فلوس اتصرفت على شغل لسه موصلش. مش سيولة. */
-  get inJobs() {
-    return openJobs().reduce((s, j) => s + jobSummary(j).remaining, 0);
-  },
-  /** القماش اللي في المحل ولسه مبعتوش لأمر — بالفلوس بس */
-  get fabric() {
-    return fabricOnHand();
-  },
-  /**
-   * رأس المال = كل اللي يملكه في الشغل: بضاعة + قماش في المحل + فلوس + ليه +
-   * فلوس في أوامر التصنيع − عليه. من غير القماش والأوامر، أول ما يشتري قماش
-   * رأس المال يبان إنه نزل.
-   */
+  /** رأس المال = بضاعة + فلوس + ليه − عليه */
   get capital() {
-    return (
-      totals.stockValue +
-      totals.fabric +
-      totals.liquidity +
-      totals.receivable +
-      totals.inJobs -
-      totals.payable
-    );
+    return totals.stockValue + totals.liquidity + totals.receivable - totals.payable;
   },
-  /** فلوس في السوق عند ناس متأخرين أكتر من 90 يوم — محسوبة في رأس المال ومش مضمونة */
+  /** فلوس عند عملاء متأخرين أكتر من 90 يوم — محسوبة في رأس المال ومش مضمونة */
   get overdueReceivable() {
     return ofKind("customer")
       .filter((x) => x.balance > 0 && x.oldestDue && daysSince(x.oldestDue, new Date(TODAY)) > 90)

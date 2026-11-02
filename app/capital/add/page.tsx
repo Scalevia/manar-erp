@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, Info } from "lucide-react";
 import { Card, Money, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { cashAccounts, totals } from "@/lib/mock";
+import { actions, cashAccounts, totals } from "@/lib/mock";
 
 /**
  * زيادة رأس المال: فلوس من بره المحل (من البيت، من بيع حاجة).
@@ -141,7 +141,10 @@ export default function AddCapitalPage() {
         <button
           type="button"
           disabled={amountP <= 0}
-          onClick={() => setSaved(true)}
+          onClick={() => {
+            actions.capital({ amount: amountP, accountId, note: note.trim() || undefined });
+            setSaved(true);
+          }}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
           حفظ

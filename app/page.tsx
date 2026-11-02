@@ -1,8 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import {
   AlertTriangle,
   ChevronLeft,
-  Factory,
   FileText,
   HandCoins,
   PackageMinus,
@@ -20,12 +21,8 @@ import {
   capitalChange,
   capitalPeriods,
   cashAccounts,
-  factoryOf,
-  jobSummary,
-  jobTitle,
   loansDueSoon,
   oversoldModels,
-  staleJobs,
   stockOf,
   receivables,
   recentActivity,
@@ -62,7 +59,6 @@ export default function Dashboard() {
     .filter((x) => x.kind === "customer" && x.oldestDue && daysSince(x.oldestDue, now) > LATE_DAYS)
     .slice(0, 3);
   const loans = loansDueSoon();
-  const stale = staleJobs();
   const negative = oversoldModels();
   const capital1m = capitalPeriods.find((x) => x.id === "1m")!;
 
@@ -77,12 +73,11 @@ export default function Dashboard() {
         </div>
 
         {/* -------------------------- أكتر حاجات بيعملها -------------------------- */}
-        <div className="mb-5 grid grid-cols-4 gap-2">
+        <div className="mb-5 grid grid-cols-3 gap-2">
           <Quick href="/expenses/new" icon={Receipt} label="مصروف" primary />
-          <Quick href="/payments" icon={HandCoins} label="تحصيل" />
-          <Quick href="/receive" icon={PackagePlus} label="استلام من المصنع" />
-          {/* بلمسة من الرئيسية بدل «المزيد» */}
-          <Quick href="/jobs" icon={Factory} label="أوامر التصنيع" />
+          <Quick href="/payments" icon={HandCoins} label="تحصيل ودفع" />
+          {/* بيع وشراء: البضاعة من المصنع شراء، والفلوس اللي بيدّيهاله دفعة (الـ spec، قسم 5) */}
+          <Quick href="/inventory/buy" icon={PackagePlus} label="شراء مخزون" />
         </div>
 
         {/* ------------------------------- النهاردة ------------------------------- */}
@@ -111,7 +106,7 @@ export default function Dashboard() {
         </Card>
 
         {/* ---------------------------- محتاج انتباهك ---------------------------- */}
-        {(late.length > 0 || loans.length > 0 || stale.length > 0 || negative.length > 0) && (
+        {(late.length > 0 || loans.length > 0 || negative.length > 0) && (
           <>
             <SectionTitle>محتاج انتباهك</SectionTitle>
             <Card className="mb-5 overflow-hidden">
@@ -165,37 +160,12 @@ export default function Dashboard() {
                 );
               })}
 
-              {/* أمر مفتوح ومفيش استلام فيه من فترة — يمكن نسي يقفله */}
-              {stale.map((j, i) => {
-                const last = jobSummary(j).lastReceipt;
-                return (
-                  <Link
-                    key={j.id}
-                    href={`/jobs/${j.id}`}
-                    className={`press block active:bg-sunken ${late.length + loans.length + i > 0 ? "border-t border-line-soft" : ""}`}
-                  >
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      <Factory size={17} className="shrink-0 text-warn" />
-                      <div className="min-w-0 flex-1 text-[13px]">
-                        <span className="font-semibold">
-                          {jobTitle(j)} · {factoryOf(j).name}
-                        </span>{" "}
-                        <span className="text-ink-mute">
-                          — {last ? "آخر استلام" : "لسه موصلش منه حاجة"} {since(last ?? j.openedAt, now)}
-                        </span>
-                      </div>
-                      <ChevronLeft size={16} className="shrink-0 text-ink-mute" />
-                    </div>
-                  </Link>
-                );
-              })}
-
-              {/* موديل بالسالب — اتباع قبل ما استلامه يتسجل (الـ spec، قسم 4) */}
+              {/* موديل بالسالب — اتباع قبل ما شرايته تتسجل (الـ spec، قسم 4) */}
               {negative.map((m, i) => (
                 <Link
                   key={m.id}
                   href={`/inventory/${m.id}`}
-                  className={`press block active:bg-sunken ${late.length + loans.length + stale.length + i > 0 ? "border-t border-line-soft" : ""}`}
+                  className={`press block active:bg-sunken ${late.length + loans.length + i > 0 ? "border-t border-line-soft" : ""}`}
                 >
                   <div className="flex items-center gap-3 px-4 py-3">
                     <PackageMinus size={17} className="shrink-0 text-neg" />
@@ -230,7 +200,7 @@ export default function Dashboard() {
               <div className="text-[12px] text-ink-mute">ليا في السوق</div>
               <Money value={totals.receivable} className="mt-1 block text-[18px] font-bold text-pos" />
             </Link>
-            <Link href="/accounts?tab=payable" className="press block bg-card px-4 py-3.5 active:bg-sunken">
+            <Link href="/accounts?tab=suppliers" className="press block bg-card px-4 py-3.5 active:bg-sunken">
               <div className="text-[12px] text-ink-mute">اللي عليا</div>
               <Money value={totals.payable} className="mt-1 block text-[18px] font-bold text-neg" />
             </Link>
@@ -300,7 +270,7 @@ function Quick({
       }`}
     >
       <Icon size={20} />
-      {/* «أوامر التصنيع» على الشاشات الضيقة بتنزل سطرين بدل ما تطلع بره الزرار */}
+      {/* الأسامي الطويلة («تحصيل ودفع») على الشاشات الضيقة بتنزل سطرين بدل ما تطلع بره الزرار */}
       <span className="text-center text-[13px] font-bold leading-tight">{label}</span>
     </Link>
   );

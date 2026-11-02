@@ -10,7 +10,7 @@ import {
   capitalPeriods,
   periodAvailable,
   shopProfit,
-  STARTED,
+  startedAt,
   totals,
   type CapitalPeriod,
 } from "@/lib/mock";
@@ -31,8 +31,6 @@ export default function CapitalPage() {
     ["بضاعة في المحل", totals.stockValue],
     ["فلوس في الخزن", totals.liquidity],
     ["ليك في السوق", totals.receivable],
-    ["قماش في المحل", totals.fabric],
-    ["في أوامر التصنيع", totals.inJobs],
     ["عليك", -totals.payable],
   ];
 
@@ -125,7 +123,7 @@ export default function CapitalPage() {
                     </>
                   ) : (
                     <span className="text-[12px] text-ink-mute">
-                      محتاج وقت · شغال من {monthOnly(STARTED)}
+                      محتاج وقت · شغال من {monthOnly(startedAt())}
                     </span>
                   )}
                 </button>

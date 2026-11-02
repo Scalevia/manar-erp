@@ -7,7 +7,7 @@ import { AccountPicker } from "@/components/AccountPicker";
 import { ModelInput, ModelModeToggle, ModelSuggestions, notFoundText, useModelField } from "@/components/ModelField";
 import { Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { cashAccounts, jobById, jobSummary, jobTitle, modelById, ofKind, stockOf, type Party } from "@/lib/mock";
+import { actions, cashAccounts, modelById, ofKind, stockOf, type Party } from "@/lib/mock";
 
 /**
  * المرتجعات (الـ spec، قسم 6 — العمليتين 5 و6):
@@ -16,7 +16,7 @@ import { cashAccounts, jobById, jobSummary, jobTitle, modelById, ofKind, stockOf
  */
 
 type Dir = "customer" | "supplier";
-type Line = { id: number; modelId: string; qty: number; price: number; jobId?: string };
+type Line = { id: number; modelId: string; qty: number; price: number };
 
 const REASONS: Record<Dir, string[]> = {
   customer: ["مش ماشية معاه", "عيب", "سبب تاني"],
@@ -43,16 +43,8 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
 
   // الرصيد بإشارته: موجب = عليه · سالب = ليه عندك — العميل ممكن يبقى ليه، والمورد ممكن يبقى عليه
   const before = party?.balance ?? 0;
-  // للمورد: اللي من أمر مفتوح بيرجع للأمر، والباقي (أمر مقفول أو شراء) بينزل من حسابه
-  const toJobs = new Map<string, number>();
-  let toFactory = 0;
-  for (const l of isCustomer ? [] : lines) {
-    const j = l.jobId ? jobById(l.jobId) : undefined;
-    if (j && !j.closedAt) toJobs.set(j.id, (toJobs.get(j.id) ?? 0) + l.qty * l.price);
-    else toFactory += l.qty * l.price;
-  }
   // مرتجع العميل بيقلل اللي عليه · مرتجع المورد بيقلل اللي ليه (يعني بيزوّد رصيده)
-  const after = isCustomer ? (refund ? before : before - total) : before + toFactory;
+  const after = isCustomer ? (refund ? before : before - total) : before + total;
 
   function switchDir(d: Dir) {
     setDir(d);
@@ -264,33 +256,12 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                     </span>
                   </div>
                 ) : (
-                  <>
-                    {[...toJobs].map(([id, amount]) => {
-                      const j = jobById(id)!;
-                      const before = jobSummary(j).remaining;
-                      return (
-                        <div key={id} className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
-                          <div>
-                            <div className="text-ink-soft">{jobTitle(j)}</div>
-                            <div className="mt-0.5 text-[11px] text-ink-mute">الفلوس بترجع للأمر</div>
-                          </div>
-                          <span>
-                            <Money value={before} className="text-ink-mute" />
-                            {"  ←  "}
-                            <Money value={before + amount} className="font-bold" />
-                          </span>
-                        </div>
-                      );
-                    })}
-                    {(isCustomer || toFactory > 0) && (
-                      <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
-                        <span className="text-ink-soft">{party.name}</span>
-                        <span className="font-bold">
-                          <Balance value={after} />
-                        </span>
-                      </div>
-                    )}
-                  </>
+                  <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-[14px]">
+                    <span className="text-ink-soft">{party.name}</span>
+                    <span className="font-bold">
+                      <Balance value={after} />
+                    </span>
+                  </div>
                 )}
               </Card>
             )}
@@ -298,7 +269,21 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
             <button
               type="button"
               disabled={lines.length === 0}
-              onClick={() => setSaved(true)}
+              onClick={() => {
+                if (isCustomer)
+                  actions.customerReturn({
+                    partyId: party.id,
+                    lines: lines.map(({ modelId, qty, price }) => ({ modelId, qty, price })),
+                    refund,
+                    accountId: refund ? accountId : undefined,
+                  });
+                else
+                  actions.supplierReturn({
+                    partyId: party.id,
+                    lines: lines.map(({ modelId, qty, price }) => ({ modelId, qty, unitCost: price })),
+                  });
+                setSaved(true);
+              }}
               className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
             >
               حفظ المرتجع
@@ -339,7 +324,7 @@ function AddLine({ dir, supplierId, onAdd }: { dir: Dir; supplierId: string; onA
   const model = field.model;
   const notFound = notFoundText(field);
   const isCustomer = dir === "customer";
-  // للمورد: تكلفة القطعة من آخر دفعة للموديل ده منه — ومنها بنعرف الأمر لو جاية من تصنيع
+  // للمورد: تكلفة القطعة من آخر دفعة اشتراها منه للموديل ده
   const batch =
     !isCustomer && model ? [...model.batches].reverse().find((b) => b.sourceId === supplierId) : undefined;
   const work = batch?.unitCost;
@@ -349,7 +334,7 @@ function AddLine({ dir, supplierId, onAdd }: { dir: Dir; supplierId: string; onA
 
   function submit() {
     if (!ready) return;
-    onAdd({ id: nextId.current++, modelId: model.id, qty: Number(qty), price: p(priceN), jobId: batch?.jobId });
+    onAdd({ id: nextId.current++, modelId: model.id, qty: Number(qty), price: p(priceN) });
     setQty("");
     setPrice("");
     field.reset();
@@ -385,7 +370,7 @@ function AddLine({ dir, supplierId, onAdd }: { dir: Dir; supplierId: string; onA
             <span className="text-ink-mute">
               {field.other && `${field.other} · `}
               <InShop pieces={stockOf(model)} />
-              {work && price === "" && <> · تكلفته <Money value={work} decimals /> ج{batch?.jobId && jobById(batch.jobId) ? <> · {jobTitle(jobById(batch.jobId)!)}</> : null}</>}
+              {work && price === "" && <> · تكلفته <Money value={work} decimals /> ج</>}
               {over && <span className="text-warn"> — أكتر من اللي عندك</span>}
             </span>
           )}

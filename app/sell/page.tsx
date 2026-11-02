@@ -22,6 +22,7 @@ import {
 import { Badge, Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { formatPhone, isEgyptMobile, p } from "@/lib/format";
 import {
+  actions,
   cashAccounts,
   cashParty,
   modelById,
@@ -38,7 +39,8 @@ export default function SellPage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [paid, setPaid] = useState("");
   const [account, setAccount] = useState(cashAccounts[0].id);
-  const [done, setDone] = useState(false);
+  // بعد الحفظ: رقم الفاتورة ورقم العميل (لو اتفتحله حساب جديد هنا)
+  const [saved, setSaved] = useState<{ no: number; partyId: string } | null>(null);
 
   /** زبون طياري: مفيش حساب، بيدفع كله على طول — السيولة تزيد والبضاعة تقل */
   const walkIn = !!customer?.isCash;
@@ -47,10 +49,12 @@ export default function SellPage() {
   const paidP = walkIn ? total : paid.trim() === "" ? 0 : p(Number(paid) || 0);
   const { remaining, fromOld, after } = splitPaid(customer?.balance ?? 0, total, paidP);
 
-  if (done && customer) {
+  if (saved && customer) {
     return (
       <Saved
         customer={customer}
+        no={saved.no}
+        partyId={saved.partyId}
         total={total}
         paid={paidP}
         accountName={cashAccounts.find((a) => a.id === account)?.name ?? ""}
@@ -59,7 +63,7 @@ export default function SellPage() {
           setLines([]);
           setPaid("");
           setAccount(cashAccounts[0].id);
-          setDone(false);
+          setSaved(null);
         }}
       />
     );
@@ -219,7 +223,16 @@ export default function SellPage() {
         <button
           type="button"
           disabled={lines.length === 0}
-          onClick={() => setDone(true)}
+          onClick={() =>
+            setSaved(
+              actions.sale({
+                party: customer,
+                lines: lines.map(({ modelId, qty, price }) => ({ modelId, qty, price })),
+                paid: paidP,
+                accountId: account,
+              }),
+            )
+          }
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
           {walkIn ? "حفظ البيعة" : "حفظ الفاتورة"}
@@ -642,12 +655,16 @@ function Balance({ value, className = "" }: { value: number; className?: string 
 
 function Saved({
   customer,
+  no,
+  partyId,
   total,
   paid,
   accountName,
   onNew,
 }: {
   customer: Party;
+  no: number;
+  partyId: string;
   total: number;
   paid: number;
   accountName: string;
@@ -669,7 +686,12 @@ function Saved({
               <Money value={total} className="text-[30px] font-bold text-pos" />
               <span className="text-[14px] text-ink-mute">ج</span>
             </div>
-            <div className="mt-2 text-[13px] text-ink-mute">دخلت {accountName}</div>
+            <div className="mt-2 text-[13px] text-ink-mute">
+              دخلت {accountName} ·{" "}
+              <Link href={`/invoices/${no}`} className="font-semibold text-brand">
+                فاتورة #{no}
+              </Link>
+            </div>
           </Card>
 
           <button
@@ -694,7 +716,10 @@ function Saved({
           </div>
           <div className="mt-4 text-[17px] font-bold">{customer.name}</div>
           <div className="mt-1 text-[13px] text-ink-mute">
-            فاتورة بـ <Money value={total} /> ج
+            <Link href={`/invoices/${no}`} className="font-semibold text-brand">
+              فاتورة #{no}
+            </Link>{" "}
+            بـ <Money value={total} /> ج
           </div>
 
           <div className="mt-5 space-y-2 border-t border-line-soft pt-5 text-[14px]">
@@ -728,22 +753,12 @@ function Saved({
           >
             فاتورة جديدة
           </button>
-          {/* العميل الجديد مش متخزن في نسخة العرض، فمالهوش كشف حساب لسه */}
-          {customer.id.startsWith("new-") ? (
-            <Link
-              href="/accounts"
-              className="press rounded-2xl border border-line bg-card py-3.5 text-center text-[15px] font-semibold text-ink-soft"
-            >
-              الحسابات
-            </Link>
-          ) : (
-            <Link
-              href={`/accounts/${customer.id}`}
-              className="press rounded-2xl border border-line bg-card py-3.5 text-center text-[15px] font-semibold text-ink-soft"
-            >
-              كشف حسابه
-            </Link>
-          )}
+          <Link
+            href={`/accounts/${partyId}`}
+            className="press rounded-2xl border border-line bg-card py-3.5 text-center text-[15px] font-semibold text-ink-soft"
+          >
+            كشف حسابه
+          </Link>
         </div>
       </Page>
     </>

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ChevronLeft, FileText, TrendingUp } from "lucide-react";
 import { Badge, Card, ModelTag, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";

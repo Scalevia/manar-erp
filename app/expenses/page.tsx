@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Badge, Card, Money, Page, PageHeader } from "@/components/ui";

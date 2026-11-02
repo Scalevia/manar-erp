@@ -1,19 +1,18 @@
+"use client";
+
+import { use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { dozens, shortDate, since } from "@/lib/format";
-import { avgCost, byId, jobById, jobTitle, modelById, models, stockOf, TODAY, valueOf } from "@/lib/mock";
+import { avgCost, byId, modelById, stockOf, TODAY, valueOf } from "@/lib/mock";
 
-export function generateStaticParams() {
-  return models.map((m) => ({ id: m.id }));
-}
-
-export default async function ModelPage({
+export default function ModelPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id } = use(params);
   const m = modelById(id);
   if (!m) notFound();
 
@@ -38,16 +37,14 @@ export default async function ModelPage({
             </div>
             <p className="mt-3 border-t border-line-soft pt-3 text-[13px] leading-relaxed text-ink-soft">
               اتباع منه <Num value={-stock} className="font-bold" /> قطعة مش متسجلين في المخزن. لما
-              تسجّل الاستلام، السالب بيتقفل الأول.
+              تسجّل الشراية (من المصنع أو التاجر)، السالب بيتقفل الأول.
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Link href="/receive" className="press rounded-xl bg-brand py-2.5 text-[13px] font-bold text-brand-ink">
-                استلام من المصنع
-              </Link>
-              <Link href="/inventory/buy" className="press rounded-xl border border-line py-2.5 text-[13px] font-semibold text-ink-soft">
-                شراء مخزون
-              </Link>
-            </div>
+            <Link
+              href="/inventory/buy"
+              className="press mt-3 block rounded-xl bg-brand py-2.5 text-[13px] font-bold text-brand-ink"
+            >
+              شراء مخزون
+            </Link>
           </Card>
         ) : (
           <Card className="mb-4 px-5 py-5 text-center">
@@ -77,10 +74,8 @@ export default async function ModelPage({
                         <Num value={b.pieces} className="font-semibold" /> قطعة
                       </div>
                       <div className="mt-0.5 truncate text-[12px] text-ink-mute">
-                        {/* من أمر تصنيع = استلام · غير كده = شراء جاهز (المورد نوع واحد) */}
-                        {b.jobId ? "استلام" : "شراء"}{" "}
-                        <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.sourceId)?.name}
-                        {b.jobId && jobById(b.jobId) && <> · {jobTitle(jobById(b.jobId)!)}</>}
+                        {/* كل دفعة شراية من مورد — مصنع أو تاجر (بيع وشراء، الـ spec قسم 5) */}
+                        شراء <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.sourceId)?.name}
                       </div>
                     </div>
                     <div className="shrink-0 text-end">

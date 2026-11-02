@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { Card, Money, Page, PageHeader } from "@/components/ui";
 import { formatPhone, isEgyptMobile, normalizeArabic, p } from "@/lib/format";
-import { parties, TODAY, type PartyKind } from "@/lib/mock";
+import { actions, parties, TODAY, type PartyKind } from "@/lib/mock";
 
 /**
  * فتح حساب من شاشة الحسابات — لعميل أو مصنع أو تاجر قبل أول عملية معاه، أو حد
@@ -88,7 +88,7 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
           </Card>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <Link
-              href={balance < 0 ? "/accounts?tab=payable" : "/accounts"}
+              href={kind === "supplier" ? "/accounts?tab=suppliers" : "/accounts"}
               className="press rounded-2xl bg-brand py-3.5 text-center text-[15px] font-bold text-brand-ink"
             >
               الحسابات
@@ -245,7 +245,10 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
         <button
           type="button"
           disabled={!ready}
-          onClick={() => setSaved(true)}
+          onClick={() => {
+            actions.openAccount({ kind, name: cleanName, phone: phone || undefined, opening: balance, since: old === "owes" ? since : undefined });
+            setSaved(true);
+          }}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
           افتح الحساب

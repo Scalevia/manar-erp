@@ -1,3 +1,6 @@
+"use client";
+
+import { use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
@@ -9,14 +12,9 @@ import {
   invoiceByNo,
   invoiceKind,
   invoicePieces,
-  invoices,
   invoiceTotal,
   modelById,
 } from "@/lib/mock";
-
-export function generateStaticParams() {
-  return invoices.map((inv) => ({ no: String(inv.no) }));
-}
 
 const DAYS = ["الحد", "الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت"];
 
@@ -26,8 +24,8 @@ const KIND = {
   credit: { label: "آجل", tone: "neutral" as const },
 };
 
-export default async function InvoicePage({ params }: { params: Promise<{ no: string }> }) {
-  const { no } = await params;
+export default function InvoicePage({ params }: { params: Promise<{ no: string }> }) {
+  const { no } = use(params);
   const inv = invoiceByNo(Number(no));
   if (!inv) notFound();
 

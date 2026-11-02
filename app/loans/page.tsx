@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { Badge, Card, Empty, Money, Page, PageHeader, SectionTitle } from "@/components/ui";

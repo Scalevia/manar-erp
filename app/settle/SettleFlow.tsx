@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, Check } from "lucide-react";
 import { Card, Empty, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { p } from "@/lib/format";
-import { byId, parties, type Party } from "@/lib/mock";
+import { actions, byId, parties, type Party } from "@/lib/mock";
 
 /**
  * المسامحة — في الاتجاهين (الـ spec، قسم 7):
@@ -28,7 +28,10 @@ export default function SettleFlow({ initialPartyId }: { initialPartyId?: string
 
   if (party && saved) return <Saved party={party} amount={saved.amount} reason={saved.reason} />;
   if (!party) return <PickParty onPick={setParty} />;
-  return <SettleForm party={party} onChange={() => setParty(null)} onSave={(amount, reason) => setSaved({ amount, reason })} />;
+  return <SettleForm party={party} onChange={() => setParty(null)} onSave={(amount, reason) => {
+        actions.settle({ partyId: party.id, amount, reason: reason || undefined });
+        setSaved({ amount, reason });
+      }} />;
 }
 
 /* ============================ اختيار الطرف ============================ */

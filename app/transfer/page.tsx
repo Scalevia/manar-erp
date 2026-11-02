@@ -6,7 +6,7 @@ import { ArrowDown, Check } from "lucide-react";
 import { AccountPicker } from "@/components/AccountPicker";
 import { Card, Money, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { cashAccounts } from "@/lib/mock";
+import { actions, cashAccounts } from "@/lib/mock";
 
 /**
  * تحويل بين الخزن (الـ spec، قسم 7) — المكان الوحيد اللي فيه مصاريف تحويل.
@@ -168,7 +168,10 @@ export default function TransferPage() {
         <button
           type="button"
           disabled={!ready}
-          onClick={() => setSaved(true)}
+          onClick={() => {
+            actions.transfer({ from, to, out: outP, in: inP });
+            setSaved(true);
+          }}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
           حفظ التحويل

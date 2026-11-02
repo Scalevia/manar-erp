@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
   BarChart3,
-  Factory,
   FileText,
   Home,
   LayoutGrid,
@@ -17,7 +16,6 @@ import {
   Settings,
   TrendingUp,
   Wallet,
-  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 import { LogoLockup } from "@/components/Logo";
@@ -40,9 +38,7 @@ const sidebar: Item[][] = [
   ],
   [
     { href: "/inventory", label: "المخزون", icon: Package },
-    { href: "/jobs", label: "أوامر التصنيع", icon: Factory },
-    { href: "/receive", label: "استلام من المصنع", icon: PackagePlus },
-    { href: "/fabric", label: "القماش اللي عندي", icon: Warehouse },
+    { href: "/inventory/buy", label: "شراء مخزون", icon: PackagePlus },
     { href: "/expenses", label: "المصاريف", icon: Receipt },
     { href: "/returns", label: "مرتجع", icon: RotateCcw },
     { href: "/loans", label: "السلف", icon: ArrowLeftRight },

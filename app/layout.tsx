@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
+import StoreGate from "@/components/StoreGate";
 
 const arabic = IBM_Plex_Sans_Arabic({
   variable: "--font-arabic",
@@ -43,7 +44,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       {/* إضافات المتصفح (زي Grammarly) بتحقن خصائص في الـ body قبل React */}
       <body className="min-h-full bg-page text-ink" suppressHydrationWarning>
-        <AppShell>{children}</AppShell>
+        <AppShell>
+          <StoreGate>{children}</StoreGate>
+        </AppShell>
       </body>
     </html>
   );

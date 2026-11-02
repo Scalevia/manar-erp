@@ -1,9 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowLeftRight,
   BarChart3,
   ChevronRight,
-  Factory,
   FileText,
   Moon,
   PackagePlus,
@@ -13,11 +14,10 @@ import {
   RotateCcw,
   TrendingUp,
   Users,
-  Warehouse,
   type LucideIcon,
 } from "lucide-react";
-import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
-import { ofKind, openJobs, totals } from "@/lib/mock";
+import { Card, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
+import { ofKind, resetStore } from "@/lib/mock";
 
 type Item = {
   href: string;
@@ -31,19 +31,8 @@ export default function MorePage() {
     {
       title: "الشغل",
       items: [
-        {
-          href: "/jobs",
-          label: "أوامر التصنيع",
-          icon: Factory,
-          hint: <><Num value={openJobs().length} /> مفتوحين</>,
-        },
-        { href: "/receive", label: "استلام من المصنع", icon: PackagePlus },
-        {
-          href: "/fabric",
-          label: "القماش اللي عندي",
-          icon: Warehouse,
-          hint: <Money value={totals.fabric} />,
-        },
+        // بيع وشراء (الـ spec، قسم 5): البضاعة من المصنع شراء، والخامات دفعة للمصنع
+        { href: "/inventory/buy", label: "شراء مخزون", icon: PackagePlus, hint: "من مصنع أو تاجر" },
         { href: "/expenses", label: "المصاريف", icon: Receipt },
         { href: "/loans", label: "السلف", icon: ArrowLeftRight },
         { href: "/returns", label: "مرتجع", icon: RotateCcw },
@@ -58,7 +47,7 @@ export default function MorePage() {
         { href: "/capital", label: "رأس مالي", icon: TrendingUp },
         {
           href: "/accounts",
-          label: "العملاء والمصانع",
+          label: "العملاء والموردين",
           icon: Users,
           hint: <><Num value={ofKind("customer").length} /> عميل</>,
         },
@@ -119,8 +108,25 @@ export default function MorePage() {
             </div>
           </Card>
 
+          {/* البيانات التجريبية بتتحفظ في المتصفح — ده بيمسح اللي اتسجل ويرجّعها زي الأول */}
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("هيتمسح كل اللي اتسجل وترجع البيانات التجريبية زي الأول. متأكد؟")) resetStore();
+            }}
+            className="press flex w-full items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3.5 text-start"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-neg-soft text-neg">
+              <RotateCcw size={18} />
+            </span>
+            <span className="flex-1">
+              <span className="block text-[15px] text-neg">رجّع البيانات التجريبية</span>
+              <span className="mt-0.5 block text-[12px] text-ink-mute">يمسح كل اللي اتسجل ويبدأ من الأول</span>
+            </span>
+          </button>
+
           <p className="px-1 pb-2 text-center text-[12px] text-ink-mute">
-            مكتب منار · نسخة عرض للتصميم · البيانات كلها تجريبية
+            مكتب منار · نسخة تجريبية · اللي بتسجله بيتحفظ على الجهاز ده بس
           </p>
         </div>
       </Page>

@@ -8,11 +8,11 @@ import { ModelInput, ModelModeToggle, ModelSuggestions, newModelText, useModelFi
 import { PartyPicker } from "@/components/PartyPicker";
 import { Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader, SupplierBalance } from "@/components/ui";
 import { money, p } from "@/lib/format";
-import { afterPurchase, cashAccounts, stockOf, totals, type Party } from "@/lib/mock";
+import { actions, afterPurchase, cashAccounts, stockOf, totals, type Party } from "@/lib/mock";
 
 /**
- * شراء مخزون — بضاعة جاهزة من أي مورد: تاجر، أو مصنع بيبيعلك جاهز (الـ spec، قسم 4):
- *   المخزن:  يزيد بسعر الشراء على طول — مفيش أمر تصنيع
+ * شراء مخزون — بضاعة جاهزة من أي مورد، تاجر أو مصنع (الـ spec، قسم 5 — بيع وشراء):
+ *   المخزن:  يزيد بالسعر اللي هو كتبه على طول
  *   المورد:  اللي مندفعش بيتخصم من المقدّم الأول لو دفعله قبل كده، والباقي ليه
  *   الخزنة:  تقل باللي اتدفع بس
  */
@@ -25,7 +25,8 @@ export default function BuyStockPage() {
   const [lines, setLines] = useState<Line[]>([]);
   const [paid, setPaid] = useState("");
   const [accountId, setAccountId] = useState(cashAccounts[0].id);
-  const [saved, setSaved] = useState(false);
+  // بعد الحفظ: رقم المورد (لو اتفتحله حساب جديد هنا)
+  const [saved, setSaved] = useState<string | null>(null);
 
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
   const pieces = lines.reduce((s, l) => s + l.qty, 0);
@@ -65,26 +66,12 @@ export default function BuyStockPage() {
             <Link href="/inventory" className="press rounded-2xl bg-brand py-3.5 text-center text-[15px] font-bold text-brand-ink">
               المخزون
             </Link>
-            {seller.id === "new" ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setLines([]);
-                  setPaid("");
-                  setSaved(false);
-                }}
-                className="press rounded-2xl border border-line bg-card py-3.5 text-[15px] font-semibold text-ink-soft"
-              >
-                شراء تاني
-              </button>
-            ) : (
-              <Link
-                href={`/accounts/${seller.id}`}
-                className="press rounded-2xl border border-line bg-card py-3.5 text-center text-[15px] font-semibold text-ink-soft"
-              >
-                كشف حسابه
-              </Link>
-            )}
+            <Link
+              href={`/accounts/${saved}`}
+              className="press rounded-2xl border border-line bg-card py-3.5 text-center text-[15px] font-semibold text-ink-soft"
+            >
+              كشف حسابه
+            </Link>
           </div>
         </Page>
       </>
@@ -97,7 +84,7 @@ export default function BuyStockPage() {
       <Page>
         {/* ------------------------------- من مين ------------------------------- */}
         <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">شاريها من مين؟</div>
-        <PartyPicker role="goods" value={seller} onChange={setSeller} />
+        <PartyPicker value={seller} onChange={setSeller} />
 
         {/* ------------------------------- اشترى إيه ------------------------------- */}
         <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">اشتريت إيه؟</div>
@@ -208,7 +195,16 @@ export default function BuyStockPage() {
         <button
           type="button"
           disabled={!ready}
-          onClick={() => setSaved(true)}
+          onClick={() =>
+            setSaved(
+              actions.buy({
+                supplier: seller!,
+                lines: lines.map((l) => ({ code: l.code, name: l.name, qty: l.qty, unitCost: l.price })),
+                paid: paidP,
+                accountId,
+              }).supplierId,
+            )
+          }
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
           حفظ الشراية
