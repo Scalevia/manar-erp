@@ -4,7 +4,7 @@ import { use } from "react";
 import { notFound } from "next/navigation";
 import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { dozens, shortDate, since } from "@/lib/format";
-import { avgCost, byId, modelById, stockOf, TODAY, valueOf } from "@/lib/mock";
+import { avgCost, byId, isStale, modelById, stockOf, TODAY, valueOf } from "@/lib/mock";
 
 export default function ModelPage({
   params,
@@ -74,7 +74,7 @@ export default function ModelPage({
           <InfoRow
             label="آخر بيعة"
             value={m.lastSale ? since(m.lastSale, new Date(TODAY)) : "مفيش"}
-            warn={!m.lastSale || m.soldThisMonth === 0}
+            warn={isStale(m)}
           />
           <div className="ms-4 border-t border-line-soft" />
           <InfoRow

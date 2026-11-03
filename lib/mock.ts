@@ -78,6 +78,8 @@ export type Model = {
   name?: string;
   batches: Batch[];
   lastSale?: string;
+  /** آخر شراية أو رصيد أول مدة — مرتجع العميل مش محسوب */
+  lastBuy?: string;
   soldThisMonth: number;
 };
 
@@ -516,13 +518,15 @@ function rebuild() {
   const balOf = (id: string) => ps.get(id)?.bal ?? 0;
 
   /* ---- المخزون: دفعات بالأقدم ---- */
-  type MS = { batches: Batch[]; lastCost: number; lastSale?: string; events: { date: string; qty: number; revenue: number; cost: number }[] };
+  type MS = { batches: Batch[]; lastCost: number; lastSale?: string; lastBuy?: string; events: { date: string; qty: number; revenue: number; cost: number }[] };
   const ms = new Map<string, MS>(db.models.map((m) => [m.id, { batches: [], lastCost: 0, events: [] }]));
   const addStock = (modelId: string, date: string, sourceId: string, qty: number, unitCost: number) => {
     const m = ms.get(modelId);
     if (!m) return;
     if (unitCost > 0) m.lastCost = unitCost;
     if (qty > 0) m.batches.push({ receivedAt: date, sourceId, pieces: qty, unitCost });
+    // مرتجع العميل مش شراية — مبيصفّرش عدّاد الراكد
+    if (qty > 0 && recs.get(sourceId)?.kind !== "customer") m.lastBuy = date;
   };
   /** بيطلّع قطع من الأقدم ويرجّع تكلفتها — الشاشات مبتسمحش بأكتر من اللي في المحل */
   const takeStock = (modelId: string, qty: number, preferSource?: string) => {
@@ -753,6 +757,7 @@ function rebuild() {
         ...r,
         batches: m.batches,
         lastSale: m.lastSale,
+        lastBuy: m.lastBuy,
         soldThisMonth: m.events.filter((e) => e.date.startsWith(month)).reduce((s, e) => s + e.qty, 0),
       };
     }),
@@ -1000,9 +1005,14 @@ export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0)
 /** قيمة الموديل بالقروش — متقرّبة لأقرب جنيه */
 export const valueOf = (m: Model) => Math.round(m.batches.reduce((s, b) => s + b.pieces * b.unitCost, 0) / 100) * 100;
 
-/** راكد = فيه مخزون وآخر بيعة بقالها أكتر من 90 يوم */
-export const isStale = (m: Model) =>
-  stockOf(m) > 0 && (!m.lastSale || daysSince(m.lastSale, new Date(TODAY)) > 90);
+/** الموديل واقف من إمتى: آخر بيعة أو آخر شراية — أيهم أقرب */
+export const idleSince = (m: Model) => [m.lastSale, m.lastBuy].filter(Boolean).sort().at(-1);
+
+/** راكد = فيه مخزون وواقف أكتر من 90 يوم — اللي لسه شاريه مش راكد */
+export const isStale = (m: Model) => {
+  const from = idleSince(m);
+  return stockOf(m) > 0 && !!from && daysSince(from, new Date(TODAY)) > 90;
+};
 
 export const avgCost = (m: Model) => {
   const n = stockOf(m);

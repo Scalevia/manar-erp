@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Hash, Plus, Search, Type, X } from "lucide-react";
 import { Badge, Card, Empty, InShop, Money, Num, Page, PageHeader } from "@/components/ui";
 import { since } from "@/lib/format";
-import { isStale, models, searchModels, stockOf, TODAY, totals, valueOf } from "@/lib/mock";
+import { idleSince, isStale, models, searchModels, stockOf, TODAY, totals, valueOf } from "@/lib/mock";
 
 export default function InventoryPage() {
   const [q, setQ] = useState("");
@@ -147,7 +147,7 @@ export default function InventoryPage() {
 
                       {stale && (
                         <Badge tone="warn">
-                          راكد {m.lastSale ? since(m.lastSale, new Date(TODAY)) : ""}
+                          راكد {since(idleSince(m)!, new Date(TODAY))}
                         </Badge>
                       )}
 
