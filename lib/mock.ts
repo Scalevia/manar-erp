@@ -105,6 +105,19 @@ export type Invoice = {
   accountId?: string;
 };
 
+export type CustomerModel = { modelId: string; qty: number; lastPrice: number; lastDate: string };
+
+export type CustomerStats = {
+  sales: number;
+  profit: number;
+  invoices: number;
+  pieces: number;
+  returned: number;
+  lastSale?: string;
+  /** الأكتر قطع الأول */
+  models: CustomerModel[];
+};
+
 export type StockBuy = {
   id: string;
   date: string;
@@ -438,6 +451,7 @@ export const capitalIns: CapitalIn[] = [];
 export const modelStats: ModelStat[] = [];
 export const capitalPeriods: CapitalPeriod[] = [];
 const statements = new Map<string, LedgerRow[]>();
+const customerStats = new Map<string, CustomerStats>();
 let started = TODAY;
 let recent: Activity[] = [];
 
@@ -539,6 +553,13 @@ function rebuild() {
     return cost;
   };
 
+  /* ---- شغل كل عميل: اشترى بكام، وكسبت منه كام، وبياخد أنهي موديلات ---- */
+  const cs = new Map<string, { sales: number; cost: number; pieces: number; returned: number; lastSale?: string; models: Map<string, CustomerModel> }>();
+  const csOf = (id: string) => {
+    if (!cs.has(id)) cs.set(id, { sales: 0, cost: 0, pieces: 0, returned: 0, models: new Map() });
+    return cs.get(id)!;
+  };
+
   const invs: Invoice[] = [];
   const buys: StockBuy[] = [];
   const exps: Expense[] = [];
@@ -564,6 +585,8 @@ function rebuild() {
           addCash(t.accountId, t.paid);
           post(t.partyId, t.date, `دفع ← ${accName(t.accountId)}`, -t.paid);
         }
+        const c = csOf(t.partyId);
+        c.lastSale = t.date;
         for (const l of t.lines) {
           const cost = takeStock(l.modelId, l.qty);
           const m = ms.get(l.modelId);
@@ -571,6 +594,11 @@ function rebuild() {
             m.lastSale = t.date;
             m.events.push({ date: t.date, qty: l.qty, revenue: l.qty * l.price, cost });
           }
+          c.sales += l.qty * l.price;
+          c.cost += cost;
+          c.pieces += l.qty;
+          const cm = c.models.get(l.modelId) ?? { modelId: l.modelId, qty: 0, lastPrice: 0, lastDate: t.date };
+          c.models.set(l.modelId, { ...cm, qty: cm.qty + l.qty, lastPrice: l.price, lastDate: t.date });
         }
         invs.push({ no: t.no, date: t.date, time: t.time, partyId: t.partyId, lines: t.lines, paid: t.paid, accountId: t.accountId });
         const x = recs.get(t.partyId);
@@ -634,11 +662,18 @@ function rebuild() {
           addCash(t.accountId, -total);
           post(t.partyId, t.date, `رجعتله فلوس ← من ${accName(t.accountId)}`, total);
         }
+        const c = csOf(t.partyId);
         for (const l of t.lines) {
           const m = ms.get(l.modelId);
           const unit = m?.lastCost ?? 0;
           addStock(l.modelId, t.date, t.partyId, l.qty, unit);
           m?.events.push({ date: t.date, qty: -l.qty, revenue: -l.qty * l.price, cost: -l.qty * unit });
+          c.sales -= l.qty * l.price;
+          c.cost -= l.qty * unit;
+          c.pieces -= l.qty;
+          c.returned += l.qty;
+          const cm = c.models.get(l.modelId);
+          if (cm) c.models.set(l.modelId, { ...cm, qty: cm.qty - l.qty });
         }
         break;
       }
@@ -729,6 +764,18 @@ function rebuild() {
       };
     }),
   );
+
+  customerStats.clear();
+  for (const [id, c] of cs)
+    customerStats.set(id, {
+      sales: c.sales,
+      profit: c.sales - c.cost,
+      invoices: invs.filter((x) => x.partyId === id).length,
+      pieces: c.pieces,
+      returned: c.returned,
+      lastSale: c.lastSale,
+      models: [...c.models.values()].filter((m) => m.qty > 0).sort((a, b) => b.qty - a.qty),
+    });
 
   fill(invoices, invs.sort((a, b) => a.no - b.no));
   fill(stockBuys, buys);
@@ -917,6 +964,10 @@ export const loansDueSoon = () =>
     .sort((a, b) => a.dueDate!.localeCompare(b.dueDate!));
 
 export const statementOf = (partyId: string): LedgerRow[] => statements.get(partyId) ?? [];
+
+/** ملخص شغل العميل — البيع والمكسب صافيين بعد المرتجع */
+export const customerStatsOf = (partyId: string): CustomerStats | undefined => customerStats.get(partyId);
+export const invoicesOf = (partyId: string) => invoices.filter((x) => x.partyId === partyId).sort((a, b) => b.no - a.no);
 
 /* ============================ الموديلات ============================ */
 
