@@ -617,7 +617,6 @@ function rebuild() {
       }
       case "pay": {
         const r = recs.get(t.partyId);
-        const before = balOf(t.partyId);
         let label: string;
         if (t.collect) {
           addCash(t.accountId, t.amount);
@@ -626,7 +625,7 @@ function rebuild() {
         } else {
           addCash(t.accountId, -t.amount);
           label =
-            r?.kind === "supplier" && before >= 0
+            r?.kind === "supplier"
               ? `دفعة تحت الحساب ← من ${accName(t.accountId)}`
               : r?.kind === "customer"
                 ? `رجعتله فلوس ← من ${accName(t.accountId)}`
@@ -635,7 +634,7 @@ function rebuild() {
         }
         acts.push({
           key: t.id, date: t.date, time: t.time, kind: t.collect ? "payment" : "purchase",
-          title: `${t.collect ? "تحصيل" : "دفع"} · ${r?.name}`, sub: accName(t.accountId), amount: t.amount, href: `/accounts/${t.partyId}`,
+          title: `${t.collect ? "تحصيل" : r?.kind === "supplier" ? "دفعة تحت الحساب" : "دفع"} · ${r?.name}`, sub: accName(t.accountId), amount: t.amount, href: `/accounts/${t.partyId}`,
         });
         break;
       }
@@ -930,18 +929,18 @@ export const receivables = () =>
     .filter((x) => x.balance > 0)
     .sort((a, b) => daysSince(b.oldestDue ?? TODAY) - daysSince(a.oldestDue ?? TODAY));
 
-/** «عليا»: أي حد ليه فلوس */
-export const payables = () => parties.filter((x) => x.balance < 0).sort((a, b) => a.balance - b.balance);
-
 /**
  * شاشة الدفع بتفتح على أنهي اتجاه — وتقدر تقلبه («استلمت منه / دفعتله»):
  * العميل استلمت منه · المورد دفعتله حتى لو عليه مقدّم · السلفة حسب اتجاهها.
  */
 export const isCollectFrom = (x: Party) => x.kind === "customer" || (x.kind === "person" && x.balance > 0);
 
-/** الدفعة للمورد ده هتبقى مقدّم — مالوش حاجة عندك، أو عليه مقدّم أصلاً */
-export const isAdvance = (x: Party) => x.kind === "supplier" && x.balance >= 0;
-
+/** اسم الدفعة: أي فلوس للمصنع أو التاجر «دفعة تحت الحساب» — سدّت اللي ليه ولا بقت مقدّم */
+export function paymentTitle(x: Party, collect: boolean) {
+  if (x.kind === "customer") return collect ? "تحصيل" : "رجّعتله فلوس";
+  if (x.kind === "supplier") return collect ? "رجّعلك فلوس" : "دفعة تحت الحساب";
+  return collect ? "استلمت منه" : "دفعتله";
+}
 /** حساب المورد بعد شراية: اللي مندفعش بيتخصم من المقدّم الأول، والباقي يبقى ليه */
 export function afterPurchase(balance: number, unpaid: number) {
   return { fromAdvance: Math.min(unpaid, Math.max(0, balance)), after: balance - unpaid };

@@ -161,7 +161,7 @@ function PartyRow({ party }: { party: Party }) {
           <span className="text-[13px] text-ink-mute">خالص</span>
         ) : (
           <span className={`text-[13px] ${party.balance > 0 ? "text-pos" : "text-neg"}`}>
-            {party.balance > 0 ? "عليه " : "ليه "}
+            {party.balance > 0 ? (party.kind === "supplier" ? "عنده مقدّم " : "عليه ") : "ليه "}
             <Money value={Math.abs(party.balance)} className="text-[16px] font-bold" />
           </span>
         )}

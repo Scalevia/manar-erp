@@ -3,17 +3,17 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
-import { Card, Empty, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
+import { Badge, Card, Empty, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { p } from "@/lib/format";
-import { actions, byId, cashAccounts, isAdvance, isCollectFrom, payables, receivables, type Party } from "@/lib/mock";
+import { actions, byId, cashAccounts, isCollectFrom, ofKind, paymentTitle, type Party } from "@/lib/mock";
 
 /**
  * تحصيل أو دفع لأي حساب (العملية 7 في الـ spec).
  *
  * الرصيد في البيانات: موجب = ليا عنده · سالب = عليا له.
- * الاتجاه بيتقلب من الشاشة («استلمت منه / دفعتله») — بيفتح على العادي للنوع
- * (isCollectFrom)، بس مورد عليه مقدّم ممكن تديله دفعة تانية، وعميل ليه عندك
- * ممكن ترجّعله فلوس. الخزنة بتزيد في التحصيل وتقل في الدفع.
+ * الناس متقسمين **بنوعهم** زي تاب الحسابات، مش بالرصيد: المصنع اللي عليه مقدّم
+ * بيفضل مع المصانع. الشاشة بتفتح على العادي للنوع (العميل تحصيل، المصنع «دفعة
+ * تحت الحساب»)، والعكس لينك صغير تحت. الخزنة بتزيد في التحصيل وتقل في الدفع.
  */
 export default function PaymentFlow({ initialPartyId }: { initialPartyId?: string }) {
   const initial = initialPartyId ? byId(initialPartyId) : undefined;
@@ -40,11 +40,17 @@ export default function PaymentFlow({ initialPartyId }: { initialPartyId?: strin
 /** الرصيد بعد العملية بإشارته: موجب = عليه · سالب = ليه عندك */
 const afterOf = (balance: number, amount: number, collect: boolean) => balance + (collect ? -amount : amount);
 
+const KIND_LABEL = { customer: "عميل", supplier: "مصنع أو تاجر", person: "سلفة" } as const;
+
 /* ============================ اختيار الطرف ============================ */
 
 function PickParty({ onPick }: { onPick: (x: Party) => void }) {
-  const collect = receivables();
-  const pay = payables();
+  // العملاء اللي عليهم بس · المصانع كلها (حتى الخالص — ممكن تديله مقدّم) · السلف المفتوحة
+  const customers = ofKind("customer")
+    .filter((x) => !x.isCash && x.balance > 0)
+    .sort((a, b) => b.balance - a.balance);
+  const suppliers = ofKind("supplier").sort((a, b) => a.balance - b.balance);
+  const loans = ofKind("person").filter((x) => x.balance !== 0);
 
   const row = (x: Party, i: number) => (
     <div key={x.id}>
@@ -55,30 +61,46 @@ function PickParty({ onPick }: { onPick: (x: Party) => void }) {
         className="press flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-sunken"
       >
         <span className="flex-1 truncate text-[15px] font-semibold">{x.name}</span>
-        <Money
-          value={Math.abs(x.balance)}
-          className={`text-[15px] font-bold ${x.balance > 0 ? "text-pos" : "text-neg"}`}
-        />
+        <BalanceShort party={x} />
       </button>
     </div>
   );
 
   return (
     <>
-      <PageHeader title="تحصيل ودفع" sub="اختار العميل أو المورد" />
+      <PageHeader title="تحصيل ودفع" sub="اختار العميل أو المصنع" />
       <Page>
-        <SectionTitle>تحصيل — عليهم فلوس</SectionTitle>
+        <SectionTitle>العملاء — تحصيل</SectionTitle>
         <Card className="mb-5 overflow-hidden">
-          {collect.length === 0 ? <Empty>مفيش حد عليه فلوس</Empty> : collect.map(row)}
+          {customers.length === 0 ? <Empty>مفيش عميل عليه فلوس</Empty> : customers.map(row)}
         </Card>
 
-        <SectionTitle>دفع — ليهم فلوس</SectionTitle>
-        <Card className="overflow-hidden">
-          {pay.length === 0 ? <Empty>مفيش حد ليه فلوس</Empty> : pay.map(row)}
+        <SectionTitle>المصانع والتجار — دفعة تحت الحساب</SectionTitle>
+        <Card className="mb-5 overflow-hidden">
+          {suppliers.length === 0 ? <Empty>مفيش مصانع لسه</Empty> : suppliers.map(row)}
         </Card>
-        {/* اللي حسابه صفر مش ظاهر هنا — بيتفتح من كشف حسابه */}
+
+        {loans.length > 0 && (
+          <>
+            <SectionTitle>السلف</SectionTitle>
+            <Card className="overflow-hidden">{loans.map(row)}</Card>
+          </>
+        )}
+        {/* عميل حسابه خالص مش ظاهر هنا — بيتفتح من كشف حسابه */}
       </Page>
     </>
+  );
+}
+
+/** الرصيد في سطر: المصنع اللي عليه «مقدّم» عشان ميتلخبطش مع العميل */
+function BalanceShort({ party }: { party: Party }) {
+  const v = party.balance;
+  if (v === 0) return <span className="text-[13px] text-ink-mute">خالصين</span>;
+  return (
+    <span className={`text-[13px] ${v > 0 ? "text-pos" : "text-neg"}`}>
+      {v > 0 ? (party.kind === "supplier" ? "عنده مقدّم " : "عليه ") : "ليه "}
+      <Money value={Math.abs(v)} className="text-[15px] font-bold" />
+    </span>
   );
 }
 
@@ -93,28 +115,28 @@ function PaymentForm({
   onChange: () => void;
   onSave: (amount: number, accountId: string, collect: boolean) => void;
 }) {
-  const [collect, setCollect] = useState(isCollectFrom(party));
+  const usual = isCollectFrom(party);
+  const [collect, setCollect] = useState(usual);
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState(cashAccounts[0].id);
   const [note, setNote] = useState("");
 
   const amountP = p(Number(amount) || 0);
   const account = cashAccounts.find((a) => a.id === accountId)!;
+  const isSupplier = party.kind === "supplier";
 
   const before = party.balance;
   const after = afterOf(before, amountP, collect);
   // المبلغ اللي يقفل الحساب في الاتجاه ده — صفر لو الاتجاه ده بيزوّد مش بيقفل
   const toClose = collect ? Math.max(0, before) : Math.max(0, -before);
   const tooMuch = toClose > 0 && amountP > toClose;
-  // دفعة لمورد مالوش حاجة عندك (أو عليه أصلاً) = مقدّم بيتخصم من أول شراية
-  const advance = !collect && party.kind === "supplier" && amountP > toClose;
   const accountShort = !collect && amountP > account.balance;
+  const title = paymentTitle(party, collect);
 
   return (
     <>
       <PageHeader
-        title={collect ? "تحصيل" : isAdvance(party) ? "دفعة تحت الحساب" : "دفع"}
-        sub={party.name}
+        title={title}
         action={
           <button
             type="button"
@@ -127,33 +149,16 @@ function PaymentForm({
       />
 
       <Page>
-        {/* ------------------------------- قبل ------------------------------- */}
-        <div className="mb-3 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3">
-          <span className="text-[13px] text-ink-soft">حسابه دلوقتي</span>
-          <span className="text-[15px] font-bold">
-            <Balance value={before} />
-          </span>
-        </div>
-
-        {/* ------------------------------ الاتجاه ------------------------------ */}
-        <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-sunken p-1">
-          {(
-            [
-              [true, "استلمت منه"],
-              [false, "دفعتله"],
-            ] as [boolean, string][]
-          ).map(([v, label]) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => setCollect(v)}
-              aria-pressed={collect === v}
-              className={`press rounded-xl py-2.5 text-[14px] font-bold ${collect === v ? "bg-card text-ink shadow-sm" : "text-ink-mute"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* ------------------------------ مين ------------------------------ */}
+        <Card className="mb-4 px-4 py-3.5">
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-[17px] font-bold">{party.name}</span>
+            <Badge tone={isSupplier ? "brand" : "neutral"}>{KIND_LABEL[party.kind]}</Badge>
+          </div>
+          <div className="mt-1.5 text-[13px] text-ink-soft">
+            حسابه دلوقتي: <Balance party={party} value={before} />
+          </div>
+        </Card>
 
         {/* ------------------------------ المبلغ ------------------------------ */}
         <Card className="mb-4 px-4 py-4">
@@ -179,15 +184,26 @@ function PaymentForm({
             aria-label="المبلغ"
             className="num h-16 w-full rounded-xl border border-line bg-page px-3 text-center text-[28px] font-bold outline-none placeholder:font-normal placeholder:text-ink-mute/40 focus:border-brand"
           />
-          {tooMuch && !advance && (
-            <p className="mt-2 text-[12px] leading-relaxed text-warn">
-              {collect ? "أكتر من اللي عليه — الزيادة هتتسجل ليه عندك." : "أكتر من اللي ليه — الزيادة هتتسجل ليك عنده."}
-            </p>
-          )}
-          {advance && amountP > 0 && (
+          {/* الدفعة للمصنع: بتسدّ اللي ليه الأول، والباقي مقدّم بيتخصم من أول شراية */}
+          {isSupplier && !collect ? (
             <p className="mt-2 text-[12px] leading-relaxed text-brand">
-              {toClose > 0 ? "الزيادة عن اللي ليه" : "دي"} دفعة مقدّم — هتتخصم من أول شراية منه.
+              {toClose === 0 ? (
+                <>فلوس مقدّم عنده — بتتخصم لوحدها من أول بضاعة تشتريها منه.</>
+              ) : amountP > toClose ? (
+                <>
+                  <Money value={toClose} /> بتقفل اللي ليه، و<Money value={amountP - toClose} /> مقدّم بيتخصم من
+                  أول شراية.
+                </>
+              ) : (
+                <>بتقلل اللي ليه عندك.</>
+              )}
             </p>
+          ) : (
+            tooMuch && (
+              <p className="mt-2 text-[12px] leading-relaxed text-warn">
+                {collect ? "أكتر من اللي عليه — الزيادة هتتسجل ليه عندك." : "أكتر من اللي ليه — الزيادة هتتسجل ليك عنده."}
+              </p>
+            )
           )}
         </Card>
 
@@ -246,7 +262,7 @@ function PaymentForm({
                   <span className="text-pos">الحساب هيتقفل ✓</span>
                 ) : (
                   <>
-                    هيبقى <Balance value={after} />
+                    هيبقى <Balance party={party} value={after} />
                   </>
                 )}
               </span>
@@ -260,19 +276,40 @@ function PaymentForm({
           onClick={() => onSave(amountP, accountId, collect)}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >
-          {collect ? "حفظ التحصيل" : "حفظ الدفع"}
+          حفظ {isSupplier && !collect ? "الدفعة" : collect ? "التحصيل" : "الدفع"}
+        </button>
+
+        {/* العكس نادر (المصنع رجّعلك فلوس · رجّعت للعميل فلوس) — لينك صغير مش زرار فوق */}
+        <button
+          type="button"
+          onClick={() => setCollect((v) => !v)}
+          className="press mt-4 block w-full py-2 text-center text-[13px] font-semibold text-ink-mute underline-offset-4 active:underline"
+        >
+          {collect !== usual
+            ? `رجوع لـ «${paymentTitle(party, usual)}»`
+            : isSupplier
+              ? "المصنع هو اللي رجّعلك فلوس؟"
+              : party.kind === "customer"
+                ? "انت اللي رجّعتله فلوس؟"
+                : collect
+                  ? "انت اللي دفعتله؟"
+                  : "هو اللي دفعلك؟"}
         </button>
       </Page>
     </>
   );
 }
 
-/** موجب = عليه (ليك عنده) · سالب = ليه عندك · صفر = خالصين */
-function Balance({ value }: { value: number }) {
+/**
+ * موجب = عليه (ليك عنده) · سالب = ليه عندك · صفر = خالصين.
+ * المصنع اللي عليه = عنده مقدّم لسه مستلمتش بيه بضاعة.
+ */
+function Balance({ party, value }: { party: Party; value: number }) {
   if (value === 0) return <span className="text-ink-soft">خالصين</span>;
   return value > 0 ? (
     <span className="text-pos">
-      عليه <Money value={value} />
+      {party.kind === "supplier" ? "عنده مقدّم " : "عليه "}
+      <Money value={value} />
     </span>
   ) : (
     <span className="text-neg">
@@ -306,7 +343,11 @@ function Saved({
             <Check size={28} strokeWidth={3} />
           </div>
           <div className="mt-4 text-[15px] text-ink-soft">
-            {collect ? `استلمت من ${party.name}` : `دفعت لـ ${party.name}`}
+            {party.kind === "supplier" && !collect
+              ? `دفعة تحت الحساب لـ ${party.name}`
+              : collect
+                ? `استلمت من ${party.name}`
+                : `دفعت لـ ${party.name}`}
           </div>
           <div className="mt-1 flex items-baseline justify-center gap-1.5">
             <Money value={amount} className={`text-[30px] font-bold ${collect ? "text-pos" : "text-neg"}`} />
@@ -321,7 +362,7 @@ function Saved({
               <span className="text-pos">الحساب اتقفل ✓</span>
             ) : (
               <>
-                حسابه دلوقتي: <Balance value={after} />
+                حسابه دلوقتي: <Balance party={party} value={after} />
               </>
             )}
           </div>

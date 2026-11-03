@@ -13,9 +13,9 @@ import {
   invoicePieces,
   invoicesOf,
   invoiceTotal,
-  isAdvance,
   isCollectFrom,
   modelById,
+  paymentTitle,
   statementOf,
   TODAY,
   type Party,
@@ -23,7 +23,7 @@ import {
 
 function kindLabel(x: Party) {
   if (x.kind === "customer") return "عميل";
-  if (x.kind === "supplier") return "مورد";
+  if (x.kind === "supplier") return "مصنع أو تاجر";
   return x.balance > 0 ? "سلفة · سلّفته" : "سلفة · استلفت منه";
 }
 
@@ -38,10 +38,11 @@ export default function StatementPage({
 
   const rows = statementOf(id);
   const owesMe = party.balance > 0;
-  // الزرار: العميل تحصيل، المورد دفع (وفي الشاشة يقدر يقلبه)
+  // المصنع اللي «عليه» = عنده فلوس مقدّم لسه مستلمتش بيها بضاعة
+  const isSupplier = party.kind === "supplier";
+  // الزرار: العميل تحصيل، المصنع «دفعة تحت الحساب» دايماً (وفي الشاشة يقدر يعكس)
   const collect = isCollectFrom(party);
-  // مورد مالوش حاجة عندك (أو عليه مقدّم): الدفعة ليه مقدّم — الاسم بيقولها صريحة
-  const payLabel = collect ? "تحصيل" : isAdvance(party) ? "دفعة تحت الحساب" : "دفع";
+  const payLabel = paymentTitle(party, collect);
   const amount = Math.abs(party.balance);
   const settled = party.balance === 0;
 
@@ -76,7 +77,7 @@ export default function StatementPage({
               <div
                 className={`text-[13px] font-semibold ${owesMe ? "text-pos" : "text-neg"}`}
               >
-                {owesMe ? "ليا عنده" : "عليا له"}
+                {owesMe ? (isSupplier ? "عنده مقدّم — لسه مستلمتش بيه بضاعة" : "ليا عنده") : "عليا له"}
               </div>
               <div className="mt-1 flex items-baseline justify-center gap-1.5">
                 <Money
@@ -87,7 +88,7 @@ export default function StatementPage({
                 />
                 <span className="text-[15px] font-semibold text-ink-mute">ج</span>
               </div>
-              {owesMe && party.oldestDue && (
+              {owesMe && !isSupplier && party.oldestDue && (
                 <div className="mt-2 text-[12px] text-ink-mute">
                   أقدم مبلغ {since(party.oldestDue, new Date(TODAY))}
                 </div>
@@ -170,7 +171,7 @@ export default function StatementPage({
                           "خالص"
                         ) : (
                           <>
-                            {r.balance > 0 ? "عليه " : "ليه "}
+                            {r.balance > 0 ? (isSupplier ? "مقدّم " : "عليه ") : "ليه "}
                             <Money value={Math.abs(r.balance)} className="text-[13px]" />
                           </>
                         )}
