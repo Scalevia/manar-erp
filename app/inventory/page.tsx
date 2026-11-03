@@ -15,8 +15,7 @@ export default function InventoryPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const list = useMemo(() => {
-    // اللي بالسالب بيفضل ظاهر — لازم يتسجل استلامه
-    const inStock = models.filter((m) => stockOf(m) !== 0);
+    const inStock = models.filter((m) => stockOf(m) > 0);
     if (!q.trim()) return inStock;
     const found = new Set(searchModels(q));
     return inStock.filter((m) => found.has(m));

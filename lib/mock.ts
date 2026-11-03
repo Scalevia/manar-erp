@@ -77,8 +77,6 @@ export type Model = {
   code?: number;
   name?: string;
   batches: Batch[];
-  /** قطع اتباعت ومكانش ليها رصيد — المخزون بالسالب لحد ما الشراية تتسجل */
-  oversold?: number;
   lastSale?: string;
   soldThisMonth: number;
 };
@@ -333,7 +331,7 @@ function seed(): Db {
   sale(day(-5), "cash", [["m199", 24, 120]], 2880, "drawer", "10:40");
   sale(day(-3), "cash", [["m208", 12, 130], ["m199", 12, 125], ["mk1", 12, 85]], 4080, "vcash", "16:15");
   sale(day(-1), "cash", [["m221", 24, 110]], 2640, "drawer", "18:06");
-  sale(day(-1), "cash", [["m226", 30, 115]], 3450, "drawer", "12:57");
+  sale(day(-1), "cash", [["m226", 20, 115]], 2300, "drawer", "12:57");
   sale(day(0), "cash", [["m199", 12, 125], ["m208", 12, 130]], 3060, "vcash", "14:34");
   sale(day(0), "cash", [["m221", 24, 110]], 2640, "drawer", "15:10");
   sale(day(0), "cash", [["m214", 12, 125]], 1500, "drawer", "16:11");
@@ -518,18 +516,15 @@ function rebuild() {
   const balOf = (id: string) => ps.get(id)?.bal ?? 0;
 
   /* ---- المخزون: دفعات بالأقدم ---- */
-  type MS = { batches: Batch[]; oversold: number; lastCost: number; lastSale?: string; events: { date: string; qty: number; revenue: number; cost: number }[] };
-  const ms = new Map<string, MS>(db.models.map((m) => [m.id, { batches: [], oversold: 0, lastCost: 0, events: [] }]));
+  type MS = { batches: Batch[]; lastCost: number; lastSale?: string; events: { date: string; qty: number; revenue: number; cost: number }[] };
+  const ms = new Map<string, MS>(db.models.map((m) => [m.id, { batches: [], lastCost: 0, events: [] }]));
   const addStock = (modelId: string, date: string, sourceId: string, qty: number, unitCost: number) => {
     const m = ms.get(modelId);
     if (!m) return;
     if (unitCost > 0) m.lastCost = unitCost;
-    // اللي اتباع بالسالب بيتقفل الأول (الـ spec، قسم 4)
-    const cover = Math.min(m.oversold, qty);
-    m.oversold -= cover;
-    if (qty - cover > 0) m.batches.push({ receivedAt: date, sourceId, pieces: qty - cover, unitCost });
+    if (qty > 0) m.batches.push({ receivedAt: date, sourceId, pieces: qty, unitCost });
   };
-  /** بيطلّع قطع من الأقدم ويرجّع تكلفتها — اللي مش موجود بيبقى سالب بآخر سعر */
+  /** بيطلّع قطع من الأقدم ويرجّع تكلفتها — الشاشات مبتسمحش بأكتر من اللي في المحل */
   const takeStock = (modelId: string, qty: number, preferSource?: string) => {
     const m = ms.get(modelId);
     if (!m) return 0;
@@ -546,11 +541,7 @@ function rebuild() {
       left -= take;
     }
     m.batches = m.batches.filter((b) => b.pieces > 0);
-    if (left > 0) {
-      m.oversold += left;
-      cost += left * m.lastCost;
-    }
-    return cost;
+    return cost + left * m.lastCost;
   };
 
   /* ---- شغل كل عميل: اشترى بكام، وكسبت منه كام، وبياخد أنهي موديلات ---- */
@@ -758,7 +749,6 @@ function rebuild() {
       return {
         ...r,
         batches: m.batches,
-        oversold: m.oversold || undefined,
         lastSale: m.lastSale,
         soldThisMonth: m.events.filter((e) => e.date.startsWith(month)).reduce((s, e) => s + e.qty, 0),
       };
@@ -995,10 +985,8 @@ export function searchModels(q: string): Model[] {
   );
 }
 
-/** القطع في المحل — ممكن يبقى بالسالب لو اتباع أكتر من المتسجل */
-export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0) - (m.oversold ?? 0);
-
-export const oversoldModels = () => models.filter((m) => stockOf(m) < 0);
+/** القطع في المحل — مفيش بيع أكتر منها، فمبيبقاش بالسالب */
+export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0);
 
 /** قيمة الموديل بالقروش — متقرّبة لأقرب جنيه */
 export const valueOf = (m: Model) => Math.round(m.batches.reduce((s, b) => s + b.pieces * b.unitCost, 0) / 100) * 100;

@@ -1,7 +1,6 @@
 "use client";
 
 import { use } from "react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { dozens, shortDate, since } from "@/lib/format";
@@ -28,37 +27,17 @@ export default function ModelPage({
 
       <Page>
         {/* -------------------------------- الإجمالي -------------------------------- */}
-        {stock < 0 ? (
-          // بالسالب: اتباع أكتر من المتسجل — البيع مبيقفش، بس لازم الاستلام يتسجل (الـ spec، قسم 4)
-          <Card className="mb-4 px-5 py-5 text-center">
-            <div className="flex items-baseline justify-center gap-1.5 text-neg">
-              <Num value={-stock} sign="−" className="text-[38px] font-bold leading-none" />
-              <span className="text-[15px] font-semibold">قطعة</span>
-            </div>
-            <p className="mt-3 border-t border-line-soft pt-3 text-[13px] leading-relaxed text-ink-soft">
-              اتباع منه <Num value={-stock} className="font-bold" /> قطعة مش متسجلين في المخزن. لما
-              تسجّل الشراية (من المصنع أو التاجر)، السالب بيتقفل الأول.
-            </p>
-            <Link
-              href="/inventory/buy"
-              className="press mt-3 block rounded-xl bg-brand py-2.5 text-[13px] font-bold text-brand-ink"
-            >
-              شراء مخزون
-            </Link>
-          </Card>
-        ) : (
-          <Card className="mb-4 px-5 py-5 text-center">
-            <div className="flex items-baseline justify-center gap-1.5">
-              <Num value={stock} className="text-[38px] font-bold leading-none" />
-              <span className="text-[15px] font-semibold text-ink-mute">قطعة</span>
-            </div>
-            <div className="mt-1.5 text-[13px] text-ink-mute">{dozens(stock)}</div>
-            <div className="mt-3 border-t border-line-soft pt-3 text-[13px] text-ink-soft">
-              القيمة <Money value={valueOf(m)} className="font-bold text-ink" /> ج ·
-              متوسط التكلفة <Money value={avgCost(m)} decimals className="font-bold text-ink" /> ج
-            </div>
-          </Card>
-        )}
+        <Card className="mb-4 px-5 py-5 text-center">
+          <div className="flex items-baseline justify-center gap-1.5">
+            <Num value={stock} className="text-[38px] font-bold leading-none" />
+            <span className="text-[15px] font-semibold text-ink-mute">قطعة</span>
+          </div>
+          <div className="mt-1.5 text-[13px] text-ink-mute">{dozens(stock)}</div>
+          <div className="mt-3 border-t border-line-soft pt-3 text-[13px] text-ink-soft">
+            القيمة <Money value={valueOf(m)} className="font-bold text-ink" /> ج ·
+            متوسط التكلفة <Money value={avgCost(m)} decimals className="font-bold text-ink" /> ج
+          </div>
+        </Card>
 
         {/* -------------------------------- في المحل -------------------------------- */}
         {m.batches.length > 0 && (

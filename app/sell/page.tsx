@@ -126,7 +126,7 @@ export default function SellPage() {
           )}
 
           <div className="border-t border-line">
-            <AddLine onAdd={(l) => setLines((v) => [...v, l])} />
+            <AddLine lines={lines} onAdd={(l) => setLines((v) => [...v, l])} />
           </div>
         </Card>
 
@@ -244,7 +244,7 @@ export default function SellPage() {
 
 /* ====================== إضافة سطر — الكيبورد مبيقفلش ====================== */
 
-function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
+function AddLine({ lines, onAdd }: { lines: Line[]; onAdd: (l: Line) => void }) {
   const [field, modelRef] = useModelField({ allowNew: false });
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
@@ -253,7 +253,10 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
   const priceRef = useRef<HTMLInputElement>(null);
 
   const model = field.model;
-  const ready = !!model && Number(qty) > 0 && Number(price) > 0;
+  // مفيش بيع أكتر من اللي في المحل — اللي في الفاتورة من نفس الموديل محسوب
+  const left = model ? stockOf(model) - lines.filter((l) => l.modelId === model.id).reduce((s, l) => s + l.qty, 0) : 0;
+  const tooMany = !!model && Number(qty) > left;
+  const ready = !!model && Number(qty) > 0 && !tooMany && Number(price) > 0;
   const notFound = notFoundText(field);
 
   function submit() {
@@ -311,11 +314,18 @@ function AddLine({ onAdd }: { onAdd: (l: Line) => void }) {
           {model && (
             <span className="text-ink-mute">
               {field.other && `${field.other} · `}
-              <InShop pieces={stockOf(model)} />
-              {/* مسموح — البيع مبيقفش، والسالب بيظهر في الرئيسية لحد ما الاستلام يتسجل */}
-              {Number(qty) > 0 && stockOf(model) - Number(qty) < 0 && (
-                <span className="text-warn">
-                  {" "}— هيبقى بالسالب <Num value={Number(qty) - stockOf(model)} />
+              {left === stockOf(model) ? (
+                <InShop pieces={left} />
+              ) : left > 0 ? (
+                <>
+                  فاضل <Num value={left} /> بعد اللي في الفاتورة
+                </>
+              ) : (
+                <>كله في الفاتورة</>
+              )}
+              {tooMany && left > 0 && (
+                <span className="font-semibold text-neg">
+                  {" "}— مينفعش أكتر من <Num value={left} />
                 </span>
               )}
             </span>

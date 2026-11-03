@@ -330,7 +330,7 @@ function AddLine({ dir, supplierId, onAdd }: { dir: Dir; supplierId: string; onA
   const work = batch?.unitCost;
   const priceN = price === "" && work ? work / 100 : Number(price);
   const over = !isCustomer && model && Number(qty) > stockOf(model);
-  const ready = !!model && Number(qty) > 0 && priceN > 0;
+  const ready = !!model && Number(qty) > 0 && !over && priceN > 0;
 
   function submit() {
     if (!ready) return;
@@ -371,7 +371,7 @@ function AddLine({ dir, supplierId, onAdd }: { dir: Dir; supplierId: string; onA
               {field.other && `${field.other} · `}
               <InShop pieces={stockOf(model)} />
               {work && price === "" && <> · تكلفته <Money value={work} decimals /> ج</>}
-              {over && <span className="text-warn"> — أكتر من اللي عندك</span>}
+              {over && <span className="font-semibold text-neg"> — أكتر من اللي عندك</span>}
             </span>
           )}
         </span>
