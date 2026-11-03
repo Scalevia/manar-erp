@@ -30,13 +30,15 @@ export default function BuyStockPage() {
 
   const total = lines.reduce((s, l) => s + l.qty * l.price, 0);
   const pieces = lines.reduce((s, l) => s + l.qty, 0);
-  const paidP = Math.min(p(Number(paid) || 0), total);
-  const rest = total - paidP;
+  const paidP = p(Number(paid) || 0);
+  const rest = Math.max(0, total - paidP);
   const account = cashAccounts.find((a) => a.id === accountId)!;
   const short = paidP > account.balance;
-  // اللي مندفعش بيتخصم من المقدّم الأول (لو دفعله قبل كده)، والباقي يبقى ليه
+  // اللي مندفعش بيتخصم من المقدّم الأول (لو دفعله قبل كده)، والباقي يبقى ليه ·
+  // ولو دفع أكتر من الشراية، الزيادة دفعة تحت الحساب (زي البيع للعميل)
   const advance = Math.max(0, seller?.balance ?? 0);
-  const { fromAdvance, after } = afterPurchase(seller?.balance ?? 0, rest);
+  const oldDebt = Math.max(0, -(seller?.balance ?? 0));
+  const { fromAdvance, extra, after } = afterPurchase(seller?.balance ?? 0, total, paidP);
   const ready = !!seller && lines.length > 0;
 
   if (saved && seller) {
@@ -56,6 +58,9 @@ export default function BuyStockPage() {
             </div>
             <div className="mt-5 space-y-2 border-t border-line-soft pt-4 text-[14px]">
               {paidP > 0 && <Row label={`دفعت من ${account.name}`} value={<Money value={paidP} className="font-semibold" />} />}
+              {extra > 0 && (
+                <Row label="منهم دفعة تحت الحساب" value={<Money value={extra} className="font-semibold" />} />
+              )}
               {fromAdvance > 0 && (
                 <Row label="اتخصم من المقدّم" value={<Money value={fromAdvance} className="font-semibold" />} />
               )}
@@ -157,7 +162,18 @@ export default function BuyStockPage() {
                 {account.name} فيه <Money value={account.balance} /> ج بس.
               </p>
             )}
-            {advance > 0 && (
+            {extra > 0 && (
+              <p className="mt-2 text-[12px] leading-relaxed text-brand">
+                <Money value={total} className="font-semibold" /> تمن البضاعة، و
+                <Money value={extra} className="font-semibold" /> دفعة تحت الحساب
+                {oldDebt === 0
+                  ? " — مقدّم بيتخصم من الشراية الجاية."
+                  : extra <= oldDebt
+                    ? " — بتقلّل اللي ليه من قبل."
+                    : " — بتقفل اللي ليه من قبل، والباقي مقدّم."}
+              </p>
+            )}
+            {advance > 0 && rest > 0 && (
               <p className="mt-2 text-[12px] leading-relaxed text-brand">
                 عنده مقدّم منك <Money value={advance} className="font-semibold" /> ج — اللي مش هتدفعه دلوقتي
                 بيتخصم منه الأول.
@@ -174,10 +190,16 @@ export default function BuyStockPage() {
               {"  ←  "}
               <Money value={totals.stockValue + total} className="text-pos" />
             </Effect>
-            {rest > 0 && (
+            {(rest > 0 || extra > 0) && (
               <Effect
                 label={seller!.name}
-                sub={fromAdvance > 0 ? `اتخصم من المقدّم ${money(fromAdvance)}` : "اللي مندفعش"}
+                sub={
+                  extra > 0
+                    ? `دفعة تحت الحساب ${money(extra)}`
+                    : fromAdvance > 0
+                      ? `اتخصم من المقدّم ${money(fromAdvance)}`
+                      : "اللي مندفعش"
+                }
               >
                 هيبقى <SupplierBalance value={after} />
               </Effect>

@@ -605,7 +605,11 @@ function rebuild() {
         post(t.supplierId, t.date, `شراء ${qtyText(pieces(t.lines))}${one}`, -total);
         if (t.paid > 0) {
           addCash(t.accountId, -t.paid);
-          post(t.supplierId, t.date, `دفعتله ← من ${accName(t.accountId)}`, t.paid);
+          // دفع أكتر من الشراية: الزيادة دفعة تحت الحساب — بتقلل القديم أو بتبقى مقدّم
+          const forGoods = Math.min(t.paid, total);
+          post(t.supplierId, t.date, `دفعتله ← من ${accName(t.accountId)}`, forGoods);
+          if (t.paid > forGoods)
+            post(t.supplierId, t.date, `دفعة تحت الحساب ← من ${accName(t.accountId)}`, t.paid - forGoods);
         }
         for (const l of t.lines) addStock(l.modelId, t.date, t.supplierId, l.qty, l.unitCost);
         buys.push({ id: t.id, date: t.date, supplierId: t.supplierId, lines: t.lines, paid: t.paid, accountId: t.accountId });
@@ -942,8 +946,14 @@ export function paymentTitle(x: Party, collect: boolean) {
   return collect ? "استلمت منه" : "دفعتله";
 }
 /** حساب المورد بعد شراية: اللي مندفعش بيتخصم من المقدّم الأول، والباقي يبقى ليه */
-export function afterPurchase(balance: number, unpaid: number) {
-  return { fromAdvance: Math.min(unpaid, Math.max(0, balance)), after: balance - unpaid };
+export function afterPurchase(balance: number, total: number, paid: number) {
+  const unpaid = Math.max(0, total - paid);
+  return {
+    fromAdvance: Math.min(unpaid, Math.max(0, balance)),
+    // دفع أكتر من الشراية: الزيادة دفعة تحت الحساب
+    extra: Math.max(0, paid - total),
+    after: balance - total + paid,
+  };
 }
 
 /** السلف اللي ميعادها فات أو جاي خلال أسبوع */

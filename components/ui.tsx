@@ -108,12 +108,12 @@ export function InShop({ pieces }: { pieces: number }) {
   return <span className="font-semibold text-neg">خلصان من المحل</span>;
 }
 
-/** حساب المورد بإشارته: موجب = عليه (مقدّم لسه متخصمش) · سالب = ليه · صفر = خالصين */
+/** حساب المورد بإشارته: موجب = عنده مقدّم لسه متخصمش · سالب = ليه · صفر = خالصين */
 export function SupplierBalance({ value }: { value: number }) {
   if (value === 0) return <span className="text-pos">خالصين</span>;
   return value > 0 ? (
     <span className="text-pos">
-      عليه <Money value={value} />
+      عنده مقدّم <Money value={value} />
     </span>
   ) : (
     <span className="text-neg">
