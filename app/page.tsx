@@ -11,6 +11,7 @@ import {
   Receipt,
   TrendingUp,
   Truck,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { LogoLockup } from "@/components/Logo";
@@ -71,7 +72,8 @@ export default function Dashboard() {
         {/* -------------------------- أكتر حاجات بيعملها -------------------------- */}
         <div className="mb-5 grid grid-cols-3 gap-2">
           <Quick href="/expenses/new" icon={Receipt} label="مصروف" primary />
-          <Quick href="/payments" icon={HandCoins} label="تحصيل ودفع" />
+          {/* التحصيل والدفع من حساب الشخص نفسه — بيبان هو عميل ولا مصنع قبل الدفع */}
+          <Quick href="/accounts" icon={Wallet} label="الحسابات" />
           {/* بيع وشراء: البضاعة من المصنع شراء، والفلوس اللي بيدّيهاله دفعة (الـ spec، قسم 5) */}
           <Quick href="/inventory/buy" icon={PackagePlus} label="شراء مخزون" />
         </div>

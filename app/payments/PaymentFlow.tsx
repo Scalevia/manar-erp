@@ -2,33 +2,33 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Check } from "lucide-react";
-import { Badge, Card, Empty, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
+import { Badge, Card, Money, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { actions, byId, cashAccounts, isCollectFrom, ofKind, paymentTitle, type Party } from "@/lib/mock";
+import { actions, byId, cashAccounts, isCollectFrom, paymentTitle, type Party } from "@/lib/mock";
 
 /**
  * تحصيل أو دفع لأي حساب (العملية 7 في الـ spec).
  *
  * الرصيد في البيانات: موجب = ليا عنده · سالب = عليا له.
- * الناس متقسمين **بنوعهم** زي تاب الحسابات، مش بالرصيد: المصنع اللي عليه مقدّم
- * بيفضل مع المصانع. الشاشة بتفتح على العادي للنوع (العميل تحصيل، المصنع «دفعة
- * تحت الحساب»)، والعكس لينك صغير تحت. الخزنة بتزيد في التحصيل وتقل في الدفع.
+ * بتتفتح من حساب الشخص بس (مفيش شاشة «اختار مين» — كانت بتلخبط بين العميل
+ * والمصنع). الشاشة بتفتح على العادي للنوع (العميل تحصيل، المصنع «دفعة تحت
+ * الحساب»)، والعكس لينك صغير تحت. الخزنة بتزيد في التحصيل وتقل في الدفع.
  */
-export default function PaymentFlow({ initialPartyId }: { initialPartyId?: string }) {
-  const initial = initialPartyId ? byId(initialPartyId) : undefined;
-  const [party, setParty] = useState<Party | null>(initial && !initial.isCash ? initial : null);
+export default function PaymentFlow({ partyId }: { partyId: string }) {
+  // نسخة من قبل الدفع — شاشة «اتحفظ» بتحسب الرصيد بعدها منها
+  const [party] = useState(() => byId(partyId));
   const [saved, setSaved] = useState<{ amount: number; accountId: string; collect: boolean } | null>(null);
 
-  if (party && saved)
-    return <Saved party={party} amount={saved.amount} accountId={saved.accountId} collect={saved.collect} />;
+  if (!party || party.isCash) redirect("/accounts");
 
-  if (!party) return <PickParty onPick={setParty} />;
+  if (saved)
+    return <Saved party={party} amount={saved.amount} accountId={saved.accountId} collect={saved.collect} />;
 
   return (
     <PaymentForm
       party={party}
-      onChange={() => setParty(null)}
       onSave={(amount, accountId, collect) => {
         actions.pay({ partyId: party.id, collect, amount, accountId });
         setSaved({ amount, accountId, collect });
@@ -42,77 +42,13 @@ const afterOf = (balance: number, amount: number, collect: boolean) => balance +
 
 const KIND_LABEL = { customer: "عميل", supplier: "مصنع أو تاجر", person: "سلفة" } as const;
 
-/* ============================ اختيار الطرف ============================ */
-
-function PickParty({ onPick }: { onPick: (x: Party) => void }) {
-  // العملاء اللي عليهم بس · المصانع كلها (حتى الخالص — ممكن تديله مقدّم) · السلف المفتوحة
-  const customers = ofKind("customer")
-    .filter((x) => !x.isCash && x.balance > 0)
-    .sort((a, b) => b.balance - a.balance);
-  const suppliers = ofKind("supplier").sort((a, b) => a.balance - b.balance);
-  const loans = ofKind("person").filter((x) => x.balance !== 0);
-
-  const row = (x: Party, i: number) => (
-    <div key={x.id}>
-      {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-      <button
-        type="button"
-        onClick={() => onPick(x)}
-        className="press flex w-full items-center gap-3 px-4 py-3.5 text-start active:bg-sunken"
-      >
-        <span className="flex-1 truncate text-[15px] font-semibold">{x.name}</span>
-        <BalanceShort party={x} />
-      </button>
-    </div>
-  );
-
-  return (
-    <>
-      <PageHeader title="تحصيل ودفع" sub="اختار العميل أو المصنع" />
-      <Page>
-        <SectionTitle>العملاء — تحصيل</SectionTitle>
-        <Card className="mb-5 overflow-hidden">
-          {customers.length === 0 ? <Empty>مفيش عميل عليه فلوس</Empty> : customers.map(row)}
-        </Card>
-
-        <SectionTitle>المصانع والتجار — دفعة تحت الحساب</SectionTitle>
-        <Card className="mb-5 overflow-hidden">
-          {suppliers.length === 0 ? <Empty>مفيش مصانع لسه</Empty> : suppliers.map(row)}
-        </Card>
-
-        {loans.length > 0 && (
-          <>
-            <SectionTitle>السلف</SectionTitle>
-            <Card className="overflow-hidden">{loans.map(row)}</Card>
-          </>
-        )}
-        {/* عميل حسابه خالص مش ظاهر هنا — بيتفتح من كشف حسابه */}
-      </Page>
-    </>
-  );
-}
-
-/** الرصيد في سطر: المصنع اللي عليه «مقدّم» عشان ميتلخبطش مع العميل */
-function BalanceShort({ party }: { party: Party }) {
-  const v = party.balance;
-  if (v === 0) return <span className="text-[13px] text-ink-mute">خالصين</span>;
-  return (
-    <span className={`text-[13px] ${v > 0 ? "text-pos" : "text-neg"}`}>
-      {v > 0 ? (party.kind === "supplier" ? "عنده مقدّم " : "عليه ") : "ليه "}
-      <Money value={Math.abs(v)} className="text-[15px] font-bold" />
-    </span>
-  );
-}
-
 /* ============================== الشاشة ============================== */
 
 function PaymentForm({
   party,
-  onChange,
   onSave,
 }: {
   party: Party;
-  onChange: () => void;
   onSave: (amount: number, accountId: string, collect: boolean) => void;
 }) {
   const usual = isCollectFrom(party);
@@ -135,18 +71,7 @@ function PaymentForm({
 
   return (
     <>
-      <PageHeader
-        title={title}
-        action={
-          <button
-            type="button"
-            onClick={onChange}
-            className="press rounded-xl bg-sunken px-3 py-1.5 text-[13px] font-semibold text-ink-soft"
-          >
-            تغيير
-          </button>
-        }
-      />
+      <PageHeader title={title} back={`/accounts/${party.id}`} />
 
       <Page>
         {/* ------------------------------ مين ------------------------------ */}
@@ -376,10 +301,10 @@ function Saved({
             كشف حسابه
           </Link>
           <Link
-            href="/payments"
+            href="/accounts"
             className="press rounded-2xl border border-line bg-card py-3.5 text-center text-[15px] font-semibold text-ink-soft"
           >
-            تحصيل أو دفع تاني
+            الحسابات
           </Link>
         </div>
       </Page>

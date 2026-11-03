@@ -1,11 +1,13 @@
+import { redirect } from "next/navigation";
 import PaymentFlow from "./PaymentFlow";
 
-/** ?party=c1 بيفتح على الطرف ده على طول (من زرار «تحصيل» أو «دفع» في كشف الحساب) */
+/** ?party=c1 — بتتفتح من زرار «تحصيل» أو «دفعة تحت الحساب» في كشف الحساب بس */
 export default async function PaymentsPage({
   searchParams,
 }: {
   searchParams: Promise<{ party?: string }>;
 }) {
   const { party } = await searchParams;
-  return <PaymentFlow initialPartyId={party} />;
+  if (!party) redirect("/accounts");
+  return <PaymentFlow partyId={party} />;
 }
