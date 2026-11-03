@@ -122,6 +122,21 @@ export function SupplierBalance({ value }: { value: number }) {
   );
 }
 
+/** تحت «ليا» أو «عليا»: الرقم جاي منين — بيظهر بس لو فيه أكتر من نوع */
+export function TotalParts({ parts }: { parts: { label: string; value: number }[] }) {
+  if (parts.length < 2) return null;
+  return (
+    <div className="mt-1.5 space-y-0.5 text-[11px] text-ink-mute">
+      {parts.map((x) => (
+        <div key={x.label} className="flex justify-between gap-2">
+          <span className="truncate">{x.label}</span>
+          <Money value={x.value} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ----------------------------------- الكروت ---------------------------------- */
 
 export function Card({

@@ -1059,6 +1059,16 @@ export const shopProfit = (x: CapitalPeriod) => x.sales - x.cogs - x.expenses - 
 export const capitalChange = (x: CapitalPeriod) => shopProfit(x) + x.added - x.withdrawn;
 export const periodAvailable = (x: CapitalPeriod) => daysSince(started, new Date(TODAY)) >= x.days;
 
+/** الإجمالي متقسم بالنوع (اللي بصفر مش بيظهر) — sign: 1 = ليا · -1 = عليا */
+function partsOf(sign: 1 | -1, labels: Record<PartyKind, string>) {
+  return (["customer", "supplier", "person"] as const)
+    .map((k) => ({
+      label: labels[k],
+      value: parties.filter((x) => x.kind === k).reduce((s, x) => s + Math.max(0, sign * x.balance), 0),
+    }))
+    .filter((x) => x.value > 0);
+}
+
 /* محسوبة من البيانات — مفيش رقم مكتوب بالإيد (الـ spec، قسم 8) */
 export const totals = {
   get stockValue() {
@@ -1069,6 +1079,13 @@ export const totals = {
   },
   get receivable() {
     return parties.reduce((s, x) => s + Math.max(0, x.balance), 0);
+  },
+  /** «ليا» جاي منين — مقدّم المصنع بيرجع بضاعة مش فلوس، فميتقريش إنه دين على عميل */
+  get receivableParts() {
+    return partsOf(1, { customer: "عملاء", supplier: "مقدّم مصانع", person: "سلف" });
+  },
+  get payableParts() {
+    return partsOf(-1, { customer: "عملاء", supplier: "مصانع", person: "سلف" });
   },
   get payable() {
     return parties.reduce((s, x) => s + Math.max(0, -x.balance), 0);

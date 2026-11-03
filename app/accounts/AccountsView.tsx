@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Plus, Search, X } from "lucide-react";
-import { Card, Empty, Money, Page, PageHeader } from "@/components/ui";
+import { Card, Empty, Money, Page, PageHeader, TotalParts } from "@/components/ui";
 import { daysSince, normalizeArabic, since } from "@/lib/format";
 import { ofKind, TODAY, totals, type Party, type PartyKind } from "@/lib/mock";
 
@@ -65,10 +65,12 @@ export default function AccountsView({ initialTab }: { initialTab: Tab }) {
           <Card className="px-4 py-3">
             <div className="text-[12px] font-semibold text-ink-mute">ليا في السوق</div>
             <Money value={totals.receivable} className="mt-1 block text-[20px] font-bold text-pos" />
+            <TotalParts parts={totals.receivableParts} />
           </Card>
           <Card className="px-4 py-3">
             <div className="text-[12px] font-semibold text-ink-mute">اللي عليا</div>
             <Money value={totals.payable} className="mt-1 block text-[20px] font-bold text-neg" />
+            <TotalParts parts={totals.payableParts} />
           </Card>
         </div>
 

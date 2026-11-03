@@ -14,7 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { LogoLockup } from "@/components/Logo";
-import { Card, Money, Num, Page, SectionTitle } from "@/components/ui";
+import { Card, Money, Num, Page, SectionTitle, TotalParts } from "@/components/ui";
 import { daysSince, shortDate, since } from "@/lib/format";
 import {
   capitalChange,
@@ -175,10 +175,12 @@ export default function Dashboard() {
             <Link href="/accounts" className="press block bg-card px-4 py-3.5 active:bg-sunken">
               <div className="text-[12px] text-ink-mute">ليا في السوق</div>
               <Money value={totals.receivable} className="mt-1 block text-[18px] font-bold text-pos" />
+              <TotalParts parts={totals.receivableParts} />
             </Link>
             <Link href="/accounts?tab=suppliers" className="press block bg-card px-4 py-3.5 active:bg-sunken">
               <div className="text-[12px] text-ink-mute">اللي عليا</div>
               <Money value={totals.payable} className="mt-1 block text-[18px] font-bold text-neg" />
+              <TotalParts parts={totals.payableParts} />
             </Link>
           </div>
           <div className="grid grid-cols-3 gap-px border-t border-line-soft bg-line-soft">
