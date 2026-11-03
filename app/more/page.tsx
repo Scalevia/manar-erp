@@ -49,7 +49,8 @@ export default function MorePage() {
           href: "/accounts",
           label: "العملاء والموردين",
           icon: Users,
-          hint: <><Num value={ofKind("customer").length} /> عميل</>,
+          // «نقدي» (البيع للزبون الطياري) متسجل عميل بس مالوش حساب — مبيتعدّش
+          hint: <><Num value={ofKind("customer").filter((x) => !x.isCash).length} /> عميل</>,
         },
       ],
     },

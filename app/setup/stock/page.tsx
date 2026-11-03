@@ -81,6 +81,7 @@ export default function StockEntryPage() {
               onEnter={() => costRef.current?.focus()}
               width="w-20"
               placeholder="340"
+              whole
             />
             <Field
               ref={costRef}
@@ -176,6 +177,7 @@ function Field({
   width,
   placeholder,
   autoFocus,
+  whole,
 }: {
   ref: React.RefObject<HTMLInputElement | null>;
   label: string;
@@ -185,6 +187,8 @@ function Field({
   width: string;
   placeholder: string;
   autoFocus?: boolean;
+  /** العدد قطع كاملة — مفيش كسور */
+  whole?: boolean;
 }) {
   return (
     <label className={`${width} block`}>
@@ -193,14 +197,14 @@ function Field({
         ref={ref}
         value={value}
         autoFocus={autoFocus}
-        onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, ""))}
+        onChange={(e) => onChange(e.target.value.replace(whole ? /\D/g : /[^\d.]/g, ""))}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
             onEnter();
           }
         }}
-        inputMode="decimal"
+        inputMode={whole ? "numeric" : "decimal"}
         enterKeyHint="next"
         placeholder={placeholder}
         className="num h-11 w-full rounded-xl border border-line bg-page px-2.5 text-center text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-ink-mute/50 focus:border-brand"

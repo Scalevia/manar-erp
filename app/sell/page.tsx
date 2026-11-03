@@ -284,6 +284,7 @@ function AddLine({ lines, onAdd }: { lines: Line[]; onAdd: (l: Line) => void }) 
           onEnter={() => priceRef.current?.focus()}
           width="w-16"
           placeholder="60"
+          whole
         />
         <Field
           ref={priceRef}
@@ -345,6 +346,7 @@ function Field({
   onEnter,
   width,
   placeholder,
+  whole,
 }: {
   ref: React.RefObject<HTMLInputElement | null>;
   label: string;
@@ -353,6 +355,8 @@ function Field({
   onEnter: () => void;
   width: string;
   placeholder: string;
+  /** العدد قطع كاملة — مفيش كسور */
+  whole?: boolean;
 }) {
   return (
     <label className={`${width} block`}>
@@ -360,14 +364,14 @@ function Field({
       <input
         ref={ref}
         value={value}
-        onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, ""))}
+        onChange={(e) => onChange(e.target.value.replace(whole ? /\D/g : /[^\d.]/g, ""))}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
             onEnter();
           }
         }}
-        inputMode="decimal"
+        inputMode={whole ? "numeric" : "decimal"}
         enterKeyHint="next"
         placeholder={placeholder}
         className="num h-11 w-full rounded-xl border border-line bg-page px-2.5 text-center text-[16px] font-semibold outline-none placeholder:font-normal placeholder:text-ink-mute/50 focus:border-brand"
