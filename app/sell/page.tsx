@@ -20,11 +20,12 @@ import {
   useModelField,
 } from "@/components/ModelField";
 import { Badge, Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
-import { formatPhone, isEgyptMobile, normalizeArabic, p } from "@/lib/format";
+import { formatPhone, isEgyptMobile, money, normalizeArabic, num, p } from "@/lib/format";
 import {
   actions,
   cashAccounts,
   cashParty,
+  fifoParts,
   modelById,
   ofKind,
   stockLeft,
@@ -102,28 +103,39 @@ export default function SellPage() {
           {lines.length === 0 ? (
             <Empty>ابدأ بإضافة موديل</Empty>
           ) : (
-            lines.map((l, i) => (
-              <div key={l.id}>
-                {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <ModelTag code={modelById(l.modelId)?.code} name={modelById(l.modelId)?.name} />
-                  <span className="flex-1 text-[13px] text-ink-mute">
-                    <span className="num">×{l.qty}</span>
-                    {"  "}
-                    <Money value={l.price} /> ج
-                  </span>
-                  <Money value={l.qty * l.price} className="text-[15px] font-bold" />
-                  <button
-                    type="button"
-                    onClick={() => setLines((v) => v.filter((x) => x.id !== l.id))}
-                    aria-label="حذف السطر"
-                    className="press -me-1 grid size-8 place-items-center rounded-full text-ink-mute active:bg-sunken"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+            lines.map((l, i) => {
+              const m = modelById(l.modelId);
+              // القطع دي من أنهي دفعات — بعد السطور اللي قبله من نفس الموديل
+              const before = lines.slice(0, i).filter((x) => x.modelId === l.modelId).reduce((s, x) => s + x.qty, 0);
+              const lossQty = m ? costCheck(fifoParts(m, l.qty, before), l.price).lossQty : 0;
+              return (
+                <div key={l.id}>
+                  {i > 0 && <div className="ms-4 border-t border-line-soft" />}
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <ModelTag code={m?.code} name={m?.name} />
+                    <span className="flex-1 text-[13px] text-ink-mute">
+                      <span className="num">×{l.qty}</span>
+                      {"  "}
+                      <Money value={l.price} /> ج
+                      {lossQty > 0 && (
+                        <span className="ms-1.5 font-semibold text-neg">
+                          {lossQty < l.qty && <Num value={lossQty} />} بخسارة
+                        </span>
+                      )}
+                    </span>
+                    <Money value={l.qty * l.price} className="text-[15px] font-bold" />
+                    <button
+                      type="button"
+                      onClick={() => setLines((v) => v.filter((x) => x.id !== l.id))}
+                      aria-label="حذف السطر"
+                      className="press -me-1 grid size-8 place-items-center rounded-full text-ink-mute active:bg-sunken"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
 
           <div className="border-t border-line">
@@ -259,6 +271,15 @@ function AddLine({ lines, onAdd }: { lines: Line[]; onAdd: (l: Line) => void }) 
   const tooMany = !!model && Number(qty) > left;
   const ready = !!model && Number(qty) > 0 && !tooMany && Number(price) > 0;
   const notFound = notFoundText(field);
+  // للتاجر: تكلفة القطع دي من الأقدم — زي البيع بالظبط، بعد اللي في الفاتورة من نفس الموديل.
+  // البيع بخسارة مسموح (راكد عايز يفك فلوسه)، بس بينبّه
+  const n = Number(qty) > 0 && !tooMany ? Number(qty) : 1;
+  const parts = model && left > 0 ? fifoParts(model, n, stockOf(model) - left) : [];
+  const priceP = p(Number(price) || 0);
+  const check = costCheck(parts, priceP);
+  // خسران في المجموع · أو كسبان في المجموع وخسران في جزء: خلّص الدفعة القديمة ودخل على سعر أعلى
+  const belowCost = priceP > 0 && priceP < check.unitCost;
+  const partLoss = priceP > 0 && !belowCost && check.lossQty > 0;
 
   function submit() {
     if (!ready) return;
@@ -325,6 +346,21 @@ function AddLine({ lines, onAdd }: { lines: Line[]; onAdd: (l: Line) => void }) 
               ) : (
                 <>كله في الفاتورة</>
               )}
+              {parts.length > 0 && (
+                <>
+                  {" · "}
+                  {/* من أكتر من دفعة = متوسط، زي صفحة الموديل */}
+                  {parts.length > 1 ? "متوسط التكلفة" : "التكلفة"} <Money value={Math.round(check.unitCost)} />
+                  {/* بتعدّي من دفعة لدفعة بسعر تاني — يشوف هو داخل على أنهي سعر */}
+                  {parts.length > 1 && (
+                    <span className="num">
+                      {" ("}
+                      {parts.map((x) => `${num(x.qty)} بـ ${money(x.unitCost)}`).join(" + ")}
+                      {")"}
+                    </span>
+                  )}
+                </>
+              )}
               {tooMany && left > 0 && (
                 <span className="font-semibold text-neg">
                   {" "}— مينفعش أكتر من <Num value={left} />
@@ -335,8 +371,34 @@ function AddLine({ lines, onAdd }: { lines: Line[]; onAdd: (l: Line) => void }) 
         </span>
         <ModelModeToggle field={field} />
       </div>
+      {belowCost && (
+        <p className="mt-1.5 text-[12px] font-semibold text-neg">
+          أقل من التكلفة — هتخسر <Money value={Math.round(check.unitCost - priceP)} /> ج في القطعة
+        </p>
+      )}
+      {partLoss && (
+        <p className="mt-1.5 text-[12px] font-semibold text-neg">
+          <Num value={check.lossQty} /> قطعة منهم تكلفتها أعلى من سعرك — هتخسر فيهم{" "}
+          <Money value={Math.round(check.lossAmount)} /> ج
+        </p>
+      )}
     </div>
   );
+}
+
+/**
+ * القطع دي هتتباع بكام قصاد تكلفتها: متوسط التكلفة، واللي منها تكلفته أعلى من
+ * السعر — بيعة بتعدّي من دفعة قديمة لدفعة أغلى ممكن تكسب في المجموع وتخسر في جزء
+ */
+function costCheck(parts: { qty: number; unitCost: number }[], price: number) {
+  const qty = parts.reduce((s, x) => s + x.qty, 0);
+  const cost = parts.reduce((s, x) => s + x.qty * x.unitCost, 0);
+  const losing = parts.filter((x) => x.unitCost > price);
+  return {
+    unitCost: qty ? cost / qty : 0,
+    lossQty: losing.reduce((s, x) => s + x.qty, 0),
+    lossAmount: losing.reduce((s, x) => s + x.qty * (x.unitCost - price), 0),
+  };
 }
 
 function Field({

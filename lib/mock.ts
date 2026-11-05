@@ -1090,6 +1090,28 @@ export function searchModels(q: string): Model[] {
 /** القطع في المحل — مفيش بيع أكتر منها، فمبيبقاش بالسالب */
 export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0);
 
+/**
+ * qty قطعة لو اتباعت دلوقتي هتطلع من أنهي دفعات وبكام — من الأقدم زي البيع
+ * بالظبط، بعد skip قطعة محجوزة في سطور قبلها من نفس الموديل. الدفعات اللي ليها
+ * نفس التكلفة بتتجمع: «300 بـ 85 + 50 بـ 88».
+ */
+export function fifoParts(m: Model, qty: number, skip = 0) {
+  const parts: { qty: number; unitCost: number }[] = [];
+  let need = qty;
+  for (const b of m.batches) {
+    if (need === 0) break;
+    const used = Math.min(skip, b.pieces);
+    skip -= used;
+    const take = Math.min(need, b.pieces - used);
+    if (take === 0) continue;
+    const last = parts.at(-1);
+    if (last && last.unitCost === b.unitCost) last.qty += take;
+    else parts.push({ qty: take, unitCost: b.unitCost });
+    need -= take;
+  }
+  return parts;
+}
+
 /** فاضل كام بعد السطور اللي في الشاشة من نفس الموديل — البيع والمرتجع للمورد مبيعدّوهاش */
 export const stockLeft = (m: Model, lines: { modelId: string; qty: number }[]) =>
   stockOf(m) - lines.filter((l) => l.modelId === m.id).reduce((s, l) => s + l.qty, 0);
