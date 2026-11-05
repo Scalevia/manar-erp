@@ -6,6 +6,7 @@ import {
   BarChart3,
   ChevronRight,
   FileText,
+  LogOut,
   Moon,
   PackagePlus,
   Receipt,
@@ -17,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Card, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
+import { signOut, useSession } from "@/lib/auth";
 import { ofKind, resetStore } from "@/lib/mock";
 
 type Item = {
@@ -27,6 +29,7 @@ type Item = {
 };
 
 export default function MorePage() {
+  const session = useSession();
   const groups: { title: string; items: Item[] }[] = [
     {
       title: "الشغل",
@@ -108,6 +111,25 @@ export default function MorePage() {
               </div>
             </div>
           </Card>
+
+          {/* مع Supabase: «خروج» و«اخرج من كل الأجهزة» (الـ spec، قسم 9) */}
+          <button
+            type="button"
+            onClick={signOut}
+            className="press flex w-full items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3.5 text-start"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sunken text-ink-soft">
+              <LogOut size={18} />
+            </span>
+            <span className="flex-1">
+              <span className="block text-[15px]">خروج</span>
+              {session && (
+                <span className="mt-0.5 block text-[12px] text-ink-mute">
+                  داخل باسم <span className="num">{session.username}</span>
+                </span>
+              )}
+            </span>
+          </button>
 
           {/* البيانات التجريبية بتتحفظ في المتصفح — ده بيمسح اللي اتسجل ويرجّعها زي الأول */}
           <button
