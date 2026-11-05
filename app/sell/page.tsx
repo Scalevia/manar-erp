@@ -20,7 +20,7 @@ import {
   useModelField,
 } from "@/components/ModelField";
 import { Badge, Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
-import { formatPhone, isEgyptMobile, money, normalizeArabic, num, p } from "@/lib/format";
+import { formatPhone, isEgyptMobile, normalizeArabic, p } from "@/lib/format";
 import {
   actions,
   cashAccounts,
@@ -107,7 +107,11 @@ export default function SellPage() {
               const m = modelById(l.modelId);
               // القطع دي من أنهي دفعات — بعد السطور اللي قبله من نفس الموديل
               const before = lines.slice(0, i).filter((x) => x.modelId === l.modelId).reduce((s, x) => s + x.qty, 0);
-              const lossQty = m ? costCheck(fifoParts(m, l.qty, before), l.price).lossQty : 0;
+              const lossQty = m
+                ? fifoParts(m, l.qty, before)
+                    .filter((x) => x.unitCost > l.price)
+                    .reduce((s, x) => s + x.qty, 0)
+                : 0;
               return (
                 <div key={l.id}>
                   {i > 0 && <div className="ms-4 border-t border-line-soft" />}
@@ -276,10 +280,9 @@ function AddLine({ lines, onAdd }: { lines: Line[]; onAdd: (l: Line) => void }) 
   const n = Number(qty) > 0 && !tooMany ? Number(qty) : 1;
   const parts = model && left > 0 ? fifoParts(model, n, stockOf(model) - left) : [];
   const priceP = p(Number(price) || 0);
-  const check = costCheck(parts, priceP);
-  // خسران في المجموع · أو كسبان في المجموع وخسران في جزء: خلّص الدفعة القديمة ودخل على سعر أعلى
-  const belowCost = priceP > 0 && priceP < check.unitCost;
-  const partLoss = priceP > 0 && !belowCost && check.lossQty > 0;
+  // بتخلّص دفعة وتدخل على دفعة بتكلفة تانية — كل دفعة بتتعرض لوحدها بمكسبها أو خسارتها
+  const split = parts.length > 1;
+  const belowCost = !split && parts.length === 1 && priceP > 0 && priceP < parts[0].unitCost;
 
   function submit() {
     if (!ready) return;
@@ -346,19 +349,9 @@ function AddLine({ lines, onAdd }: { lines: Line[]; onAdd: (l: Line) => void }) 
               ) : (
                 <>كله في الفاتورة</>
               )}
-              {parts.length > 0 && (
+              {parts.length === 1 && (
                 <>
-                  {" · "}
-                  {/* من أكتر من دفعة = متوسط، زي صفحة الموديل */}
-                  {parts.length > 1 ? "متوسط التكلفة" : "التكلفة"} <Money value={Math.round(check.unitCost)} />
-                  {/* بتعدّي من دفعة لدفعة بسعر تاني — يشوف هو داخل على أنهي سعر */}
-                  {parts.length > 1 && (
-                    <span className="num">
-                      {" ("}
-                      {parts.map((x) => `${num(x.qty)} بـ ${money(x.unitCost)}`).join(" + ")}
-                      {")"}
-                    </span>
-                  )}
+                  {" · "}التكلفة <Money value={parts[0].unitCost} />
                 </>
               )}
               {tooMany && left > 0 && (
@@ -373,32 +366,52 @@ function AddLine({ lines, onAdd }: { lines: Line[]; onAdd: (l: Line) => void }) 
       </div>
       {belowCost && (
         <p className="mt-1.5 text-[12px] font-semibold text-neg">
-          أقل من التكلفة — هتخسر <Money value={Math.round(check.unitCost - priceP)} /> ج في القطعة
+          أقل من التكلفة — هتخسر <Money value={parts[0].unitCost - priceP} /> ج في القطعة
         </p>
       )}
-      {partLoss && (
-        <p className="mt-1.5 text-[12px] font-semibold text-neg">
-          <Num value={check.lossQty} /> قطعة منهم تكلفتها أعلى من سعرك — هتخسر فيهم{" "}
-          <Money value={Math.round(check.lossAmount)} /> ج
-        </p>
+
+      {/* كل دفعة في سطر: كام قطعة وتكلفتها، وبالسعر ده كسبان ولا خسران فيها — مش متوسط */}
+      {split && (
+        <div className="mt-2 rounded-xl bg-sunken px-3 py-2 text-[12px]">
+          <div className="mb-1 font-semibold text-ink-soft">
+            الـ <Num value={n} /> قطعة هيطلعوا من{" "}
+            {parts.length === 2 ? (
+              "دفعتين"
+            ) : (
+              <>
+                <Num value={parts.length} /> دفعات
+              </>
+            )}
+            :
+          </div>
+          {parts.map((x, i) => (
+            <div key={i} className="flex items-center justify-between gap-2 py-0.5">
+              <span className="text-ink-soft">
+                <Num value={x.qty} /> قطعة · تكلفة القطعة <Money value={x.unitCost} /> ج
+              </span>
+              {priceP > 0 && <Outcome value={(priceP - x.unitCost) * x.qty} />}
+            </div>
+          ))}
+          {priceP > 0 && (
+            <div className="mt-1 flex items-center justify-between gap-2 border-t border-line pt-1.5 font-semibold">
+              <span>المجموع</span>
+              <Outcome value={parts.reduce((s, x) => s + (priceP - x.unitCost) * x.qty, 0)} />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
-/**
- * القطع دي هتتباع بكام قصاد تكلفتها: متوسط التكلفة، واللي منها تكلفته أعلى من
- * السعر — بيعة بتعدّي من دفعة قديمة لدفعة أغلى ممكن تكسب في المجموع وتخسر في جزء
- */
-function costCheck(parts: { qty: number; unitCost: number }[], price: number) {
-  const qty = parts.reduce((s, x) => s + x.qty, 0);
-  const cost = parts.reduce((s, x) => s + x.qty * x.unitCost, 0);
-  const losing = parts.filter((x) => x.unitCost > price);
-  return {
-    unitCost: qty ? cost / qty : 0,
-    lossQty: losing.reduce((s, x) => s + x.qty, 0),
-    lossAmount: losing.reduce((s, x) => s + x.qty * (x.unitCost - price), 0),
-  };
+/** كسبان أو خسران كام بالسعر اللي اتكتب */
+function Outcome({ value }: { value: number }) {
+  if (value === 0) return <span className="text-ink-mute">على التكلفة</span>;
+  return (
+    <span className={`shrink-0 font-semibold ${value > 0 ? "text-pos" : "text-neg"}`}>
+      {value > 0 ? "كسبان" : "خسران"} <Money value={Math.abs(value)} /> ج
+    </span>
+  );
 }
 
 function Field({
