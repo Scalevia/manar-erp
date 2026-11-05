@@ -71,7 +71,14 @@ export type Party = {
   dueDate?: string;
 };
 
-export type CashAccount = { id: string; name: string; short: string; balance: number };
+export type CashAccount = {
+  id: string;
+  name: string;
+  short: string;
+  balance: number;
+  /** اللي كان فيها يوم ما بدأ على البرنامج (تهيئة المحل) */
+  opening: number;
+};
 
 /** دفعة بضاعة في المحل — pieces = اللي لسه موجود منها، والبيع بياخد من الأقدم */
 export type Batch = {
@@ -220,7 +227,7 @@ type TxBody =
   | { t: "transfer"; from: string; to: string; out: number; in: number }
   | { t: "capital"; amount: number; accountId: string; note?: string }
   | { t: "loan"; partyId: string; dir: "in" | "out"; amount: number; accountId: string; dueDate?: string }
-  | { t: "opening"; partyId: string; amount: number; since?: string }
+  | { t: "opening"; partyId: string; amount: number; since?: string; dueDate?: string }
   | { t: "openCash"; accountId: string; amount: number }
   | { t: "openStock"; modelId: string; qty: number; unitCost: number };
 
@@ -505,11 +512,16 @@ function rebuild() {
   const addCash = (id: string | undefined, v: number) => {
     if (id) cash.set(id, (cash.get(id) ?? 0) + v);
   };
+  const openCash = new Map(CASH_ACCOUNTS.map((a) => [a.id, 0]));
 
   /* ---- الناس: الرصيد والكشف و«من إمتى» ---- */
   // اتجاه الحساب العادي: العميل عليه · المورد ليه · السلفة حسب أول سلفة
   const natural = new Map<string, boolean>();
-  for (const t of txs) if (t.t === "loan" && !natural.has(t.partyId)) natural.set(t.partyId, t.dir === "out");
+  for (const t of txs) {
+    if ((t.t === "loan" || t.t === "opening") && !natural.has(t.partyId))
+      // السلفة القديمة (رصيد افتتاحي): موجب = سلّفته · سالب = استلفت منه
+      natural.set(t.partyId, t.t === "loan" ? t.dir === "out" : t.amount > 0);
+  }
   type PS = { bal: number; rows: LedgerRow[]; last?: string; debits: { date: string; amt: number }[]; credit: number; dueDate?: string };
   const ps = new Map<string, PS>(db.parties.map((r) => [r.id, { bal: 0, rows: [], debits: [], credit: 0 }]));
   let rowN = 0;
@@ -589,13 +601,18 @@ function rebuild() {
     switch (t.t) {
       case "openCash":
         addCash(t.accountId, t.amount);
+        openCash.set(t.accountId, (openCash.get(t.accountId) ?? 0) + t.amount);
         break;
       case "openStock":
         addStock(t.modelId, t.date, "", t.qty, t.unitCost);
         break;
-      case "opening":
+      case "opening": {
         post(t.partyId, t.date, "رصيد قديم من قبل البرنامج", t.amount, t.since);
+        // سلفة قديمة ليها ميعاد رجوع
+        const s = ps.get(t.partyId);
+        if (s && t.dueDate) s.dueDate = t.dueDate;
         break;
+      }
       case "sale": {
         const total = t.lines.reduce((s, l) => s + l.qty * l.price, 0);
         post(t.partyId, t.date, `بيع ${qtyText(pieces(t.lines))}`, total);
@@ -748,7 +765,7 @@ function rebuild() {
   /* ---- النتايج ---- */
   fill(
     cashAccounts,
-    CASH_ACCOUNTS.map((a) => ({ ...a, balance: cash.get(a.id) ?? 0 })),
+    CASH_ACCOUNTS.map((a) => ({ ...a, balance: cash.get(a.id) ?? 0, opening: openCash.get(a.id) ?? 0 })),
   );
 
   statements.clear();
@@ -933,6 +950,15 @@ export const actions = {
     commit({ t: "loan", partyId, dir: a.dir, amount: a.amount, accountId: a.accountId, dueDate: a.dueDate || undefined });
     return { partyId };
   },
+  /**
+   * سلفة من قبل البرنامج — رصيد افتتاحي زي حساب العميل القديم. الخزنة متتحركش:
+   * فلوسها اتحركت قبل البرنامج، والخزن اتدخلت بعدها.
+   */
+  oldLoan(a: { person: Party; dir: "in" | "out"; amount: number; dueDate?: string }) {
+    const partyId = ensureParty(a.person);
+    commit({ t: "opening", partyId, amount: a.dir === "out" ? a.amount : -a.amount, dueDate: a.dueDate || undefined });
+    return { partyId };
+  },
   /** فتح حساب — ولو له حساب قديم بيتسجل رصيد افتتاحي */
   openAccount(a: { kind: PartyKind; name: string; phone?: string; opening: number; since?: string }) {
     const id = ensureParty({ id: "new", kind: a.kind, name: a.name, phone: a.phone, balance: 0, lastActivity: TODAY });
@@ -942,6 +968,19 @@ export const actions = {
       changed();
     }
     return { id };
+  },
+  /**
+   * فلوس الخزن يوم البداية. لو اتدخلت قبل كده وفيها غلط، التصحيح بيتسجل بالفرق
+   * — مفيش مسح (الـ spec، قسم 8).
+   */
+  openingCash(amounts: Record<string, number>) {
+    const at = stamp();
+    for (const a of cashAccounts) {
+      const diff = (amounts[a.id] ?? a.opening) - a.opening;
+      if (diff !== 0) db.txs.push({ t: "openCash", accountId: a.id, amount: diff, id: newId(), ...at });
+    }
+    persist();
+    changed();
   },
   /** جرد التهيئة — كل سطر دفعة بضاعة بتكلفتها */
   openingStock(rows: (LineModel & { qty: number; unitCost: number })[]) {
@@ -954,6 +993,27 @@ export const actions = {
     changed();
   },
 };
+
+/* ============================ تهيئة المحل ============================ */
+
+type OpeningTx = Extract<Tx, { t: "opening" }>;
+
+/**
+ * اتدخّل إيه في التهيئة لحد دلوقتي (الـ spec، قسم 11). العملاء والمصانع والسلف
+ * والبضاعة عدد مش «خلصت» — هو بس اللي يعرف لسه فاضل كام.
+ */
+export function setupProgress() {
+  const kindOf = new Map(db.parties.map((r) => [r.id, r.kind]));
+  const opening = db.txs.filter((t): t is OpeningTx => t.t === "opening");
+  const withOld = (k: PartyKind) => new Set(opening.filter((t) => kindOf.get(t.partyId) === k).map((t) => t.partyId)).size;
+  return {
+    cash: db.txs.some((t) => t.t === "openCash"),
+    customers: withOld("customer"),
+    suppliers: withOld("supplier"),
+    loans: withOld("person"),
+    models: new Set(db.txs.flatMap((t) => (t.t === "openStock" ? [t.modelId] : []))).size,
+  };
+}
 
 /* ============================ الأطراف ============================ */
 

@@ -26,10 +26,11 @@ const KINDS: { id: OpenKind; label: string; hint: string }[] = [
 
 const kindLabel = (k: PartyKind) => KINDS.find((x) => x.id === k)?.label ?? "سلفة";
 
-/** حساب قديم من قبل البرنامج: عليه (ليا عنده) · ليه (عليا له) */
+/** حساب قديم من قبل البرنامج: عليه (ليا عنده — والمورد «عنده مقدّم») · ليه (عليا له) */
 type Old = "none" | "owes" | "owed";
 
-export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) {
+/** fromSetup: جاي من «تهيئة المحل لأول مرة» — الرجوع ليها مش للحسابات */
+export default function OpenAccount({ initialKind, fromSetup = false }: { initialKind: OpenKind; fromSetup?: boolean }) {
   const [kind, setKind] = useState<OpenKind>(initialKind);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -83,15 +84,15 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
               )}
             </div>
             <div className="mt-5 border-t border-line-soft pt-4 text-[14px] font-semibold">
-              <Opening balance={balance} />
+              <Opening balance={balance} supplier={!isCustomer} />
             </div>
           </Card>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <Link
-              href={kind === "supplier" ? "/accounts?tab=suppliers" : "/accounts"}
+              href={fromSetup ? "/setup" : kind === "supplier" ? "/accounts?tab=suppliers" : "/accounts"}
               className="press rounded-2xl bg-brand py-3.5 text-center text-[15px] font-bold text-brand-ink"
             >
-              الحسابات
+              {fromSetup ? "رجوع للتهيئة" : "الحسابات"}
             </Link>
             <button
               type="button"
@@ -113,7 +114,7 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
 
   return (
     <>
-      <PageHeader title="فتح حساب" back="/accounts" />
+      <PageHeader title="فتح حساب" back={fromSetup ? "/setup" : "/accounts"} />
       <Page>
         {/* ------------------------------- لمين ------------------------------- */}
         <div className="mb-2 px-1 text-[13px] font-semibold text-ink-mute">حساب لمين؟</div>
@@ -179,7 +180,8 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
           {(
             [
               ["none", "لأ"],
-              ["owes", "عليه فلوس"],
+              // المورد اللي «عليه» = دفعتله مقدّم ولسه مسلّمش (زي باقي البرنامج)
+              ["owes", isCustomer ? "عليه فلوس" : "عنده مقدّم"],
               ["owed", "ليه فلوس"],
             ] as [Old, string][]
           ).map(([v, label]) => (
@@ -199,7 +201,7 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
           <Card className="mb-4 space-y-3 px-4 py-4">
             <label className="block">
               <span className="mb-1.5 block text-[13px] font-semibold">
-                {old === "owes" ? "عليه كام؟" : "ليه كام؟"}
+                {old === "owes" ? (isCustomer ? "عليه كام؟" : "مقدّم كام؟") : "ليه كام؟"}
               </span>
               <input
                 value={amount}
@@ -210,8 +212,8 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
                 className="num h-14 w-full rounded-xl border border-line bg-page px-3 text-center text-[24px] font-bold outline-none placeholder:font-normal placeholder:text-ink-mute/40 focus:border-brand"
               />
             </label>
-            {/* «من إمتى» هي اللي بترتّب «مين متأخر» (الـ spec، قسم 11) */}
-            {old === "owes" && (
+            {/* «من إمتى» هي اللي بترتّب «مين متأخر» (الـ spec، قسم 11) — للعملاء بس */}
+            {isCustomer && old === "owes" && (
               <label className="block">
                 <span className="mb-1.5 block text-[13px] font-semibold">
                   من إمتى؟ <span className="font-normal text-ink-mute">(اختياري)</span>
@@ -237,7 +239,7 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
           <div className="mb-4 flex items-center justify-between rounded-2xl bg-sunken px-4 py-3 text-[14px]">
             <span className="text-ink-soft">{cleanName}</span>
             <span className="font-bold">
-              <Opening balance={balance} />
+              <Opening balance={balance} supplier={!isCustomer} />
             </span>
           </div>
         )}
@@ -246,7 +248,13 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
           type="button"
           disabled={!ready}
           onClick={() => {
-            actions.openAccount({ kind, name: cleanName, phone: phone || undefined, opening: balance, since: old === "owes" ? since : undefined });
+            actions.openAccount({
+              kind,
+              name: cleanName,
+              phone: phone || undefined,
+              opening: balance,
+              since: isCustomer && old === "owes" ? since : undefined,
+            });
             setSaved(true);
           }}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
@@ -258,13 +266,13 @@ export default function OpenAccount({ initialKind }: { initialKind: OpenKind }) 
   );
 }
 
-/** الحساب هيظهر فين: عليه ← «ليا» · ليه ← «عليا» · صفر ← حساب جديد */
-function Opening({ balance }: { balance: number }) {
+/** الحساب هيظهر فين: عليه (أو مقدّم المورد) ← «ليا» · ليه ← «عليا» · صفر ← حساب جديد */
+function Opening({ balance, supplier }: { balance: number; supplier: boolean }) {
   if (balance === 0) return <span className="text-ink-soft">حساب جديد على صفر</span>;
   if (balance > 0)
     return (
       <span className="text-pos">
-        عليه <Money value={balance} /> — في «ليا»
+        {supplier ? "عنده مقدّم" : "عليه"} <Money value={balance} /> — في «ليا»
       </span>
     );
   return (
