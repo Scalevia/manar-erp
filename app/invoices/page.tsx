@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
 import { Badge, Card, Empty, Money, Num, Page, PageHeader } from "@/components/ui";
-import { monthOnly } from "@/lib/format";
+import { monthOnly, normalizeArabic } from "@/lib/format";
 import {
   byId,
   invoiceKind,
@@ -12,6 +12,7 @@ import {
   invoices,
   invoiceTotal,
   TODAY,
+  useData,
   type Invoice,
 } from "@/lib/mock";
 
@@ -37,11 +38,13 @@ const partyName = (inv: Invoice) => {
 };
 
 export default function InvoicesPage() {
+  useData();
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
 
   const list = useMemo(() => {
-    const term = q.trim();
+    // «احمد» تلاقي «أحمد»، والأرقام الهندي زي العادية
+    const term = normalizeArabic(q);
     return [...invoices]
       .sort((a, b) => b.no - a.no)
       .filter((inv) => {
@@ -50,7 +53,7 @@ export default function InvoicesPage() {
         if (filter === "credit" && kind === "cash") return false;
         if (!term) return true;
         // رقم الفاتورة أو اسم العميل
-        return String(inv.no).includes(term) || partyName(inv).includes(term);
+        return String(inv.no).includes(term) || normalizeArabic(partyName(inv)).includes(term);
       });
   }, [q, filter]);
 

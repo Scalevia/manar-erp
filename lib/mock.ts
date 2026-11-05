@@ -20,7 +20,8 @@ import { daysSince, normalizeArabic, p } from "./format";
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-export const TODAY = iso(new Date());
+/** النهاردة — بيتحدّث مع الساعة: البرنامج ممكن يفضل مفتوح لبعد نص الليل */
+export let TODAY = iso(new Date());
 
 /** النهاردة ± أيام — للبيانات التجريبية */
 const day = (n: number) => {
@@ -29,10 +30,20 @@ const day = (n: number) => {
   return iso(d);
 };
 
-const nowTime = () => {
+/** عدّينا نص الليل؟ بيحدّث «النهاردة» ويرجّع true لو اليوم اتغيّر */
+function refreshToday(d = new Date()) {
+  const now = iso(d);
+  if (now === TODAY) return false;
+  TODAY = now;
+  return true;
+}
+
+/** تاريخ وساعة اللحظة دي من قراية واحدة — مش تاريخ من وقت ما البرنامج اتفتح */
+function stamp() {
   const d = new Date();
-  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
-};
+  refreshToday(d);
+  return { date: TODAY, time: `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}` };
+}
 
 /* ============================ الأنواع ============================ */
 
@@ -78,8 +89,6 @@ export type Model = {
   name?: string;
   batches: Batch[];
   lastSale?: string;
-  /** آخر شراية أو رصيد أول مدة — مرتجع العميل مش محسوب */
-  lastBuy?: string;
   soldThisMonth: number;
 };
 
@@ -205,8 +214,8 @@ type TxBody =
   | { t: "buy"; supplierId: string; lines: CostLine[]; paid: number; accountId?: string }
   | { t: "pay"; partyId: string; collect: boolean; amount: number; accountId: string; note?: string }
   | { t: "settle"; partyId: string; amount: number; reason?: string }
-  | { t: "creturn"; partyId: string; lines: SaleLine[]; refund: boolean; accountId?: string }
-  | { t: "sreturn"; partyId: string; lines: CostLine[] }
+  | { t: "creturn"; partyId: string; lines: SaleLine[]; refund: boolean; accountId?: string; reason?: string }
+  | { t: "sreturn"; partyId: string; lines: CostLine[]; reason?: string }
   | { t: "expense"; categoryId: string; amount: number; accountId: string; note?: string }
   | { t: "transfer"; from: string; to: string; out: number; in: number }
   | { t: "capital"; amount: number; accountId: string; note?: string }
@@ -386,6 +395,8 @@ const timeKey = (t: string) => {
 /* ============================ الحالة والحفظ ============================ */
 
 const KEY = "manar-erp-demo-v1";
+/** سطور جرد التهيئة اللي لسه ماتعتمدتش — بتتحفظ أول بأول (شاشة /setup/stock) */
+export const STOCK_DRAFT_KEY = "manar-erp-stock-draft";
 let db: Db = seed();
 let version = 0;
 let loaded = false;
@@ -416,6 +427,13 @@ export function loadStore() {
   }
   loaded = true;
   changed();
+  // عدّينا نص الليل والبرنامج مفتوح: «النهاردة» يتحدّث والشاشات اللي بتنادي
+  // useData تترسم تاني
+  const checkDay = () => {
+    if (refreshToday()) changed();
+  };
+  setInterval(checkDay, 60_000);
+  document.addEventListener("visibilitychange", checkDay);
 }
 
 /** اتحمّلت من المتصفح ولا لسه — على السيرفر دايماً لأ */
@@ -425,6 +443,11 @@ export const useLoaded = () => useSyncExternalStore(subscribe, () => loaded, () 
 export function resetStore() {
   db = seed();
   persist();
+  try {
+    localStorage.removeItem(STOCK_DRAFT_KEY);
+  } catch {
+    // مفيش تخزين — مفيش مسودة أصلاً
+  }
   changed();
 }
 
@@ -472,7 +495,9 @@ const pieces = (lines: { qty: number }[]) => lines.reduce((s, l) => s + l.qty, 0
 const qtyText = (n: number) => (n === 1 ? "قطعة" : n === 2 ? "قطعتين" : n <= 10 ? `${n} قطع` : `${n} قطعة`);
 
 function rebuild() {
-  const txs = sortTxs(db.txs);
+  // بترتيب التسجيل — زي ما الشاشات شافت المخزون والأرصدة وقتها. ساعة الجهاز
+  // ممكن تتغير، لكن اللي اتسجل الأول حصل الأول
+  const txs = db.txs;
   const recs = new Map(db.parties.map((r) => [r.id, r]));
 
   /* ---- الخزن ---- */
@@ -518,15 +543,13 @@ function rebuild() {
   const balOf = (id: string) => ps.get(id)?.bal ?? 0;
 
   /* ---- المخزون: دفعات بالأقدم ---- */
-  type MS = { batches: Batch[]; lastCost: number; lastSale?: string; lastBuy?: string; events: { date: string; qty: number; revenue: number; cost: number }[] };
+  type MS = { batches: Batch[]; lastCost: number; lastSale?: string; events: { date: string; qty: number; revenue: number; cost: number }[] };
   const ms = new Map<string, MS>(db.models.map((m) => [m.id, { batches: [], lastCost: 0, events: [] }]));
   const addStock = (modelId: string, date: string, sourceId: string, qty: number, unitCost: number) => {
     const m = ms.get(modelId);
     if (!m) return;
     if (unitCost > 0) m.lastCost = unitCost;
     if (qty > 0) m.batches.push({ receivedAt: date, sourceId, pieces: qty, unitCost });
-    // مرتجع العميل مش شراية — مبيصفّرش عدّاد الراكد
-    if (qty > 0 && recs.get(sourceId)?.kind !== "customer") m.lastBuy = date;
   };
   /** بيطلّع قطع من الأقدم ويرجّع تكلفتها — الشاشات مبتسمحش بأكتر من اللي في المحل */
   const takeStock = (modelId: string, qty: number, preferSource?: string) => {
@@ -655,7 +678,7 @@ function rebuild() {
       }
       case "creturn": {
         const total = t.lines.reduce((s, l) => s + l.qty * l.price, 0);
-        post(t.partyId, t.date, `مرتجع ${qtyText(pieces(t.lines))}`, -total);
+        post(t.partyId, t.date, `مرتجع ${qtyText(pieces(t.lines))}${t.reason ? ` · ${t.reason}` : ""}`, -total);
         if (t.refund) {
           addCash(t.accountId, -total);
           post(t.partyId, t.date, `رجعتله فلوس ← من ${accName(t.accountId)}`, total);
@@ -677,7 +700,7 @@ function rebuild() {
       }
       case "sreturn": {
         const total = t.lines.reduce((s, l) => s + l.qty * l.unitCost, 0);
-        post(t.partyId, t.date, `مرتجع ${qtyText(pieces(t.lines))} للمورد`, total);
+        post(t.partyId, t.date, `مرتجع ${qtyText(pieces(t.lines))} للمورد${t.reason ? ` · ${t.reason}` : ""}`, total);
         for (const l of t.lines) takeStock(l.modelId, l.qty, t.partyId);
         break;
       }
@@ -757,7 +780,6 @@ function rebuild() {
         ...r,
         batches: m.batches,
         lastSale: m.lastSale,
-        lastBuy: m.lastBuy,
         soldThisMonth: m.events.filter((e) => e.date.startsWith(month)).reduce((s, e) => s + e.qty, 0),
       };
     }),
@@ -841,8 +863,8 @@ rebuild();
 
 const newId = () => `n${++db.seq}`;
 
-function commit(body: TxBody, date = TODAY) {
-  db.txs.push({ ...body, id: newId(), date, time: nowTime() } as Tx);
+function commit(body: TxBody) {
+  db.txs.push({ ...body, id: newId(), ...stamp() } as Tx);
   persist();
   changed();
 }
@@ -851,7 +873,7 @@ function commit(body: TxBody, date = TODAY) {
 function ensureParty(x: Party): string {
   if (x.id !== "new" && !x.id.startsWith("new-") && db.parties.some((r) => r.id === x.id)) return x.id;
   const id = newId();
-  db.parties.push({ id, kind: x.kind, name: x.name, phone: x.phone, createdAt: TODAY });
+  db.parties.push({ id, kind: x.kind, name: x.name, phone: x.phone, createdAt: iso(new Date()) });
   return id;
 }
 
@@ -859,7 +881,12 @@ function ensureParty(x: Party): string {
 type LineModel = { modelId?: string; code?: number; name?: string };
 function ensureModel(l: LineModel): string {
   if (l.modelId && db.models.some((m) => m.id === l.modelId)) return l.modelId;
-  const found = db.models.find((m) => (l.code !== undefined && m.code === l.code) || (l.code === undefined && l.name && m.name === l.name));
+  // الاسم بعد التوحيد: «بلوزه» و«بلوزة» في نفس الجرد موديل واحد مش اتنين
+  const found = db.models.find(
+    (m) =>
+      (l.code !== undefined && m.code === l.code) ||
+      (l.code === undefined && l.name && m.name && normalizeArabic(m.name) === normalizeArabic(l.name)),
+  );
   if (found) return found.id;
   const id = newId();
   db.models.push({ id, code: l.code, name: l.name });
@@ -886,10 +913,10 @@ export const actions = {
   settle(a: { partyId: string; amount: number; reason?: string }) {
     commit({ t: "settle", ...a });
   },
-  customerReturn(a: { partyId: string; lines: SaleLine[]; refund: boolean; accountId?: string }) {
+  customerReturn(a: { partyId: string; lines: SaleLine[]; refund: boolean; accountId?: string; reason?: string }) {
     commit({ t: "creturn", ...a });
   },
-  supplierReturn(a: { partyId: string; lines: CostLine[] }) {
+  supplierReturn(a: { partyId: string; lines: CostLine[]; reason?: string }) {
     commit({ t: "sreturn", ...a });
   },
   expense(a: { categoryId: string; amount: number; accountId: string; note?: string }) {
@@ -918,9 +945,10 @@ export const actions = {
   },
   /** جرد التهيئة — كل سطر دفعة بضاعة بتكلفتها */
   openingStock(rows: (LineModel & { qty: number; unitCost: number })[]) {
+    const at = stamp();
     for (const r of rows) {
       const modelId = ensureModel(r);
-      db.txs.push({ t: "openStock", modelId, qty: r.qty, unitCost: r.unitCost, id: newId(), date: TODAY, time: nowTime() });
+      db.txs.push({ t: "openStock", modelId, qty: r.qty, unitCost: r.unitCost, id: newId(), ...at });
     }
     persist();
     changed();
@@ -1002,16 +1030,27 @@ export function searchModels(q: string): Model[] {
 /** القطع في المحل — مفيش بيع أكتر منها، فمبيبقاش بالسالب */
 export const stockOf = (m: Model) => m.batches.reduce((s, b) => s + b.pieces, 0);
 
+/** فاضل كام بعد السطور اللي في الشاشة من نفس الموديل — البيع والمرتجع للمورد مبيعدّوهاش */
+export const stockLeft = (m: Model, lines: { modelId: string; qty: number }[]) =>
+  stockOf(m) - lines.filter((l) => l.modelId === m.id).reduce((s, l) => s + l.qty, 0);
+
 /** قيمة الموديل بالقروش — متقرّبة لأقرب جنيه */
 export const valueOf = (m: Model) => Math.round(m.batches.reduce((s, b) => s + b.pieces * b.unitCost, 0) / 100) * 100;
 
-/** الموديل واقف من إمتى: آخر بيعة أو آخر شراية — أيهم أقرب */
-export const idleSince = (m: Model) => [m.lastSale, m.lastBuy].filter(Boolean).sort().at(-1);
+/**
+ * الموديل واقف من إمتى: آخر بيعة، أو أقدم بضاعة لسه في المحل — أيهم أقرب.
+ * شراية جديدة مبتخبيش القديم اللي قاعد، واللي لسه شاريه مش واقف.
+ */
+export const idleSince = (m: Model) => {
+  const oldest = m.batches[0]?.receivedAt; // الدفعات بالأقدم
+  if (!oldest) return undefined;
+  return m.lastSale && m.lastSale > oldest ? m.lastSale : oldest;
+};
 
-/** راكد = فيه مخزون وواقف أكتر من 90 يوم — اللي لسه شاريه مش راكد */
+/** راكد = فيه مخزون وواقف أكتر من 90 يوم */
 export const isStale = (m: Model) => {
   const from = idleSince(m);
-  return stockOf(m) > 0 && !!from && daysSince(from, new Date(TODAY)) > 90;
+  return !!from && daysSince(from, new Date(TODAY)) > 90;
 };
 
 export const avgCost = (m: Model) => {

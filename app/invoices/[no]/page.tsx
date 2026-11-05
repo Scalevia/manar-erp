@@ -14,6 +14,7 @@ import {
   invoicePieces,
   invoiceTotal,
   modelById,
+  useData,
 } from "@/lib/mock";
 
 const DAYS = ["الحد", "الاتنين", "التلات", "الأربع", "الخميس", "الجمعة", "السبت"];
@@ -25,6 +26,7 @@ const KIND = {
 };
 
 export default function InvoicePage({ params }: { params: Promise<{ no: string }> }) {
+  useData();
   const { no } = use(params);
   const inv = invoiceByNo(Number(no));
   if (!inv) notFound();

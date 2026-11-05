@@ -7,7 +7,7 @@ import { AccountPicker } from "@/components/AccountPicker";
 import { ModelInput, ModelModeToggle, ModelSuggestions, notFoundText, useModelField } from "@/components/ModelField";
 import { Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { actions, cashAccounts, modelById, ofKind, stockOf, type Party } from "@/lib/mock";
+import { actions, cashAccounts, modelById, ofKind, stockLeft, stockOf, type Party } from "@/lib/mock";
 
 /**
  * المرتجعات (الـ spec، قسم 6 — العمليتين 5 و6):
@@ -151,7 +151,15 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                 {before !== 0 && (
                   <Money value={Math.abs(before)} className={`text-[15px] font-bold ${before > 0 ? "text-pos" : "text-neg"}`} />
                 )}
-                <button type="button" onClick={() => setParty(null)} className="text-[12px] font-semibold text-brand">
+                {/* السطور بتتمسح: سعر مرتجع المورد من دفعاته هو، مش من اللي قبله */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setParty(null);
+                    setLines([]);
+                  }}
+                  className="text-[12px] font-semibold text-brand"
+                >
                   تغيير
                 </button>
               </span>
@@ -184,7 +192,7 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                 ))
               )}
               <div className="border-t border-line">
-                <AddLine dir={dir} supplierId={party.id} onAdd={(l) => setLines((v) => [...v, l])} />
+                <AddLine dir={dir} supplierId={party.id} lines={lines} onAdd={(l) => setLines((v) => [...v, l])} />
               </div>
             </Card>
 
@@ -276,11 +284,13 @@ export default function ReturnFlow({ initialDir, initialPartyId }: { initialDir:
                     lines: lines.map(({ modelId, qty, price }) => ({ modelId, qty, price })),
                     refund,
                     accountId: refund ? accountId : undefined,
+                    reason: reason || undefined,
                   });
                 else
                   actions.supplierReturn({
                     partyId: party.id,
                     lines: lines.map(({ modelId, qty, price }) => ({ modelId, qty, unitCost: price })),
+                    reason: reason || undefined,
                   });
                 setSaved(true);
               }}
@@ -313,7 +323,17 @@ function Balance({ value }: { value: number }) {
 
 /* ====================== إضافة سطر — الكيبورد مبيقفلش ====================== */
 
-function AddLine({ dir, supplierId, onAdd }: { dir: Dir; supplierId: string; onAdd: (l: Line) => void }) {
+function AddLine({
+  dir,
+  supplierId,
+  lines,
+  onAdd,
+}: {
+  dir: Dir;
+  supplierId: string;
+  lines: Line[];
+  onAdd: (l: Line) => void;
+}) {
   const [field, modelRef] = useModelField({ allowNew: false });
   const [qty, setQty] = useState("");
   const [price, setPrice] = useState("");
@@ -329,7 +349,9 @@ function AddLine({ dir, supplierId, onAdd }: { dir: Dir; supplierId: string; onA
     !isCustomer && model ? [...model.batches].reverse().find((b) => b.sourceId === supplierId) : undefined;
   const work = batch?.unitCost;
   const priceN = price === "" && work ? work / 100 : Number(price);
-  const over = !isCustomer && model && Number(qty) > stockOf(model);
+  // للمورد: مفيش أكتر من اللي في المحل — اللي في المرتجع من نفس الموديل محسوب (زي البيع)
+  const left = model ? stockLeft(model, lines) : 0;
+  const over = !isCustomer && model && Number(qty) > left;
   const ready = !!model && Number(qty) > 0 && !over && priceN > 0;
 
   function submit() {
@@ -369,9 +391,21 @@ function AddLine({ dir, supplierId, onAdd }: { dir: Dir; supplierId: string; onA
           {model && (
             <span className="text-ink-mute">
               {field.other && `${field.other} · `}
-              <InShop pieces={stockOf(model)} />
+              {isCustomer || left === stockOf(model) ? (
+                <InShop pieces={stockOf(model)} />
+              ) : left > 0 ? (
+                <>
+                  فاضل <Num value={left} /> بعد اللي في المرتجع
+                </>
+              ) : (
+                <>كله في المرتجع</>
+              )}
               {work && price === "" && <> · تكلفته <Money value={work} decimals /> ج</>}
-              {over && <span className="font-semibold text-neg"> — أكتر من اللي عندك</span>}
+              {over && left > 0 && (
+                <span className="font-semibold text-neg">
+                  {" "}— مينفعش أكتر من <Num value={left} />
+                </span>
+              )}
             </span>
           )}
         </span>

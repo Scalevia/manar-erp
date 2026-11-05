@@ -20,13 +20,14 @@ import {
   useModelField,
 } from "@/components/ModelField";
 import { Badge, Card, Empty, InShop, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
-import { formatPhone, isEgyptMobile, p } from "@/lib/format";
+import { formatPhone, isEgyptMobile, normalizeArabic, p } from "@/lib/format";
 import {
   actions,
   cashAccounts,
   cashParty,
   modelById,
   ofKind,
+  stockLeft,
   stockOf,
   TODAY,
   type Party,
@@ -254,7 +255,7 @@ function AddLine({ lines, onAdd }: { lines: Line[]; onAdd: (l: Line) => void }) 
 
   const model = field.model;
   // مفيش بيع أكتر من اللي في المحل — اللي في الفاتورة من نفس الموديل محسوب
-  const left = model ? stockOf(model) - lines.filter((l) => l.modelId === model.id).reduce((s, l) => s + l.qty, 0) : 0;
+  const left = model ? stockLeft(model, lines) : 0;
   const tooMany = !!model && Number(qty) > left;
   const ready = !!model && Number(qty) > 0 && !tooMany && Number(price) > 0;
   const notFound = notFoundText(field);
@@ -390,8 +391,9 @@ function PickCustomer({ onPick }: { onPick: (p: Party) => void }) {
     const all = ofKind("customer")
       .filter((x) => !x.isCash)
       .sort((a, b) => +new Date(b.lastActivity) - +new Date(a.lastActivity));
-    const term = q.trim();
-    return term ? all.filter((x) => x.name.includes(term)) : all;
+    // «احمد» تلاقي «أحمد» — زي البحث في الحسابات
+    const term = normalizeArabic(q);
+    return term ? all.filter((x) => normalizeArabic(x.name).includes(term)) : all;
   }, [q]);
 
   if (adding)
@@ -539,7 +541,7 @@ function NewCustomer({
 
   // الرقم هو اللي بيميّز العميل — اسمين زي بعض في السوق عادي، رقمين لأ
   const samePhone = phoneOk ? customers.find((x) => x.phone === phone) : undefined;
-  const sameName = customers.find((x) => x.name === cleanName);
+  const sameName = customers.find((x) => normalizeArabic(x.name) === normalizeArabic(cleanName));
 
   const ready = cleanName.length >= 2 && phoneOk && !samePhone;
 

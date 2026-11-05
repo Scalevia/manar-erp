@@ -27,6 +27,7 @@ import {
   todaySummary,
   TODAY,
   totals,
+  useData,
   type Activity,
 } from "@/lib/mock";
 
@@ -50,6 +51,8 @@ const LATE_DAYS = 90;
  * «بيع» مش هنا لأنه في نص التنقل تحت، بلمسة واحدة من أي شاشة.
  */
 export default function Dashboard() {
+  // بتترسم تاني لو اليوم اتغيّر والشاشة مفتوحة
+  useData();
   const day = todaySummary();
   const now = new Date(TODAY);
 

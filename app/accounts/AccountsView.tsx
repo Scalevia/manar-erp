@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, Plus, Search, X } from "lucide-react";
 import { Card, Empty, Money, Page, PageHeader, TotalParts } from "@/components/ui";
 import { daysSince, normalizeArabic, since } from "@/lib/format";
-import { ofKind, TODAY, totals, type Party, type PartyKind } from "@/lib/mock";
+import { ofKind, TODAY, totals, useData, type Party, type PartyKind } from "@/lib/mock";
 
 /**
  * الحسابات (الـ spec، قسم 10): التبويبات **بالناس** — عملائي ومصانعي وسلفي —
@@ -34,6 +34,7 @@ function sortRows(rows: Party[], tab: Tab) {
 }
 
 export default function AccountsView({ initialTab }: { initialTab: Tab }) {
+  useData();
   const [tab, setTab] = useState<Tab>(initialTab);
   const [q, setQ] = useState("");
 

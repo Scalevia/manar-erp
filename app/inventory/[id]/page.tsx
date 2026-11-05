@@ -4,13 +4,14 @@ import { use } from "react";
 import { notFound } from "next/navigation";
 import { Card, Money, Num, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { dozens, shortDate, since } from "@/lib/format";
-import { avgCost, byId, isStale, modelById, stockOf, TODAY, valueOf } from "@/lib/mock";
+import { avgCost, byId, isStale, modelById, stockOf, TODAY, useData, valueOf } from "@/lib/mock";
 
 export default function ModelPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  useData();
   const { id } = use(params);
   const m = modelById(id);
   if (!m) notFound();

@@ -6,9 +6,10 @@ import Link from "next/link";
 import { Hash, Plus, Search, Type, X } from "lucide-react";
 import { Badge, Card, Empty, InShop, Money, Num, Page, PageHeader } from "@/components/ui";
 import { since } from "@/lib/format";
-import { idleSince, isStale, models, searchModels, stockOf, TODAY, totals, valueOf } from "@/lib/mock";
+import { idleSince, isStale, models, searchModels, stockOf, TODAY, totals, useData, valueOf } from "@/lib/mock";
 
 export default function InventoryPage() {
+  useData();
   const [q, setQ] = useState("");
   // كيبورد الأرقام هو الأساس — والهدوم اللي من غير كود بتتدوّر باسمها
   const [byName, setByName] = useState(false);

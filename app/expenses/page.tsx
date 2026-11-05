@@ -9,6 +9,7 @@ import {
   categoryById,
   expenses,
   TODAY,
+  useData,
   type Expense,
 } from "@/lib/mock";
 
@@ -23,6 +24,7 @@ function dayLabel(iso: string) {
 const isPersonal = (e: Expense) => !!categoryById(e.categoryId)?.personal;
 
 export default function ExpensesPage() {
+  useData();
   const month = TODAY.slice(0, 7);
   const thisMonth = expenses.filter((e) => e.date.startsWith(month));
 

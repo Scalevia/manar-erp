@@ -1,15 +1,34 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Undo2 } from "lucide-react";
 import { ModelInput, ModelModeToggle, ModelSuggestions, newModelText, useModelField } from "@/components/ModelField";
 import { Card, Empty, ModelTag, Money, Num, Page, PageHeader } from "@/components/ui";
 import { p } from "@/lib/format";
-import { actions } from "@/lib/mock";
+import { actions, STOCK_DRAFT_KEY } from "@/lib/mock";
 
 /** الموديل بكوده أو باسمه — فيه بضاعة من غير كود */
 type Entry = { id: number; code?: number; name?: string; pieces: number; cost: number };
+
+/** السطور بتتحفظ على الجهاز أول بأول لحد الاعتماد — الموبايل ممكن يقفل في نص الجرد */
+function loadDraft(): Entry[] {
+  try {
+    const rows = JSON.parse(localStorage.getItem(STOCK_DRAFT_KEY) ?? "[]");
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveDraft(rows: Entry[]) {
+  try {
+    if (rows.length) localStorage.setItem(STOCK_DRAFT_KEY, JSON.stringify(rows));
+    else localStorage.removeItem(STOCK_DRAFT_KEY);
+  } catch {
+    // مساحة المتصفح أو وضع التصفح الخفي — السطور تفضل في الشاشة بس
+  }
+}
 
 /**
  * الإدخال السريع (الـ spec، قسم 11).
@@ -20,12 +39,15 @@ type Entry = { id: number; code?: number; name?: string; pieces: number; cost: n
  * تكرار الكود **مسموح ومتوقع** — نفس الموديل ممكن يكون بتكلفتين من أمرين تصنيع.
  */
 export default function StockEntryPage() {
-  const [rows, setRows] = useState<Entry[]>([]);
+  const [rows, setRows] = useState<Entry[]>(loadDraft);
+  useEffect(() => saveDraft(rows), [rows]);
 
   const [field, modelRef] = useModelField({ allowNew: true });
   const [pieces, setPieces] = useState("");
   const [cost, setCost] = useState("");
 
+  // اتعتمد خلاص — دوسة تانية قبل ما الصفحة تتقفل متسجلش الجرد مرتين
+  const committed = useRef(false);
   const piecesRef = useRef<HTMLInputElement>(null);
   const costRef = useRef<HTMLInputElement>(null);
 
@@ -150,7 +172,13 @@ export default function StockEntryPage() {
         {/* الاعتماد بيقيّد السطور كلها مرة واحدة — دفعة لكل سطر بتكلفته */}
         <Link
           href="/inventory"
-          onClick={() => actions.openingStock(rows.map((r) => ({ code: r.code, name: r.name, qty: r.pieces, unitCost: r.cost })))}
+          onClick={() => {
+            if (committed.current || rows.length === 0) return;
+            committed.current = true;
+            actions.openingStock(rows.map((r) => ({ code: r.code, name: r.name, qty: r.pieces, unitCost: r.cost })));
+            setRows([]);
+            saveDraft([]);
+          }}
           className={`press mt-4 block ${rows.length === 0 ? "pointer-events-none opacity-40" : ""}`}
         >
           <div className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-card py-3.5 text-[15px] font-bold text-ink-soft">

@@ -24,7 +24,8 @@ export default function LoanForm({ initialDir }: { initialDir: Dir }) {
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState(cashAccounts[0].id);
   const [due, setDue] = useState("");
-  const [saved, setSaved] = useState(false);
+  // الطرف زي ما كان وقت الحفظ — بعده الشخص الجديد بيبقى في القايمة، فـ target بيتحسب تاني غلط
+  const [saved, setSaved] = useState<Party | null>(null);
 
   const isIn = dir === "in";
   const people = ofKind("person");
@@ -42,12 +43,12 @@ export default function LoanForm({ initialDir }: { initialDir: Dir }) {
       : null
     : person;
 
-  const before = target?.balance ?? 0;
+  const before = (saved ?? target)?.balance ?? 0;
   const after = before + (isIn ? -amountP : amountP);
   const short = !isIn && amountP > account.balance;
   const ready = !!target && amountP > 0;
 
-  if (saved && target) {
+  if (saved) {
     return (
       <>
         <PageHeader title="اتحفظت" />
@@ -57,7 +58,7 @@ export default function LoanForm({ initialDir }: { initialDir: Dir }) {
               <Check size={28} strokeWidth={3} />
             </div>
             <div className="mt-4 text-[15px] text-ink-soft">
-              {isIn ? `استلفت من ${target.name}` : `سلّفت ${target.name}`}
+              {isIn ? `استلفت من ${saved.name}` : `سلّفت ${saved.name}`}
             </div>
             <div className="mt-1 flex items-baseline justify-center gap-1.5">
               <Money value={amountP} className={`text-[30px] font-bold ${isIn ? "text-pos" : "text-neg"}`} />
@@ -291,7 +292,7 @@ export default function LoanForm({ initialDir }: { initialDir: Dir }) {
           disabled={!ready}
           onClick={() => {
             actions.loan({ person: target!, dir, amount: amountP, accountId, dueDate: due });
-            setSaved(true);
+            setSaved(target);
           }}
           className="press w-full rounded-2xl bg-brand py-4 text-[16px] font-bold text-brand-ink disabled:opacity-35"
         >

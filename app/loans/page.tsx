@@ -4,9 +4,10 @@ import Link from "next/link";
 import { ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 import { Badge, Card, Empty, Money, Page, PageHeader, SectionTitle } from "@/components/ui";
 import { daysSince, shortDate } from "@/lib/format";
-import { ofKind, TODAY, type Party } from "@/lib/mock";
+import { ofKind, TODAY, useData, type Party } from "@/lib/mock";
 
 export default function LoansPage() {
+  useData();
   const people = ofKind("person");
   const borrowed = people.filter((x) => x.balance < 0);
   const lent = people.filter((x) => x.balance > 0);

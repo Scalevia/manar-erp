@@ -16,10 +16,12 @@ import {
   staleModels,
   stockOf,
   TODAY,
+  useData,
   valueOf,
 } from "@/lib/mock";
 
 export default function ReportsPage() {
+  useData();
   const profits = [...modelStats].sort((a, b) => profitOf(b) - profitOf(a));
   const stale = staleModels();
 

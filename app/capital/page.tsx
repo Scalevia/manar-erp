@@ -12,6 +12,7 @@ import {
   shopProfit,
   startedAt,
   totals,
+  useData,
   type CapitalPeriod,
 } from "@/lib/mock";
 
@@ -22,6 +23,7 @@ const growthPct = (x: CapitalPeriod) => {
 };
 
 export default function CapitalPage() {
+  useData();
   const [selected, setSelected] = useState<CapitalPeriod["id"]>("1m");
   const [showParts, setShowParts] = useState(false);
 

@@ -18,6 +18,7 @@ import {
   paymentTitle,
   statementOf,
   TODAY,
+  useData,
   type Party,
 } from "@/lib/mock";
 
@@ -32,6 +33,7 @@ export default function StatementPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  useData();
   const { id } = use(params);
   const party = byId(id);
   if (!party) notFound();

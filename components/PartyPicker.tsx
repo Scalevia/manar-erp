@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, UserPlus } from "lucide-react";
 import { Card, Money } from "@/components/ui";
-import { isEgyptMobile } from "@/lib/format";
+import { isEgyptMobile, normalizeArabic } from "@/lib/format";
 import { ofKind, TODAY, type Party } from "@/lib/mock";
 
 /**
@@ -25,7 +25,7 @@ export function PartyPicker({
 
   const clean = name.trim().replace(/\s+/g, " ");
   // الاسم موجود قبل كده: تنبيه مش منع — يمكن يكون فعلاً حد تاني بنفس الاسم
-  const existing = clean ? list.find((x) => x.name === clean) : undefined;
+  const existing = clean ? list.find((x) => normalizeArabic(x.name) === normalizeArabic(clean)) : undefined;
 
   function report(n: string, ph: string) {
     const c = n.trim().replace(/\s+/g, " ");

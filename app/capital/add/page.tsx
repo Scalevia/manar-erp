@@ -36,7 +36,8 @@ export default function AddCapitalPage() {
             </div>
             <div className="mt-2 text-[13px] text-ink-mute">دخلت {account.name}</div>
             <div className="mt-5 border-t border-line-soft pt-4 text-[14px]">
-              رأس مالك بقى <Money value={totals.capital + amountP} className="font-bold" /> ج
+              {/* بعد الحفظ: الإجمالي فيه المبلغ خلاص */}
+              رأس مالك بقى <Money value={totals.capital} className="font-bold" /> ج
             </div>
           </Card>
 
