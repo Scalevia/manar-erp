@@ -45,26 +45,31 @@ export default function ModelPage({
           <>
             <SectionTitle>في المحل</SectionTitle>
             <Card className="mb-4 overflow-hidden">
-              {m.batches.map((b, i) => (
-                <div key={`${b.receivedAt}-${b.sourceId}`}>
-                  {i > 0 && <div className="ms-4 border-t border-line-soft" />}
-                  <div className="flex items-center gap-3 px-4 py-3.5">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[15px]">
-                        <Num value={b.pieces} className="font-semibold" /> قطعة
+              {m.batches.map((b, i) => {
+                // الدفعة جت منين: شراية من مورد، أو مرتجع من عميل، أو جرد التهيئة (من غير طرف)
+                const from = byId(b.sourceId);
+                return (
+                  <div key={`${b.receivedAt}-${b.sourceId}-${i}`}>
+                    {i > 0 && <div className="ms-4 border-t border-line-soft" />}
+                    <div className="flex items-center gap-3 px-4 py-3.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[15px]">
+                          <Num value={b.pieces} className="font-semibold" /> قطعة
+                        </div>
+                        <div className="mt-0.5 truncate text-[12px] text-ink-mute">
+                          {!from ? "جرد التهيئة" : from.kind === "customer" ? "مرتجع" : "شراء"}{" "}
+                          <span className="num">{shortDate(b.receivedAt)}</span>
+                          {from && <> · {from.name}</>}
+                        </div>
                       </div>
-                      <div className="mt-0.5 truncate text-[12px] text-ink-mute">
-                        {/* كل دفعة شراية من مورد — مصنع أو تاجر (بيع وشراء، الـ spec قسم 5) */}
-                        شراء <span className="num">{shortDate(b.receivedAt)}</span> · {byId(b.sourceId)?.name}
+                      <div className="shrink-0 text-end">
+                        <Money value={b.unitCost} decimals className="text-[15px] font-bold" />
+                        <div className="text-[11px] text-ink-mute">تكلفة القطعة</div>
                       </div>
-                    </div>
-                    <div className="shrink-0 text-end">
-                      <Money value={b.unitCost} decimals className="text-[15px] font-bold" />
-                      <div className="text-[11px] text-ink-mute">تكلفة القطعة</div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </Card>
           </>
         )}

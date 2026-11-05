@@ -106,7 +106,7 @@ export default function ReportsPage() {
                     <div className="shrink-0 text-end">
                       <Money
                         value={profitOf(s)}
-                        className="text-[15px] font-bold text-pos"
+                        className={`text-[15px] font-bold ${profitOf(s) < 0 ? "text-neg" : "text-pos"}`}
                       />
                       <div className="num text-[11px] text-ink-mute">
                         {pct(marginOf(s))}

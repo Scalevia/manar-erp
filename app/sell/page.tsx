@@ -504,6 +504,11 @@ function PickCustomer({ onPick }: { onPick: (p: Party) => void }) {
                     <span className="text-[13px] text-ink-mute">
                       عليه <Money value={c.balance} className="font-semibold text-pos" />
                     </span>
+                  ) : c.balance < 0 ? (
+                    // دفع زيادة قبل كده — ليه فلوس عندك، لازم يبان قبل الفاتورة
+                    <span className="text-[13px] text-ink-mute">
+                      ليه <Money value={-c.balance} className="font-semibold text-neg" />
+                    </span>
                   ) : (
                     <Badge tone="neutral">مفيش حساب</Badge>
                   )}
